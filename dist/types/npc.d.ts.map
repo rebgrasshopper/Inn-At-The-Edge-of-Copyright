@@ -1,0 +1,1 @@
+{"version":3,"file":"npc.d.ts","sourceRoot":"","sources":["../../src/types/npc.ts"],"names":[],"mappings":"AAAA,MAAM,MAAM,GAAG,GAAG;IAChB,EAAE,EAAE,MAAM,CAAC;IACX,IAAI,EAAE,MAAM,CAAC;IACb,WAAW,EAAE,MAAM,CAAC;IACpB,MAAM,EAAE,MAAM,GAAG,IAAI,CAAC;CACvB,CAAC"}

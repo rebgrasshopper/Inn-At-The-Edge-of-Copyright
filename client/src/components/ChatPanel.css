@@ -1,0 +1,26 @@
+.chat-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Scrollbar styling */
+.chat-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-panel::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.chat-panel::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+
+.chat-panel::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}

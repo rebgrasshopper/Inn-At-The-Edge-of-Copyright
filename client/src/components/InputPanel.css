@@ -1,0 +1,53 @@
+.input-panel {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #1f2937;
+  border-top: 1px solid #374151;
+}
+
+.command-input {
+  flex: 1;
+  padding: 10px 14px;
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 14px;
+  color: #e5e5e5;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.command-input:focus {
+  border-color: #6366f1;
+}
+
+.command-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.command-input::placeholder {
+  color: #6b7280;
+}
+
+.submit-button {
+  padding: 10px 16px;
+  font-size: 16px;
+  color: #e5e5e5;
+  background: #4f46e5;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: #6366f1;
+}
+
+.submit-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
