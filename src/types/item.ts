@@ -27,7 +27,8 @@ export type Item = {
   description: string;
   category?: string;
   isBulk?: boolean;
-  equipSlot?: EquipmentSlot;
+  /** Valid slots this item can be equipped to (first is default) */
+  equipSlots?: EquipmentSlot[];
   weaponDamage?: string; // e.g., "1d6", "2d4+1"
   weaponType?: string; // e.g., "slashing", "piercing", "bludgeoning"
   magicProperties?: string[]; // e.g., ["poison", "flaming"]

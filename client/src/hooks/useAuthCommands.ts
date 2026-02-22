@@ -49,7 +49,7 @@ type UseAuthCommandsReturn = {
  * @returns Object with handleCommand, showWelcome, inputMode, and inputPlaceholder
  */
 export function useAuthCommands(): UseAuthCommandsReturn {
-  const { token, authState, setAuth, setPlayer } = useAuth();
+  const { token, authState, isLoading, setAuth, setPlayer } = useAuth();
   const { dispatch } = useGame();
   const [flowState, setFlowState] = useState<AuthFlowState>({ type: "none" });
 
@@ -60,10 +60,14 @@ export function useAuthCommands(): UseAuthCommandsReturn {
     [dispatch],
   );
 
-  // When authState changes to needs_character, prompt for character name
+  // When authState changes to needs_character (and not loading), prompt for character name
   // Use setTimeout to avoid synchronous setState warning in effect
   useEffect(() => {
-    if (authState === "needs_character" && flowState.type === "none") {
+    if (
+      !isLoading &&
+      authState === "needs_character" &&
+      flowState.type === "none"
+    ) {
       const timer = setTimeout(() => {
         setFlowState({ type: "character_name" });
         addMessage("system", "");
@@ -71,7 +75,7 @@ export function useAuthCommands(): UseAuthCommandsReturn {
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [authState, flowState.type, addMessage]);
+  }, [isLoading, authState, flowState.type, addMessage]);
 
   const showWelcome = useCallback(() => {
     addMessage("system", "═══════════════════════════════════════════");

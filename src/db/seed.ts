@@ -83,7 +83,7 @@ async function seed() {
   // ============================================
   console.log("Creating items...");
 
-  const itemsData = [
+  const itemsData: (typeof schema.items.$inferInsert)[] = [
     {
       id: "item-rusty-sword",
       name: "rusty sword",
@@ -91,6 +91,9 @@ async function seed() {
       description:
         "A battered old sword, its blade pitted with rust. Despite its poor condition, it still has a sharp edge.",
       category: "weapon",
+      equipSlots: ["mainHand", "offHand"],
+      weaponDamage: "1d6",
+      weaponType: "slashing",
       strEffect: 2,
       isBulk: false,
     },
@@ -101,6 +104,7 @@ async function seed() {
       description:
         "A simple cap made of boiled leather. It offers modest protection.",
       category: "armor",
+      equipSlots: ["head"],
       conEffect: 1,
       isBulk: false,
     },
@@ -121,6 +125,7 @@ async function seed() {
       description:
         "A wooden torch wrapped in oil-soaked rags. It provides light in dark places.",
       category: "tool",
+      equipSlots: ["mainHand", "offHand"],
       isBulk: false,
     },
     {
@@ -142,6 +147,33 @@ async function seed() {
       hpEffect: 2,
       isBulk: false,
     },
+    {
+      id: "item-circus-flyer",
+      name: "circus flyer",
+      pluralName: "circus flyers",
+      description:
+        "A colorful paper flyer advertising 'The Magnificent Traveling Circus of Wonders!' It promises acrobats, fire-breathers, and a mysterious fortune teller. The show dates have long since passed.",
+      category: "junk",
+      isBulk: false,
+    },
+    {
+      id: "item-copper-coin",
+      name: "copper coin",
+      pluralName: "copper coins",
+      description:
+        "A tarnished copper coin. It's not worth much, but every bit counts.",
+      category: "currency",
+      isBulk: true,
+    },
+    {
+      id: "item-small-rock",
+      name: "small rock",
+      pluralName: "small rocks",
+      description:
+        "A smooth, palm-sized rock. Good for skipping across water or throwing at things.",
+      category: "junk",
+      isBulk: true,
+    },
   ];
 
   for (const item of itemsData) {
@@ -160,6 +192,24 @@ async function seed() {
       roomId: townSquareId,
       itemId: "item-gold-coin",
       quantity: 3,
+    },
+    {
+      id: randomUUID(),
+      roomId: townSquareId,
+      itemId: "item-circus-flyer",
+      quantity: 1,
+    },
+    {
+      id: randomUUID(),
+      roomId: townSquareId,
+      itemId: "item-copper-coin",
+      quantity: 1,
+    },
+    {
+      id: randomUUID(),
+      roomId: townSquareId,
+      itemId: "item-small-rock",
+      quantity: 8,
     },
     {
       id: randomUUID(),

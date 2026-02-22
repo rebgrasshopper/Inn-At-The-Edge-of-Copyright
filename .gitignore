@@ -9,9 +9,12 @@ package-lock.json
 
 # testing
 /coverage
+test.db
 
 # production
 /build
+/dist
+*.db
 
 # misc
 .DS_Store

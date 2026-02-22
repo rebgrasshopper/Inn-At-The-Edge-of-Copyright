@@ -5,6 +5,7 @@ import { players } from "../db/schema.js";
 import type { Player } from "../types/player.js";
 import { validateCharacterName } from "../utils/characterValidation.js";
 import { calculateStartingHp, generateStats } from "../utils/stats.js";
+import { emptyEquipment, toPlayer } from "./CharacterService.utils.js";
 
 // Starting room for new characters
 export const STARTING_ROOM_ID = "room-town-square";
@@ -39,6 +40,12 @@ export async function createCharacter(
   userId: string,
   name: string,
 ): Promise<CharacterCreationResult> {
+  // Check if user already has a character (one character per user for MVP)
+  const existingCharacters = await getCharactersByUserId(userId);
+  if (existingCharacters.length > 0) {
+    return { success: false, error: "You already have a character" };
+  }
+
   // Validate the name format
   const validation = validateCharacterName(name);
   if (!validation.valid) {
@@ -90,6 +97,7 @@ export async function createCharacter(
       xp: 0,
       level: 1,
       isOnline: false,
+      equipment: emptyEquipment(),
     };
 
     return { success: true, player };
@@ -108,25 +116,7 @@ export async function getCharactersByUserId(userId: string): Promise<Player[]> {
     .from(players)
     .where(eq(players.userId, userId));
 
-  return records.map((record) => ({
-    id: record.id,
-    userId: record.userId,
-    name: record.name,
-    currentRoomId: record.currentRoomId,
-    stats: {
-      str: record.str,
-      dex: record.dex,
-      con: record.con,
-      int: record.int,
-      wis: record.wis,
-      cha: record.cha,
-    },
-    currentHp: record.currentHp,
-    maxHp: record.maxHp,
-    xp: record.xp,
-    level: record.level,
-    isOnline: record.isOnline,
-  }));
+  return records.map(toPlayer);
 }
 
 /**
@@ -143,23 +133,5 @@ export async function getCharacterById(
 
   if (!record) return null;
 
-  return {
-    id: record.id,
-    userId: record.userId,
-    name: record.name,
-    currentRoomId: record.currentRoomId,
-    stats: {
-      str: record.str,
-      dex: record.dex,
-      con: record.con,
-      int: record.int,
-      wis: record.wis,
-      cha: record.cha,
-    },
-    currentHp: record.currentHp,
-    maxHp: record.maxHp,
-    xp: record.xp,
-    level: record.level,
-    isOnline: record.isOnline,
-  };
+  return toPlayer(record);
 }

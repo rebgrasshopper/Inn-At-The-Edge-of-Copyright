@@ -6,9 +6,22 @@ import {
   containers,
   items,
   playerInventory,
+  players,
   roomInventory,
 } from "../db/schema.js";
-import type { Item, ItemStack } from "../types/item.js";
+import type { EquipmentSlot, Item, ItemStack } from "../types/item.js";
+import {
+  EQUIPMENT_SLOT_TO_FIELD,
+  type PlayerEquipment,
+} from "../types/player.js";
+import {
+  generateStatsDescription,
+  getItemDisplayName,
+  matchesPlural,
+  resolveQuantity,
+  toItem,
+  type ItemFindResult,
+} from "./ItemService.utils.js";
 
 export type ItemResult = {
   success: boolean;
@@ -23,39 +36,12 @@ export type ExamineContext = {
 };
 
 /**
- * Convert a database item row to an Item type
- */
-function toItem(row: typeof items.$inferSelect): Item {
-  return {
-    id: row.id,
-    name: row.name,
-    pluralName: row.pluralName ?? undefined,
-    description: row.description,
-    category: row.category ?? undefined,
-    isBulk: row.isBulk ?? false,
-    equipSlot: row.equipSlot ?? undefined,
-    weaponDamage: row.weaponDamage ?? undefined,
-    weaponType: row.weaponType ?? undefined,
-    magicProperties: row.magicProperties ?? undefined,
-    effects: {
-      str: row.strEffect ?? undefined,
-      dex: row.dexEffect ?? undefined,
-      con: row.conEffect ?? undefined,
-      int: row.intEffect ?? undefined,
-      wis: row.wisEffect ?? undefined,
-      cha: row.chaEffect ?? undefined,
-      hp: row.hpEffect ?? undefined,
-    },
-  };
-}
-
-/**
- * Find an item in room inventory by name (exact or prefix match)
+ * Find an item in room inventory by name (exact, prefix, or word match)
  */
 async function findItemInRoom(
   roomId: string,
   itemName: string,
-): Promise<{ item: Item; inventoryId: string; quantity: number } | null> {
+): Promise<ItemFindResult | null> {
   const roomItems = await db
     .select()
     .from(roomInventory)
@@ -75,6 +61,11 @@ async function findItemInRoom(
       item: toItem(exactMatch.items),
       inventoryId: exactMatch.room_inventory.id,
       quantity: exactMatch.room_inventory.quantity,
+      matchedPlural: matchesPlural(
+        nameLower,
+        exactMatch.items.name,
+        exactMatch.items.pluralName,
+      ),
     };
   }
 
@@ -89,6 +80,33 @@ async function findItemInRoom(
       item: toItem(prefixMatch.items),
       inventoryId: prefixMatch.room_inventory.id,
       quantity: prefixMatch.room_inventory.quantity,
+      matchedPlural: matchesPlural(
+        nameLower,
+        prefixMatch.items.name,
+        prefixMatch.items.pluralName,
+      ),
+    };
+  }
+
+  // Try word match (any word in the item name starts with the search term)
+  const wordMatch = roomItems.find((r) => {
+    const words = r.items.name.toLowerCase().split(/\s+/);
+    const pluralWords = r.items.pluralName?.toLowerCase().split(/\s+/) || [];
+    return (
+      words.some((w) => w.startsWith(nameLower)) ||
+      pluralWords.some((w) => w.startsWith(nameLower))
+    );
+  });
+  if (wordMatch) {
+    return {
+      item: toItem(wordMatch.items),
+      inventoryId: wordMatch.room_inventory.id,
+      quantity: wordMatch.room_inventory.quantity,
+      matchedPlural: matchesPlural(
+        nameLower,
+        wordMatch.items.name,
+        wordMatch.items.pluralName,
+      ),
     };
   }
 
@@ -96,12 +114,12 @@ async function findItemInRoom(
 }
 
 /**
- * Find an item in player inventory by name (exact or prefix match)
+ * Find an item in player inventory by name (exact, prefix, or word match)
  */
 async function findItemInPlayerInventory(
   playerId: string,
   itemName: string,
-): Promise<{ item: Item; inventoryId: string; quantity: number } | null> {
+): Promise<ItemFindResult | null> {
   const playerItems = await db
     .select()
     .from(playerInventory)
@@ -121,6 +139,11 @@ async function findItemInPlayerInventory(
       item: toItem(exactMatch.items),
       inventoryId: exactMatch.player_inventory.id,
       quantity: exactMatch.player_inventory.quantity,
+      matchedPlural: matchesPlural(
+        nameLower,
+        exactMatch.items.name,
+        exactMatch.items.pluralName,
+      ),
     };
   }
 
@@ -135,20 +158,37 @@ async function findItemInPlayerInventory(
       item: toItem(prefixMatch.items),
       inventoryId: prefixMatch.player_inventory.id,
       quantity: prefixMatch.player_inventory.quantity,
+      matchedPlural: matchesPlural(
+        nameLower,
+        prefixMatch.items.name,
+        prefixMatch.items.pluralName,
+      ),
+    };
+  }
+
+  // Try word match (any word in the item name starts with the search term)
+  const wordMatch = playerItems.find((r) => {
+    const words = r.items.name.toLowerCase().split(/\s+/);
+    const pluralWords = r.items.pluralName?.toLowerCase().split(/\s+/) || [];
+    return (
+      words.some((w) => w.startsWith(nameLower)) ||
+      pluralWords.some((w) => w.startsWith(nameLower))
+    );
+  });
+  if (wordMatch) {
+    return {
+      item: toItem(wordMatch.items),
+      inventoryId: wordMatch.player_inventory.id,
+      quantity: wordMatch.player_inventory.quantity,
+      matchedPlural: matchesPlural(
+        nameLower,
+        wordMatch.items.name,
+        wordMatch.items.pluralName,
+      ),
     };
   }
 
   return null;
-}
-
-/**
- * Get the display name for an item based on quantity
- */
-function getItemDisplayName(item: Item, quantity: number): string {
-  if (quantity === 1) {
-    return item.name;
-  }
-  return item.pluralName || `${item.name}s`;
 }
 
 /**
@@ -171,25 +211,30 @@ export async function getItem(
     return { success: false, message: `You don't see any "${itemName}" here.` };
   }
 
-  const { item, inventoryId, quantity: availableQuantity } = found;
+  const {
+    item,
+    inventoryId,
+    quantity: availableQuantity,
+    matchedPlural,
+  } = found;
 
-  // Determine how many to take
-  let quantityToTake: number;
-  if (requestedQuantity === "all") {
-    quantityToTake = availableQuantity;
-  } else if (requestedQuantity !== undefined) {
-    if (requestedQuantity > availableQuantity) {
-      const displayName = getItemDisplayName(item, availableQuantity);
-      return {
-        success: false,
-        message: `There are only ${availableQuantity} ${displayName} here.`,
-      };
-    }
-    quantityToTake = requestedQuantity;
-  } else {
-    // Default: bulk items take all, non-bulk take 1
-    quantityToTake = item.isBulk ? availableQuantity : 1;
+  // Validate requested quantity if explicit
+  if (
+    typeof requestedQuantity === "number" &&
+    requestedQuantity > availableQuantity
+  ) {
+    const displayName = getItemDisplayName(item, availableQuantity);
+    return {
+      success: false,
+      message: `There are only ${availableQuantity} ${displayName} here.`,
+    };
   }
+
+  const quantityToTake = resolveQuantity(
+    requestedQuantity,
+    availableQuantity,
+    matchedPlural,
+  );
 
   // Check if player already has this item
   const existingInventory = await db
@@ -258,25 +303,30 @@ export async function dropItem(
     return { success: false, message: `You don't have any "${itemName}".` };
   }
 
-  const { item, inventoryId, quantity: availableQuantity } = found;
+  const {
+    item,
+    inventoryId,
+    quantity: availableQuantity,
+    matchedPlural,
+  } = found;
 
-  // Determine how many to drop
-  let quantityToDrop: number;
-  if (requestedQuantity === "all") {
-    quantityToDrop = availableQuantity;
-  } else if (requestedQuantity !== undefined) {
-    if (requestedQuantity > availableQuantity) {
-      const displayName = getItemDisplayName(item, availableQuantity);
-      return {
-        success: false,
-        message: `You only have ${availableQuantity} ${displayName}.`,
-      };
-    }
-    quantityToDrop = requestedQuantity;
-  } else {
-    // Default: bulk items drop all, non-bulk drop 1
-    quantityToDrop = item.isBulk ? availableQuantity : 1;
+  // Validate requested quantity if explicit
+  if (
+    typeof requestedQuantity === "number" &&
+    requestedQuantity > availableQuantity
+  ) {
+    const displayName = getItemDisplayName(item, availableQuantity);
+    return {
+      success: false,
+      message: `You only have ${availableQuantity} ${displayName}.`,
+    };
   }
+
+  const quantityToDrop = resolveQuantity(
+    requestedQuantity,
+    availableQuantity,
+    matchedPlural,
+  );
 
   // Check if room already has this item
   const existingRoomInventory = await db
@@ -323,12 +373,12 @@ export async function dropItem(
 }
 
 /**
- * Find an item in an open container by name
+ * Find an item in an open container by name (exact, prefix, or word match)
  */
 async function findItemInContainer(
   containerId: string,
   itemName: string,
-): Promise<{ item: Item; inventoryId: string; quantity: number } | null> {
+): Promise<ItemFindResult | null> {
   const containerItems = await db
     .select()
     .from(containerInventory)
@@ -348,6 +398,11 @@ async function findItemInContainer(
       item: toItem(exactMatch.items),
       inventoryId: exactMatch.container_inventory.id,
       quantity: exactMatch.container_inventory.quantity,
+      matchedPlural: matchesPlural(
+        nameLower,
+        exactMatch.items.name,
+        exactMatch.items.pluralName,
+      ),
     };
   }
 
@@ -362,6 +417,33 @@ async function findItemInContainer(
       item: toItem(prefixMatch.items),
       inventoryId: prefixMatch.container_inventory.id,
       quantity: prefixMatch.container_inventory.quantity,
+      matchedPlural: matchesPlural(
+        nameLower,
+        prefixMatch.items.name,
+        prefixMatch.items.pluralName,
+      ),
+    };
+  }
+
+  // Try word match (any word in the item name starts with the search term)
+  const wordMatch = containerItems.find((r) => {
+    const words = r.items.name.toLowerCase().split(/\s+/);
+    const pluralWords = r.items.pluralName?.toLowerCase().split(/\s+/) || [];
+    return (
+      words.some((w) => w.startsWith(nameLower)) ||
+      pluralWords.some((w) => w.startsWith(nameLower))
+    );
+  });
+  if (wordMatch) {
+    return {
+      item: toItem(wordMatch.items),
+      inventoryId: wordMatch.container_inventory.id,
+      quantity: wordMatch.container_inventory.quantity,
+      matchedPlural: matchesPlural(
+        nameLower,
+        wordMatch.items.name,
+        wordMatch.items.pluralName,
+      ),
     };
   }
 
@@ -382,50 +464,6 @@ async function getOpenContainersInRoom(roomId: string) {
         eq(containers.isHidden, false),
       ),
     );
-}
-
-/**
- * Generate auto-description of item stats for private info
- */
-function generateStatsDescription(item: Item): string {
-  const parts: string[] = [];
-
-  // Stat effects
-  const statNames: Record<string, string> = {
-    str: "STR",
-    dex: "DEX",
-    con: "CON",
-    int: "INT",
-    wis: "WIS",
-    cha: "CHA",
-    hp: "HP",
-  };
-
-  for (const [key, label] of Object.entries(statNames)) {
-    const value = item.effects[key as keyof typeof item.effects];
-    if (value && value !== 0) {
-      parts.push(`${value > 0 ? "+" : ""}${value} ${label}`);
-    }
-  }
-
-  // Weapon damage
-  if (item.weaponDamage) {
-    parts.push(
-      `Damage: ${item.weaponDamage}${item.weaponType ? ` (${item.weaponType})` : ""}`,
-    );
-  }
-
-  // Magic properties
-  if (item.magicProperties && item.magicProperties.length > 0) {
-    parts.push(`Magic: ${item.magicProperties.join(", ")}`);
-  }
-
-  // Equipment slot
-  if (item.equipSlot) {
-    parts.push(`Slot: ${item.equipSlot}`);
-  }
-
-  return parts.length > 0 ? `[${parts.join(", ")}]` : "";
 }
 
 /**
@@ -507,21 +545,33 @@ export async function examineItem(
 }
 
 /**
- * Get a player's inventory
+ * Get a player's inventory (excluding equipped items)
  * @param playerId - The player whose inventory to retrieve
  * @returns Array of ItemStacks
  */
 export async function getInventory(playerId: string): Promise<ItemStack[]> {
+  // Get equipped item IDs to exclude
+  const equipment = await getPlayerEquipment(playerId);
+  const equippedItemIds = new Set<string>();
+  if (equipment) {
+    for (const itemId of Object.values(equipment)) {
+      if (itemId) equippedItemIds.add(itemId);
+    }
+  }
+
   const inventoryRows = await db
     .select()
     .from(playerInventory)
     .innerJoin(items, eq(playerInventory.itemId, items.id))
     .where(eq(playerInventory.playerId, playerId));
 
-  return inventoryRows.map((row) => ({
-    item: toItem(row.items),
-    quantity: row.player_inventory.quantity,
-  }));
+  // Filter out equipped items
+  return inventoryRows
+    .filter((row) => !equippedItemIds.has(row.items.id))
+    .map((row) => ({
+      item: toItem(row.items),
+      quantity: row.player_inventory.quantity,
+    }));
 }
 
 /**
@@ -573,24 +623,30 @@ export async function getItemFromContainer(
     };
   }
 
-  const { item, inventoryId, quantity: availableQuantity } = found;
+  const {
+    item,
+    inventoryId,
+    quantity: availableQuantity,
+    matchedPlural,
+  } = found;
 
-  // Determine how many to take
-  let quantityToTake: number;
-  if (requestedQuantity === "all") {
-    quantityToTake = availableQuantity;
-  } else if (requestedQuantity !== undefined) {
-    if (requestedQuantity > availableQuantity) {
-      const displayName = getItemDisplayName(item, availableQuantity);
-      return {
-        success: false,
-        message: `There are only ${availableQuantity} ${displayName} in the ${container.name}.`,
-      };
-    }
-    quantityToTake = requestedQuantity;
-  } else {
-    quantityToTake = item.isBulk ? availableQuantity : 1;
+  // Validate requested quantity if explicit
+  if (
+    typeof requestedQuantity === "number" &&
+    requestedQuantity > availableQuantity
+  ) {
+    const displayName = getItemDisplayName(item, availableQuantity);
+    return {
+      success: false,
+      message: `There are only ${availableQuantity} ${displayName} in the ${container.name}.`,
+    };
   }
+
+  const quantityToTake = resolveQuantity(
+    requestedQuantity,
+    availableQuantity,
+    matchedPlural,
+  );
 
   // Check if player already has this item
   const existingInventory = await db
@@ -688,24 +744,30 @@ export async function giveItem(
     return { success: false, message: `You don't have any "${itemName}".` };
   }
 
-  const { item, inventoryId, quantity: availableQuantity } = found;
+  const {
+    item,
+    inventoryId,
+    quantity: availableQuantity,
+    matchedPlural,
+  } = found;
 
-  // Determine how many to give
-  let quantityToGive: number;
-  if (requestedQuantity === "all") {
-    quantityToGive = availableQuantity;
-  } else if (requestedQuantity !== undefined) {
-    if (requestedQuantity > availableQuantity) {
-      const displayName = getItemDisplayName(item, availableQuantity);
-      return {
-        success: false,
-        message: `You only have ${availableQuantity} ${displayName}.`,
-      };
-    }
-    quantityToGive = requestedQuantity;
-  } else {
-    quantityToGive = item.isBulk ? availableQuantity : 1;
+  // Validate requested quantity if explicit
+  if (
+    typeof requestedQuantity === "number" &&
+    requestedQuantity > availableQuantity
+  ) {
+    const displayName = getItemDisplayName(item, availableQuantity);
+    return {
+      success: false,
+      message: `You only have ${availableQuantity} ${displayName}.`,
+    };
   }
+
+  const quantityToGive = resolveQuantity(
+    requestedQuantity,
+    availableQuantity,
+    matchedPlural,
+  );
 
   // Check if target already has this item
   const existingTargetInventory = await db
@@ -752,4 +814,325 @@ export async function giveItem(
       : `You give ${quantityToGive} ${displayName} to ${targetPlayer.name}.`;
 
   return { success: true, item, quantity: quantityToGive, message };
+}
+
+/** Maps slot names to database column names */
+const SLOT_TO_DB_COLUMN: Record<keyof PlayerEquipment, string> = {
+  head: "wornHead",
+  torso: "wornTorso",
+  body: "wornBody",
+  legs: "wornLegs",
+  hands: "wornHands",
+  feet: "wornFeet",
+  mainHand: "wornMainHand",
+  offHand: "wornOffHand",
+  neck: "wornNeck",
+  ring1: "wornRing1",
+  ring2: "wornRing2",
+};
+
+/** Slot aliases for user input */
+const SLOT_ALIASES: Record<string, EquipmentSlot | "ring1" | "ring2"> = {
+  head: "head",
+  helmet: "head",
+  hat: "head",
+  torso: "torso",
+  chest: "torso",
+  shirt: "torso",
+  body: "body",
+  armor: "body",
+  legs: "legs",
+  pants: "legs",
+  leggings: "legs",
+  hands: "hands",
+  gloves: "hands",
+  gauntlets: "hands",
+  feet: "feet",
+  boots: "feet",
+  shoes: "feet",
+  mainhand: "mainHand",
+  main: "mainHand",
+  weapon: "mainHand",
+  offhand: "offHand",
+  off: "offHand",
+  shield: "offHand",
+  neck: "neck",
+  necklace: "neck",
+  amulet: "neck",
+  ring: "ring",
+  ring1: "ring1",
+  ring2: "ring2",
+};
+
+/**
+ * Parse a slot name from user input.
+ * @param input - User-provided slot name
+ * @returns The canonical slot name or null if invalid
+ */
+function parseSlot(input: string): keyof PlayerEquipment | null {
+  const normalized = input.toLowerCase().replace(/[\s-_]/g, "");
+  const slot = SLOT_ALIASES[normalized];
+  if (!slot) return null;
+  return EQUIPMENT_SLOT_TO_FIELD[slot];
+}
+
+/**
+ * Get the current equipment for a player.
+ * @param playerId - The player's ID
+ * @returns PlayerEquipment object or null if player not found
+ */
+async function getPlayerEquipment(
+  playerId: string,
+): Promise<PlayerEquipment | null> {
+  const player = db
+    .select()
+    .from(players)
+    .where(eq(players.id, playerId))
+    .get();
+
+  if (!player) return null;
+
+  return {
+    head: player.wornHead,
+    torso: player.wornTorso,
+    body: player.wornBody,
+    legs: player.wornLegs,
+    hands: player.wornHands,
+    feet: player.wornFeet,
+    mainHand: player.wornMainHand,
+    offHand: player.wornOffHand,
+    neck: player.wornNeck,
+    ring1: player.wornRing1,
+    ring2: player.wornRing2,
+  };
+}
+
+/**
+ * Equip an item from the player's inventory.
+ * @param playerId - The player equipping the item
+ * @param itemName - The name of the item to equip
+ * @param targetSlot - Optional specific slot to equip to
+ * @returns ItemResult with success status and message
+ */
+export async function equipItem(
+  playerId: string,
+  itemName: string,
+  targetSlot?: string,
+): Promise<ItemResult> {
+  // Find the item in player's inventory
+  const found = await findItemInPlayerInventory(playerId, itemName);
+  if (!found) {
+    return { success: false, message: `You don't have any "${itemName}".` };
+  }
+
+  const { item } = found;
+
+  // Check if item is equippable
+  if (!item.equipSlots || item.equipSlots.length === 0) {
+    return { success: false, message: `You can't equip the ${item.name}.` };
+  }
+
+  // Get current equipment
+  const equipment = await getPlayerEquipment(playerId);
+  if (!equipment) {
+    return { success: false, message: "Player not found." };
+  }
+
+  // Determine which slot to use
+  let slotToUse: keyof PlayerEquipment;
+
+  if (targetSlot) {
+    // User specified a slot
+    const parsedSlot = parseSlot(targetSlot);
+    if (!parsedSlot) {
+      return {
+        success: false,
+        message: `Unknown equipment slot: ${targetSlot}`,
+      };
+    }
+
+    // Check if item can go in that slot
+    const slotAsEquipSlot = parsedSlot as EquipmentSlot;
+    if (!item.equipSlots.includes(slotAsEquipSlot)) {
+      return {
+        success: false,
+        message: `You can't equip the ${item.name} on your ${parsedSlot}. Valid slots: ${item.equipSlots.join(", ")}`,
+      };
+    }
+
+    slotToUse = parsedSlot;
+  } else {
+    // Auto-select slot: prefer empty slot, otherwise use first valid slot
+    const emptySlot = item.equipSlots.find((s) => {
+      const field = EQUIPMENT_SLOT_TO_FIELD[s];
+      return equipment[field] === null;
+    });
+
+    if (emptySlot) {
+      slotToUse = EQUIPMENT_SLOT_TO_FIELD[emptySlot];
+    } else {
+      // All valid slots occupied, use the first one (will swap)
+      slotToUse = EQUIPMENT_SLOT_TO_FIELD[item.equipSlots[0]];
+    }
+  }
+
+  // Check if something is already equipped in that slot
+  const currentItemId = equipment[slotToUse];
+  let swapMessage = "";
+
+  if (currentItemId) {
+    // Get the currently equipped item's name
+    const currentItem = db
+      .select()
+      .from(items)
+      .where(eq(items.id, currentItemId))
+      .get();
+
+    if (currentItem) {
+      swapMessage = ` (removing ${currentItem.name})`;
+    }
+  }
+
+  // Update the player's equipment
+  const dbColumn = SLOT_TO_DB_COLUMN[slotToUse];
+  await db
+    .update(players)
+    .set({ [dbColumn]: item.id })
+    .where(eq(players.id, playerId));
+
+  return {
+    success: true,
+    item,
+    message: `You equip the ${item.name} on your ${slotToUse}${swapMessage}.`,
+  };
+}
+
+/**
+ * Unequip an item and return it to inventory (it stays in inventory either way).
+ * @param playerId - The player unequipping the item
+ * @param itemNameOrSlot - The name of the item or slot to unequip
+ * @returns ItemResult with success status and message
+ */
+export async function unequipItem(
+  playerId: string,
+  itemNameOrSlot: string,
+): Promise<ItemResult> {
+  // Get current equipment
+  const equipment = await getPlayerEquipment(playerId);
+  if (!equipment) {
+    return { success: false, message: "Player not found." };
+  }
+
+  // First, try to interpret as a slot name
+  const parsedSlot = parseSlot(itemNameOrSlot);
+  if (parsedSlot) {
+    const itemId = equipment[parsedSlot];
+    if (!itemId) {
+      return {
+        success: false,
+        message: `You don't have anything equipped on your ${parsedSlot}.`,
+      };
+    }
+
+    // Get the item name for the message
+    const item = db.select().from(items).where(eq(items.id, itemId)).get();
+    const itemName = item?.name || "item";
+
+    // Clear the slot
+    const dbColumn = SLOT_TO_DB_COLUMN[parsedSlot];
+    await db
+      .update(players)
+      .set({ [dbColumn]: null })
+      .where(eq(players.id, playerId));
+
+    return {
+      success: true,
+      item: item ? toItem(item) : undefined,
+      message: `You unequip the ${itemName} from your ${parsedSlot}.`,
+    };
+  }
+
+  // Try to find by item name
+  const nameLower = itemNameOrSlot.toLowerCase();
+
+  // Check each equipped slot for a matching item
+  for (const [slot, itemId] of Object.entries(equipment)) {
+    if (!itemId) continue;
+
+    const item = db.select().from(items).where(eq(items.id, itemId)).get();
+    if (!item) continue;
+
+    if (
+      item.name.toLowerCase() === nameLower ||
+      item.name.toLowerCase().startsWith(nameLower) ||
+      item.pluralName?.toLowerCase() === nameLower ||
+      item.pluralName?.toLowerCase().startsWith(nameLower)
+    ) {
+      // Found the item, unequip it
+      const dbColumn = SLOT_TO_DB_COLUMN[slot as keyof PlayerEquipment];
+      await db
+        .update(players)
+        .set({ [dbColumn]: null })
+        .where(eq(players.id, playerId));
+
+      return {
+        success: true,
+        item: toItem(item),
+        message: `You unequip the ${item.name} from your ${slot}.`,
+      };
+    }
+  }
+
+  return {
+    success: false,
+    message: `You don't have "${itemNameOrSlot}" equipped.`,
+  };
+}
+
+/**
+ * Get a formatted list of equipped items for display.
+ * @param playerId - The player whose equipment to list
+ * @returns Object with success status and formatted equipment list
+ */
+export async function getEquipmentList(
+  playerId: string,
+): Promise<{ success: boolean; message: string }> {
+  const equipment = await getPlayerEquipment(playerId);
+  if (!equipment) {
+    return { success: false, message: "Player not found." };
+  }
+
+  const lines: string[] = ["You have equipped:"];
+  let hasEquipment = false;
+
+  const slotDisplayNames: Record<keyof PlayerEquipment, string> = {
+    head: "Head",
+    torso: "Torso",
+    body: "Body",
+    legs: "Legs",
+    hands: "Hands",
+    feet: "Feet",
+    mainHand: "Main Hand",
+    offHand: "Off Hand",
+    neck: "Neck",
+    ring1: "Ring 1",
+    ring2: "Ring 2",
+  };
+
+  for (const [slot, itemId] of Object.entries(equipment)) {
+    if (!itemId) continue;
+
+    const item = db.select().from(items).where(eq(items.id, itemId)).get();
+    if (item) {
+      hasEquipment = true;
+      const displaySlot = slotDisplayNames[slot as keyof PlayerEquipment];
+      lines.push(`  ${displaySlot}: ${item.name}`);
+    }
+  }
+
+  if (!hasEquipment) {
+    return { success: true, message: "You don't have anything equipped." };
+  }
+
+  return { success: true, message: lines.join("\n") };
 }

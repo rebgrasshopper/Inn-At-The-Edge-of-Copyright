@@ -57,6 +57,15 @@ const ITEM_VERBS: Record<string, string> = {
   inventory: "inventory",
   inv: "inventory",
   i: "inventory",
+  equip: "equip",
+  wear: "equip",
+  wield: "equip",
+  unequip: "unequip",
+  remove: "unequip",
+  unwear: "unequip",
+  equipment: "equipment",
+  eq: "equipment",
+  gear: "equipment",
 };
 
 // Combat verbs
@@ -616,6 +625,22 @@ async function executeItem(
         return { success: false, message: "What do you want to examine?" };
       }
 
+      // Check for self-examination
+      const selfWords = ["self", "me", "myself", player.name.toLowerCase()];
+      if (selfWords.includes(command.target.toLowerCase())) {
+        // Show character info with equipment
+        const equipResult = await ItemService.getEquipmentList(player.id);
+        const lines = [
+          `${player.name} - Level ${player.level}`,
+          `HP: ${player.currentHp}/${player.maxHp}  XP: ${player.xp}`,
+          `STR: ${player.stats.str}  DEX: ${player.stats.dex}  CON: ${player.stats.con}`,
+          `INT: ${player.stats.int}  WIS: ${player.stats.wis}  CHA: ${player.stats.cha}`,
+          "",
+          equipResult.message,
+        ];
+        return { success: true, message: lines.join("\n") };
+      }
+
       // Check for "examine my X" pattern
       const myMatch = command.target.match(/^my\s+(.+)$/i);
       const searchOwn = !!myMatch;
@@ -648,6 +673,40 @@ async function executeItem(
       return { success: true, message: lines.join("\n") };
     }
 
+    case "equip": {
+      if (!command.target) {
+        return { success: false, message: "What do you want to equip?" };
+      }
+
+      // Check for "equip X on Y" or "equip X to Y" pattern
+      const slotMatch = command.target.match(/^(.+?)\s+(?:on|to)\s+(.+)$/i);
+      if (slotMatch) {
+        const [, itemName, slotName] = slotMatch;
+        const result = await ItemService.equipItem(
+          player.id,
+          itemName.trim(),
+          slotName.trim(),
+        );
+        return { success: result.success, message: result.message };
+      }
+
+      const result = await ItemService.equipItem(player.id, command.target);
+      return { success: result.success, message: result.message };
+    }
+
+    case "unequip": {
+      if (!command.target) {
+        return { success: false, message: "What do you want to unequip?" };
+      }
+      const result = await ItemService.unequipItem(player.id, command.target);
+      return { success: result.success, message: result.message };
+    }
+
+    case "equipment": {
+      const result = await ItemService.getEquipmentList(player.id);
+      return { success: result.success, message: result.message };
+    }
+
     default:
       return { success: false, message: "Unknown item command." };
   }
@@ -670,60 +729,17 @@ async function executeInfo(
         return { success: false, message: "You are nowhere." };
       }
 
-      const lines = [roomData.name, roomData.description];
-
-      // List exits
-      const exitDirs = Object.keys(roomData.exits);
-      if (exitDirs.length > 0) {
-        lines.push(`Exits: ${exitDirs.join(", ")}`);
-      } else {
-        lines.push("There are no obvious exits.");
-      }
-
-      // List other players
-      const otherPlayers = roomData.players.filter((p) => p.id !== player.id);
-      if (otherPlayers.length > 0) {
-        const names = otherPlayers.map((p) => p.name).join(", ");
-        lines.push(`Players here: ${names}`);
-      }
-
-      // List NPCs
-      if (roomData.npcs.length > 0) {
-        const names = roomData.npcs.map((n) => n.name).join(", ");
-        lines.push(`You see: ${names}`);
-      }
-
-      // List monsters
-      if (roomData.monsters.length > 0) {
-        const names = roomData.monsters.map((m) => m.monster.name).join(", ");
-        lines.push(`Creatures: ${names}`);
-      }
-
-      // List items
-      if (roomData.items.length > 0) {
-        const itemDescs = roomData.items.map((stack) => {
-          if (stack.quantity === 1) {
-            return stack.item.name;
-          }
-          const name = stack.item.pluralName || `${stack.item.name}s`;
-          return `${stack.quantity} ${name}`;
-        });
-        lines.push(`On the ground: ${itemDescs.join(", ")}`);
-      }
-
-      // List visible containers
-      if (roomData.containers.length > 0) {
-        const names = roomData.containers.map((c) => c.name).join(", ");
-        lines.push(`Containers: ${names}`);
-      }
-
-      // List visible features
-      if (roomData.features.length > 0) {
-        const names = roomData.features.map((f) => f.name).join(", ");
-        lines.push(`You notice: ${names}`);
-      }
-
-      return { success: true, message: lines.join("\n") };
+      // Send room data to client - client handles formatting
+      return {
+        success: true,
+        broadcast: [
+          {
+            event: "room:look",
+            room: `player:${player.id}`,
+            data: { room: roomData },
+          },
+        ],
+      };
     }
 
     case "stats": {
@@ -742,6 +758,7 @@ async function executeInfo(
         "  Movement: north, south, east, west, up, down (or n, s, e, w, u, d)",
         "  Chat: say <message>, shout <message>, whisper <player> <message>, emote <action>",
         "  Items: get <item>, drop <item>, examine <item>, inventory",
+        "  Equipment: equip <item> [on <slot>], unequip <item|slot>, equipment",
         "  Info: look, stats, help",
       ];
       return { success: true, message: lines.join("\n") };

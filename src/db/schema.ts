@@ -117,8 +117,8 @@ export const items = sqliteTable("items", {
   category: text("category"),
   isBulk: integer("is_bulk", { mode: "boolean" }).default(false),
 
-  // Equipment slot this item can be worn in (null = not equippable)
-  equipSlot: text("equip_slot").$type<EquipmentSlot>(),
+  // Equipment slots this item can be worn in (JSON array, first is default)
+  equipSlots: text("equip_slots", { mode: "json" }).$type<EquipmentSlot[]>(),
 
   // Weapon properties
   weaponDamage: text("weapon_damage"), // e.g., "1d6", "2d4+1"

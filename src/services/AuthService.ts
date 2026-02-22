@@ -6,6 +6,7 @@ import type { AuthResult } from "../types/auth.js";
 import type { Player } from "../types/player.js";
 import { generateToken, verifyToken } from "../utils/jwt.js";
 import { hashPassword, verifyPassword } from "../utils/password.js";
+import { toPlayer } from "./CharacterService.utils.js";
 
 // In-memory store for invalidated tokens (for logout)
 // In production, consider using Redis or database storage
@@ -110,25 +111,7 @@ export async function login(
 
     let player: Player | undefined;
     if (playerRecord) {
-      player = {
-        id: playerRecord.id,
-        userId: playerRecord.userId,
-        name: playerRecord.name,
-        currentRoomId: playerRecord.currentRoomId,
-        stats: {
-          str: playerRecord.str,
-          dex: playerRecord.dex,
-          con: playerRecord.con,
-          int: playerRecord.int,
-          wis: playerRecord.wis,
-          cha: playerRecord.cha,
-        },
-        currentHp: playerRecord.currentHp,
-        maxHp: playerRecord.maxHp,
-        xp: playerRecord.xp,
-        level: playerRecord.level,
-        isOnline: playerRecord.isOnline,
-      };
+      player = toPlayer(playerRecord);
     }
 
     return {
@@ -185,25 +168,7 @@ export async function validateToken(token: string): Promise<Player | null> {
       return null;
     }
 
-    return {
-      id: playerRecord.id,
-      userId: playerRecord.userId,
-      name: playerRecord.name,
-      currentRoomId: playerRecord.currentRoomId,
-      stats: {
-        str: playerRecord.str,
-        dex: playerRecord.dex,
-        con: playerRecord.con,
-        int: playerRecord.int,
-        wis: playerRecord.wis,
-        cha: playerRecord.cha,
-      },
-      currentHp: playerRecord.currentHp,
-      maxHp: playerRecord.maxHp,
-      xp: playerRecord.xp,
-      level: playerRecord.level,
-      isOnline: playerRecord.isOnline,
-    };
+    return toPlayer(playerRecord);
   } catch (error) {
     console.error("Token validation error:", error);
     return null;

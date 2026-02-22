@@ -1,134 +1,194 @@
 # Inn at the Edge of Copyright
-**Version 2.0**
 
-[![Inn at the Edge of Copyright logo](./documentation/master-logo-readme.png)](https://innattheedge.herokuapp.com/)
+A text-based MUD (Multi-User Dungeon) game with Pathfinder RPG vibes. Explore a virtual world, interact with other players, collect items, and discover secrets.
 
-[![License GNU GPLv3](https://img.shields.io/badge/License-GNU%20GPLv3-orange)](./LICENSE)
-[![Version 2.0](https://img.shields.io/badge/Version-V2.0-blue)](#version-updates)
+## Features
 
-![Made With Black Magic](https://img.shields.io/badge/Made%20With-Black%20Magic-8b008b)
-![Made With Coffee](https://img.shields.io/badge/Infused%20With-Coffee-a27250)
-![Made With Crayons](https://img.shields.io/badge/Coded%20With-Crayons-ff69b4)
-![No Unicorns Were Harmed](https://img.shields.io/badge/No%20Unicorns-Were%20Harmed-ffd9ff)
+- Real-time multiplayer via WebSocket
+- Text-based exploration with room descriptions
+- Item system (get, drop, examine, equip)
+- Chat system (speak, shout, whisper, emote)
+- Interactive room features with effects
+- Equipment slots and character stats
+- Hidden containers and discoverable secrets
 
-## Table of Contents
- * [Overview](#overview)
- * [Getting Started](#getting-started)
-   * [Game Commands](#game-commands)
- * [Contributers](#contributers)
- * [Credits](#credits)
- * [Questions](#questions)
-   * [Contributing](#contributing)
- * [Issues & Updates](#issues-and-updates)
-   * [Issues](#issues)
-   * [Version Updates](#version-updates)
-   * [Future Development](#future-development)
- * [License](#license)
+## Tech Stack
 
-## Overview
+- TypeScript + Node.js backend
+- Express + Socket.io for real-time communication
+- React + Vite frontend
+- SQLite + Drizzle ORM for persistence
+- Vitest + fast-check for testing
 
-The Inn at the Edge of Copyright is a text-based program for anyone with a crave for an adventure. Our project is a MUD or Multi-User-Dungeon RPG loosely based on The Hitchhiker's Guide to the Galaxy series by Douglas Adams and inspired by text-based MUDs of the early days of the internet. The Inn At The Edge is where all who are lost can find a home.
+## Quick Start
 
-[![Gif Tutorial of how to navigate the game](./documentation/tutorial.gif)](https://innattheedge.herokuapp.com/)
+### Prerequisites
 
-## Getting Started
+- Node.js 18+
+- npm
 
-For the time being, we are useing Auth0 for user login. After you login, you will be instructed to give yourself a character name. Using the commands below, you should get the hang of the Inn in no time!
+### Installation
 
-### Game Commands
+```bash
+# Install dependencies
+npm install
+cd client && npm install && cd ..
 
-```
-get          --Pick up an item
-look         --You look around you
-drop         --You drop an item
-inventory    --You check your inventory
-move         --You move through an exit
-speak        --You speak
-remove       --You take off an item you are wearing
-stats        --You call up your character stats
-juggle       --You juggle something
-emote        --You describe an action
-sleep        --You go to sleep
-wake         --You wake up
-position     --You change position
-help         --check command usage
-examine      --Look closely at an item
+# Set up environment
+cp .env.example .env
+# Edit .env with your JWT_SECRET
+
+# Initialize database
+npx drizzle-kit push
+npm run db:seed
 ```
 
-[**Join us in the Inn here!**](https://innattheedge.herokuapp.com)
+### Development
 
-## Contributers
-
-* [Nancy "Cosmo The Magnificent" Lambert-Brown](https://github.com/n-lambert)
-* [Talia "Quill" Vazquez](https://github.com/taliavazquez)
-* [Plover "Chordori" Brown](https://github.com/rebgrasshopper)
-* [Nicholas "Shambles" Konzen](https://github.com/NTKonzen)
-* [Kira "Bismuth the KILer" Lowrey](https://github.com/KILowrey)
-* [Mando "Mandolorian" Estrada](https://github.com/Mando619)
-
-### Past Contributers (NPCs)
-* [Jeneth "6one9" Diesta](https://github.com/jen6one9)
-
-## Credits
-
-### Built and Running With:
-
-* React and JavaScript
-* Express and Node.js
-* Bootstrap
-* Socket.io
-* MongoDB
-* Heroku
-
-### NPM Packages:
-
-```
-* axios                - Promise based HTTP client
-* cors                 - Express middleware to enabel CORS
-* dotenv               - .env to process.env module
-* express              - Web server for Node.js
-* if-env               - Simplify npm scripts
-* mongoose             - MongoDB object modeling tool
-* @auth0/auth0-react   - Auth0 SDK for React SPA's
+```bash
+# Start both server and client
+npm run dev
 ```
 
-## Questions
+- Server runs on http://localhost:3000
+- Client runs on http://localhost:5173
 
-If you have any questions that this README doesn't cover, you can reach out to us at [innattheedgeofcopyright@gmail.com](mailto:innattheedgeofcopyright@gmail.com) or contact a [contributor](#contributing).
+### Production Build
 
-### Contributing
+```bash
+npm run build
+npm start
+```
 
-If you are interested in contributing to our project, we have a Slack! You can join us [here](https://join.slack.com/t/innattheedgeo-lje8343/shared_invite/zt-jfdeca44-HO8abtKWCWY5dOIWnEmLrQ)
+## Game Commands
 
-## Issues and Updates
+### Movement
 
-### Issues
+- `north`, `south`, `east`, `west`, `up`, `down` (or `n`, `s`, `e`, `w`, `u`, `d`)
+- `go <direction>`
 
-If you have found an issue with the game, you can open a GitHub Issue [here](https://github.com/n-lambert/Inn-At-The-Edge-of-Copyright/issues)
+### Communication
 
-#### Known Issues:
+- `say <message>` - Speak to everyone in the room
+- `shout <message>` - Shout to the entire region
+- `whisper <player> <message>` - Private message
+- `emote <action>` - Describe an action
 
- 1. We're in the clear boys... for now -_-
+### Items
 
-We are working at fixing these bugs as soon as possible! Thank you for your patience.
+- `get <item>` - Pick up an item
+- `drop <item>` - Drop an item
+- `examine <item>` - Look at an item closely
+- `inventory` - List what you're carrying
 
-### Version Updates
+### Equipment
 
-#### Version 2.0
+- `equip <item>` - Equip an item
+- `unequip <item>` - Remove equipped item
+- `equipment` - Show equipped items
 
-* Refactored the app from the ground up to use React.js, MongoDB, and Socket.io.
-* Added Social Sign-in with Auth0
+### Information
 
-#### [View Version 1 here](https://github.com/n-lambert/Inn-At-The-Edge-of-Copyright/tree/V1)
+- `look` - Look around the room
+- `stats` - View your character stats
+- `examine self` - View your character details
+- `help` - Show available commands
 
-### Future Development
+### Features
 
-The Inn at the Edge of Copyright team is here for the long haul. We have lots of cool features in store! You can check out our plans for the future on our project boards
+- Interact with room features using verbs like `drink fountain`, `search mushrooms`
 
-#### [View Version 2.1 project board here](https://github.com/n-lambert/Inn-At-The-Edge-of-Copyright/projects/3)
+## Project Structure
 
-#### [View Version 3.0 project board here](https://github.com/n-lambert/Inn-At-The-Edge-of-Copyright/projects/4)
+```
+├── src/
+│   ├── db/           # Database schema and migrations
+│   ├── routes/       # REST API endpoints
+│   ├── services/     # Business logic
+│   ├── socket/       # Socket.io handlers
+│   └── types/        # TypeScript type definitions
+├── client/           # React frontend
+├── tests/
+│   ├── unit/         # Unit tests
+│   ├── property/     # Property-based tests
+│   └── generators/   # Test data generators
+└── scripts/          # Utility scripts
+```
+
+## Testing
+
+```bash
+# Run all tests
+npm test -- --run
+
+# Run with watch mode
+npm test
+
+# Run e2e tests (requires server running)
+npx tsx scripts/e2e-test.ts
+```
+
+## Environment Variables
+
+| Variable       | Description           | Default     |
+| -------------- | --------------------- | ----------- |
+| `PORT`         | Server port           | 3000        |
+| `DATABASE_URL` | SQLite database path  | game.db     |
+| `JWT_SECRET`   | Secret for JWT tokens | (required)  |
+| `NODE_ENV`     | Environment mode      | development |
+
+## Deployment (Fly.io)
+
+### Prerequisites
+
+1. Install the Fly CLI: https://fly.io/docs/hands-on/install-flyctl/
+2. Sign up/login: `fly auth login`
+
+### First-time Setup
+
+```bash
+# Create the app (uses fly.toml config)
+fly launch --no-deploy
+
+# Create persistent volume for SQLite database
+fly volumes create mud_data --size 1 --region iad
+
+# Set production secrets
+fly secrets set JWT_SECRET=$(openssl rand -base64 32)
+
+# Deploy
+fly deploy
+
+# Seed the database (first time only)
+fly ssh console -C "cd /app && node dist/db/seed.js"
+```
+
+### Subsequent Deployments
+
+```bash
+fly deploy
+```
+
+### Useful Commands
+
+```bash
+# View logs
+fly logs
+
+# SSH into the running app
+fly ssh console
+
+# Check app status
+fly status
+
+# Open the app in browser
+fly open
+```
 
 ## License
 
 [GNU General Public License V3](LICENSE)
+
+---
+
+_Originally created by the Inn at the Edge of Copyright team. Rebuilt with modern tooling._

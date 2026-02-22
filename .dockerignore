@@ -1,0 +1,35 @@
+# Dependencies
+node_modules
+client/node_modules
+
+# Build outputs (we build in Docker)
+dist
+client/dist
+
+# Development files
+*.log
+*.db
+.env
+.env.local
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# Tests
+tests
+coverage
+
+# Documentation
+*.md
+!README.md
+
+# Archive (old code)
+archive
+
+# Kiro specs
+.kiro

@@ -68,7 +68,7 @@ beforeAll(async () => {
       description: "A sword for testing",
       category: "weapon",
       isBulk: false,
-      equipSlot: "mainHand",
+      equipSlots: ["mainHand", "offHand"],
       weaponDamage: "1d6",
       weaponType: "slashing",
       strEffect: 2,
@@ -163,7 +163,7 @@ describe("ItemService", () => {
       expect(inventory[0].item.name).toBe("test sword");
     });
 
-    it("should pick up all bulk items by default", async () => {
+    it("should pick up all when using plural form for bulk items", async () => {
       await db.insert(roomInventory).values({
         id: "ri-2",
         roomId: testRoomId,
@@ -174,7 +174,7 @@ describe("ItemService", () => {
       const result = await ItemService.getItem(
         testPlayerId,
         testRoomId,
-        "gold coin",
+        "gold coins", // plural form
       );
 
       expect(result.success).toBe(true);
@@ -253,6 +253,77 @@ describe("ItemService", () => {
 
       expect(result.success).toBe(true);
       expect(result.item?.name).toBe("test sword");
+    });
+
+    it("should match items by word in name", async () => {
+      await db.insert(roomInventory).values({
+        id: "ri-word-1",
+        roomId: testRoomId,
+        itemId: "item-test-potion",
+        quantity: 1,
+      });
+
+      // "potion" should match "healing potion"
+      const result = await ItemService.getItem(
+        testPlayerId,
+        testRoomId,
+        "potion",
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.item?.name).toBe("healing potion");
+    });
+
+    it("should take 1 when using singular form", async () => {
+      await db.insert(roomInventory).values({
+        id: "ri-singular",
+        roomId: testRoomId,
+        itemId: "item-test-coin",
+        quantity: 10,
+      });
+
+      // "coin" (singular) should take only 1
+      const result = await ItemService.getItem(
+        testPlayerId,
+        testRoomId,
+        "coin",
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.quantity).toBe(1);
+
+      // Verify 9 remain in room
+      const roomItems = await db
+        .select()
+        .from(roomInventory)
+        .where(eq(roomInventory.roomId, testRoomId));
+      expect(roomItems[0].quantity).toBe(9);
+    });
+
+    it("should take all when using plural form", async () => {
+      await db.insert(roomInventory).values({
+        id: "ri-plural",
+        roomId: testRoomId,
+        itemId: "item-test-coin",
+        quantity: 10,
+      });
+
+      // "coins" (plural) should take all
+      const result = await ItemService.getItem(
+        testPlayerId,
+        testRoomId,
+        "coins",
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.quantity).toBe(10);
+
+      // Verify none remain in room
+      const roomItems = await db
+        .select()
+        .from(roomInventory)
+        .where(eq(roomInventory.roomId, testRoomId));
+      expect(roomItems).toHaveLength(0);
     });
   });
 

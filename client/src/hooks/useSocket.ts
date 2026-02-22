@@ -42,6 +42,7 @@ export function useSocket({
 }: UseSocketOptions): UseSocketReturn {
   const socketRef = useRef<Socket | null>(null);
   const reconnectAttempts = useRef(0);
+  const intentionalDisconnect = useRef(false);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
   // Use state for socket so changes trigger re-renders
@@ -51,6 +52,7 @@ export function useSocket({
   const connect = useCallback(() => {
     if (!token || socketRef.current?.connected) return;
 
+    intentionalDisconnect.current = false;
     setConnectionStatus("connecting");
 
     const newSocket = io(SOCKET_URL, {
@@ -69,8 +71,11 @@ export function useSocket({
       setConnectionStatus("disconnected");
       onDisconnect?.();
 
-      // Attempt reconnection with exponential backoff
-      if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
+      // Only attempt reconnection if this wasn't an intentional disconnect
+      if (
+        !intentionalDisconnect.current &&
+        reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS
+      ) {
         const delay =
           RECONNECT_DELAY_BASE * Math.pow(2, reconnectAttempts.current);
         reconnectAttempts.current++;
@@ -89,6 +94,8 @@ export function useSocket({
 
   // Disconnect from socket server
   const disconnect = useCallback(() => {
+    intentionalDisconnect.current = true;
+    reconnectAttempts.current = 0;
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
@@ -104,7 +111,7 @@ export function useSocket({
     }
   }, []);
 
-  // Connect when token becomes available
+  // Connect when token becomes available, disconnect when removed
   useEffect(() => {
     if (token) {
       connect();

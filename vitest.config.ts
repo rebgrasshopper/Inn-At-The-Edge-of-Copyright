@@ -8,6 +8,8 @@ export default defineConfig({
     include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
     // Run test files sequentially to avoid SQLite conflicts
     fileParallelism: false,
+    // Use separate test database
+    setupFiles: ["tests/setup.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

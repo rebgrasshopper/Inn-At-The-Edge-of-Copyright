@@ -48,7 +48,12 @@ export function ChatPanel({ messages }: ChatPanelProps) {
   // Auto-scroll when new messages arrive (if at bottom)
   useEffect(() => {
     if (isAtBottomRef.current) {
-      scrollToBottom();
+      // Double requestAnimationFrame ensures DOM is fully updated after React render
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scrollToBottom();
+        });
+      });
     }
   }, [messages, scrollToBottom]);
 

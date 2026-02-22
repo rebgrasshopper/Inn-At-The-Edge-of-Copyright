@@ -275,23 +275,23 @@
 
 ## Task 16: Integration and Polish
 
-- [ ] 16.1 Wire up Express to serve React build in production
-- [ ] 16.2 Create npm scripts for dev (concurrent server + client) and production
-- [ ] 16.3 Test full auth flow end-to-end
-- [ ] 16.4 Test room navigation end-to-end
-- [ ] 16.5 Test chat (speak, shout, whisper) end-to-end
-- [ ] 16.6 Test item interactions end-to-end
+- [x] 16.1 Wire up Express to serve React build in production
+- [x] 16.2 Create npm scripts for dev (concurrent server + client) and production
+- [x] 16.3 Test full auth flow end-to-end
+- [x] 16.4 Test room navigation end-to-end
+- [x] 16.5 Test chat (speak, shout, whisper) end-to-end
+- [x] 16.6 Test item interactions end-to-end
 - [ ] 16.7 Test combat end-to-end _(defer until Task 10)_
-- [ ] 16.8 Test feature interactions end-to-end
-- [ ] 16.9 Add error handling for edge cases
-- [ ] 16.10 Create README with setup instructions
+- [x] 16.8 Test feature interactions end-to-end
+- [x] 16.9 Add error handling for edge cases
+- [x] 16.10 Create README with setup instructions
 
 ## Task 17: Deployment Preparation
 
-- [ ] 17.1 Configure for Railway or Fly.io deployment
-- [ ] 17.2 Set up production environment variables
-- [ ] 17.3 Configure SQLite database path for production
-- [ ] 17.4 Test production build locally
+- [x] 17.1 Configure for Railway or Fly.io deployment
+- [x] 17.2 Set up production environment variables
+- [x] 17.3 Configure SQLite database path for production
+- [x] 17.4 Test production build locally
 - [ ] 17.5 Deploy and verify
 
 ---
@@ -300,6 +300,9 @@
 
 Items to revisit after the initial prototype is working:
 
+- [ ] **Feats system**: Add feats table and player_feats junction table. Feats grant special abilities, modify rules (e.g., dual wielding), and unlock options.
+- [ ] **Dual wielding restrictions**: By default, players can only equip one weapon. Require a "Two-Weapon Fighting" feat to equip weapons in both mainHand and offHand.
+- [ ] **Off-hand penalty**: Weapons in offHand slot should apply reduced attack bonus (e.g., half bonus or -2 penalty) unless player has appropriate feat.
 - [ ] **Shout range**: Change `shout` to only reach adjacent/connected rooms instead of region-wide. Keep region-wide announcements available as a system/admin-level feature (e.g., `announce` command).
 - [ ] **Temporary stat modifications**: Add support for temporary buffs/debuffs with duration tracking. May need a `player_active_effects` table.
 - [ ] **Status effects system**: Create `statuses` table defining possible statuses (poisoned, stunned, blessed, etc.) with their effects. Some statuses affect movement/speech, others do periodic damage/healing, others modify stats temporarily. Need to revisit temporary stat mods when implementing.
@@ -309,3 +312,5 @@ Items to revisit after the initial prototype is working:
 - [ ] **Tab completion**: Add command/target auto-completion in InputPanel (Tab key). Old project had `parseSuggestion` for reference.
 - [ ] **Virtual scrolling**: If chat performance degrades with many messages, add react-window or @tanstack/virtual to only render visible messages.
 - [ ] **Command history persistence**: Optionally persist command history to localStorage across sessions.
+- [ ] **Add small features** Add features to interesting things from a room's description, even if there's not a lot of interactibility - just the ability to examine something noted in the room description and get a more detailed description.
+- [ ] **Formatting stats** Make stats and equipment more nicely formatted.

@@ -18,6 +18,7 @@ import type { MonsterInstance } from "../types/monster.js";
 import type { NPC } from "../types/npc.js";
 import type { Player } from "../types/player.js";
 import type { Direction, Exit, Room, RoomWithContents } from "../types/room.js";
+import { toPlayer } from "./CharacterService.utils.js";
 
 export type MoveResult = {
   success: boolean;
@@ -59,27 +60,7 @@ export async function getPlayersInRoom(roomId: string): Promise<Player[]> {
     .from(players)
     .where(eq(players.currentRoomId, roomId));
 
-  return records
-    .filter((r) => r.isOnline)
-    .map((record) => ({
-      id: record.id,
-      userId: record.userId,
-      name: record.name,
-      currentRoomId: record.currentRoomId,
-      stats: {
-        str: record.str,
-        dex: record.dex,
-        con: record.con,
-        int: record.int,
-        wis: record.wis,
-        cha: record.cha,
-      },
-      currentHp: record.currentHp,
-      maxHp: record.maxHp,
-      xp: record.xp,
-      level: record.level,
-      isOnline: record.isOnline,
-    }));
+  return records.filter((r) => r.isOnline).map(toPlayer);
 }
 
 /**

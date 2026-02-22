@@ -116,12 +116,21 @@ describe("CharacterService", () => {
     });
 
     it("should reject duplicate names", async () => {
-      // Create first character
+      // Create first character with one user
       await CharacterService.createCharacter(testUserId, "UniqueHero");
 
-      // Try to create another with same name
+      // Create a second user to test duplicate name rejection
+      const secondUserId = uuidv4();
+      await db.insert(users).values({
+        id: secondUserId,
+        username: `testuser2_${uuidv4().slice(0, 8)}`,
+        passwordHash: "hashedpassword",
+        createdAt: new Date(),
+      });
+
+      // Try to create character with same name for different user
       const result = await CharacterService.createCharacter(
-        testUserId,
+        secondUserId,
         "UniqueHero",
       );
 
@@ -129,7 +138,7 @@ describe("CharacterService", () => {
       expect(result.error).toBe("Character name is already taken");
     });
 
-    it("should allow multiple characters per user", async () => {
+    it("should reject creating second character for same user (MVP limit)", async () => {
       const result1 = await CharacterService.createCharacter(
         testUserId,
         "Hero One",
@@ -140,22 +149,20 @@ describe("CharacterService", () => {
       );
 
       expect(result1.success).toBe(true);
-      expect(result2.success).toBe(true);
-      expect(result1.player!.id).not.toBe(result2.player!.id);
+      expect(result2.success).toBe(false);
+      expect(result2.error).toBe("You already have a character");
     });
   });
 
   describe("getCharactersByUserId", () => {
-    it("should return all characters for a user", async () => {
+    it("should return the character for a user", async () => {
       await CharacterService.createCharacter(testUserId, "Hero One");
-      await CharacterService.createCharacter(testUserId, "Hero Two");
 
       const characters =
         await CharacterService.getCharactersByUserId(testUserId);
 
-      expect(characters).toHaveLength(2);
-      expect(characters.map((c) => c.name)).toContain("Hero One");
-      expect(characters.map((c) => c.name)).toContain("Hero Two");
+      expect(characters).toHaveLength(1);
+      expect(characters[0].name).toBe("Hero One");
     });
 
     it("should return empty array for user with no characters", async () => {

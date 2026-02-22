@@ -30,6 +30,12 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+type AuthData = {
+  token: string | null;
+  player: Player | null;
+  isLoading: boolean;
+};
+
 /**
  * Provider component for authentication context.
  * @param props - Component props
@@ -37,33 +43,52 @@ const AuthContext = createContext<AuthContextValue | null>(null);
  * @returns Provider component wrapping children
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
-  const [player, setPlayerState] = useState<Player | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [authData, setAuthData] = useState<AuthData>({
+    token: null,
+    player: null,
+    isLoading: true,
+  });
 
   // Load token from localStorage on mount and fetch player data
   useEffect(() => {
     const loadAuth = async () => {
       const storedToken = localStorage.getItem(TOKEN_KEY);
-      if (storedToken) {
-        setToken(storedToken);
-
-        // Try to fetch player data
-        try {
-          const result = await api.getMe(storedToken);
-          if (result.success && result.player) {
-            setPlayerState(result.player);
-          } else if (!result.success) {
-            // Token is invalid, clear it
-            localStorage.removeItem(TOKEN_KEY);
-            setToken(null);
-          }
-        } catch {
-          // Network error - keep token but no player
-          // User will need to re-authenticate if token is invalid
-        }
+      if (!storedToken) {
+        setAuthData({ token: null, player: null, isLoading: false });
+        return;
       }
-      setIsLoading(false);
+
+      // Try to fetch player data
+      try {
+        const result = await api.getMe(storedToken);
+        if (result.success && result.player) {
+          // User has token and character - fully authenticated
+          setAuthData({
+            token: storedToken,
+            player: result.player,
+            isLoading: false,
+          });
+        } else if (result.success) {
+          // User has token but no character - needs to create one
+          setAuthData({
+            token: storedToken,
+            player: null,
+            isLoading: false,
+          });
+        } else {
+          // Token is invalid, clear it
+          localStorage.removeItem(TOKEN_KEY);
+          setAuthData({ token: null, player: null, isLoading: false });
+        }
+      } catch {
+        // Network error - keep token but no player
+        // User will need to re-authenticate if token is invalid
+        setAuthData({
+          token: storedToken,
+          player: null,
+          isLoading: false,
+        });
+      }
     };
 
     loadAuth();
@@ -71,33 +96,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setAuth = useCallback((newToken: string, newPlayer: Player | null) => {
     localStorage.setItem(TOKEN_KEY, newToken);
-    setToken(newToken);
-    setPlayerState(newPlayer);
+    setAuthData((prev) => ({
+      ...prev,
+      token: newToken,
+      player: newPlayer,
+    }));
   }, []);
 
   const setPlayer = useCallback((newPlayer: Player) => {
-    setPlayerState(newPlayer);
+    setAuthData((prev) => ({
+      ...prev,
+      player: newPlayer,
+    }));
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
-    setToken(null);
-    setPlayerState(null);
+    setAuthData((prev) => ({
+      ...prev,
+      token: null,
+      player: null,
+    }));
   }, []);
 
-  const authState: AuthState = !token
+  const authState: AuthState = !authData.token
     ? "unauthenticated"
-    : !player
+    : !authData.player
       ? "needs_character"
       : "authenticated";
 
   return (
     <AuthContext.Provider
       value={{
-        token,
-        player,
+        token: authData.token,
+        player: authData.player,
         authState,
-        isLoading,
+        isLoading: authData.isLoading,
         setAuth,
         setPlayer,
         logout,

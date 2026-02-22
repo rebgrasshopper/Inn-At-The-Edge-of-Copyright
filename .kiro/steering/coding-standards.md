@@ -23,3 +23,4 @@
 - Property tests in `tests/property/`
 - Test generators in `tests/generators/`
 - Property tests use 20 runs by default (no custom timeout needed)
+- Vitest runs in watch mode by default; use `npm test -- --run 2>&1` to get a single test run with results
