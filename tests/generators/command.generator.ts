@@ -32,7 +32,8 @@ export const itemAliasesArb = fc.constantFrom(
     action: "get",
     target: "sword",
   },
-  { inputs: ["drop sword", "put sword"], action: "drop", target: "sword" },
+  { inputs: ["drop sword"], action: "drop", target: "sword" },
+  { inputs: ["put sword", "place sword"], action: "put", target: "sword" },
   {
     inputs: ["examine sword", "inspect sword"],
     action: "examine",

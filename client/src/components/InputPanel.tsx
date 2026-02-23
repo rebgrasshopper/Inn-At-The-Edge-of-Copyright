@@ -6,6 +6,7 @@ import {
   useState,
   useRef,
   useCallback,
+  useEffect,
   type KeyboardEvent,
   type FormEvent,
 } from "react";
@@ -41,6 +42,15 @@ export function InputPanel({
   const [history, setHistory] = useState<string[]>([]);
   const historyIndexRef = useRef(-1);
   const savedInputRef = useRef("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input on mount (with small delay to ensure DOM is ready)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSubmit = useCallback(
     (e: FormEvent) => {
@@ -112,6 +122,7 @@ export function InputPanel({
   return (
     <form className="input-panel" onSubmit={handleSubmit}>
       <input
+        ref={inputRef}
         type={inputType}
         className="command-input"
         value={input}
@@ -119,7 +130,6 @@ export function InputPanel({
         onKeyDown={handleKeyDown}
         disabled={disabled}
         placeholder={placeholder}
-        autoFocus
         autoComplete="off"
         spellCheck={false}
       />

@@ -1,5 +1,18 @@
 # MUD Game Project Context
 
+## Workflow Preferences
+
+- Always discuss and get agreement on implementation details before writing code
+- For new features or changes, propose the approach first and wait for confirmation
+- Don't assume — ask clarifying questions when the scope or details are ambiguous
+
+## Backlog Management
+
+- Backlog items live in `.kiro/specs/mud-game-rebuild/backlog.md`
+- Completed backlog items move to `.kiro/specs/mud-game-rebuild/backlog-completed.md`
+- When completing a backlog item, move it from `backlog.md` to `backlog-completed.md` and mark it `[x]`
+- The main `tasks.md` file is for the structured implementation checklist only
+
 ## Project Goal
 
 Building a MUD (multi-user dungeon) game as a learning project for AI-assisted coding — exploring "vibe coding" or pair programming with AI rather than just using autocomplete.

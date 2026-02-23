@@ -105,8 +105,8 @@ describe("CommandParser", () => {
       const cmd = CommandParser.parse("whisper bob hello there");
       expect(cmd.type).toBe("chat");
       expect(cmd.action).toBe("whisper");
-      expect(cmd.target).toBe("bob");
-      expect(cmd.args).toEqual(["hello", "there"]);
+      expect(cmd.target).toBe("bob hello there");
+      expect(cmd.args).toEqual(["bob", "hello", "there"]);
     });
 
     it("should parse emote command", () => {
@@ -136,16 +136,16 @@ describe("CommandParser", () => {
       const cmd = CommandParser.parse("get 3 coins");
       expect(cmd.type).toBe("item");
       expect(cmd.action).toBe("get");
-      expect(cmd.target).toBe("coins");
-      expect(cmd.args).toEqual(["3"]);
+      expect(cmd.target).toBe("3 coins");
+      expect(cmd.args).toEqual(["3", "coins"]);
     });
 
     it("should parse get all", () => {
       const cmd = CommandParser.parse("get all coins");
       expect(cmd.type).toBe("item");
       expect(cmd.action).toBe("get");
-      expect(cmd.target).toBe("coins");
-      expect(cmd.args).toEqual(["all"]);
+      expect(cmd.target).toBe("all coins");
+      expect(cmd.args).toEqual(["all", "coins"]);
     });
 
     it("should parse drop command", () => {

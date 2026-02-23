@@ -3,6 +3,7 @@ import type { Player } from "./player.js";
 import type { Room } from "./room.js";
 
 export type CommandType =
+  | "command"
   | "movement"
   | "chat"
   | "item"

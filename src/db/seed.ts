@@ -28,7 +28,9 @@ async function seed() {
       id: townSquareId,
       name: "Town Square",
       description:
-        "You stand in the heart of a small village. A weathered stone fountain bubbles quietly in the center, surrounded by cobblestones worn smooth by countless footsteps. To the north, the warm glow of a tavern beckons. An open-air market lies to the east, and a dirt path leads south into a dark forest.",
+        "You stand in the heart of a small village. A weathered stone fountain bubbles quietly in the center, surrounded by cobblestones worn smooth by countless footsteps.",
+      navDescription:
+        "To the north, the warm glow of a tavern beckons. An open-air market lies to the east, and a dirt path leads south into a dark forest.",
       region: "village",
       exits: {
         north: { roomId: tavernId },
@@ -40,7 +42,8 @@ async function seed() {
       id: tavernId,
       name: "The Rusty Tankard",
       description:
-        "The tavern is warm and inviting, filled with the smell of roasting meat and spilled ale. A crackling fireplace dominates one wall, casting dancing shadows across rough wooden tables. A grizzled barkeep polishes mugs behind a long oak counter. The exit to the town square lies to the south.",
+        "The tavern is warm and inviting, filled with the smell of roasting meat and spilled ale. A crackling fireplace dominates one wall, casting dancing shadows across rough wooden tables. A grizzled barkeep polishes mugs behind a long oak counter.",
+      navDescription: "The exit to the town square lies to the south.",
       region: "village",
       exits: { south: { roomId: townSquareId } },
     },
@@ -48,7 +51,8 @@ async function seed() {
       id: marketId,
       name: "Village Market",
       description:
-        "Colorful stalls line this bustling marketplace. Merchants hawk their wares - fresh bread, gleaming weapons, mysterious potions, and bolts of fine cloth. The air is thick with the mingled scents of spices and leather. The town square is to the west.",
+        "Colorful stalls line this bustling marketplace. Merchants hawk their wares - fresh bread, gleaming weapons, mysterious potions, and bolts of fine cloth. The air is thick with the mingled scents of spices and leather.",
+      navDescription: "The town square is to the west.",
       region: "village",
       exits: { west: { roomId: townSquareId } },
     },
@@ -56,7 +60,9 @@ async function seed() {
       id: forestPathId,
       name: "Forest Path",
       description:
-        "A narrow dirt path winds between ancient oak trees. Dappled sunlight filters through the canopy above, and the sounds of the village fade behind you. The undergrowth rustles with unseen creatures. The path continues deeper into the forest to the south, or you can return north to the village.",
+        "A narrow dirt path winds between ancient oak trees. Dappled sunlight filters through the canopy above, and the sounds of the village fade behind you. The undergrowth rustles with unseen creatures.",
+      navDescription:
+        "The path continues deeper into the forest to the south, or you can return north to the village.",
       region: "darkwood",
       exits: {
         north: { roomId: townSquareId },
@@ -67,7 +73,8 @@ async function seed() {
       id: forestClearingId,
       name: "Forest Clearing",
       description:
-        "You emerge into a small clearing carpeted with soft moss. Shafts of golden light pierce the canopy, illuminating a ring of mushrooms at the clearing's center. The forest feels ancient here, watchful. Strange sounds echo from deeper in the woods. The path back to the village lies to the north.",
+        "You emerge into a small clearing carpeted with soft moss. Shafts of golden light pierce the canopy, illuminating a ring of mushrooms at the clearing's center. The forest feels ancient here, watchful. Strange sounds echo from deeper in the woods.",
+      navDescription: "The path back to the village lies to the north.",
       region: "darkwood",
       exits: { north: { roomId: forestPathId } },
     },
@@ -405,6 +412,8 @@ async function seed() {
       name: "hidden cache",
       description:
         "A small hollow beneath a gnarled tree root contains a leather pouch.",
+      aliases: ["pouch", "hollow"],
+      revealedText: "Under the root of a nearby tree you see a leather pouch.",
       isHidden: true,
       revealCommand: "search mushrooms",
     },

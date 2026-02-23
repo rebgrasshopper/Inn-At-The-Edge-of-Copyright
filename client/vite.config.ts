@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    host: true, // Expose on local network for iPad/mobile testing
     proxy: {
       // Proxy API requests to backend
       "/api": {

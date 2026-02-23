@@ -16,7 +16,7 @@ import {
   rooms,
   users,
 } from "../../src/db/schema.js";
-import * as ItemService from "../../src/services/ItemService.js";
+import * as ItemService from "../../src/services/items/index.js";
 
 const testUserId = "test-user-item";
 const testPlayerId = "test-player-item";
@@ -324,6 +324,78 @@ describe("ItemService", () => {
         .from(roomInventory)
         .where(eq(roomInventory.roomId, testRoomId));
       expect(roomItems).toHaveLength(0);
+    });
+
+    it("should return 'can't take that' for features", async () => {
+      // Create a feature in the room
+      await db.insert(features).values({
+        id: "feature-test-lever",
+        roomId: testRoomId,
+        name: "rusty lever",
+        description: "A rusty lever on the wall",
+        triggerVerbs: ["pull", "push"],
+        triggerTarget: "lever",
+        isHidden: false,
+      });
+
+      const result = await ItemService.getItem(
+        testPlayerId,
+        testRoomId,
+        "lever",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe("You can't take that.");
+    });
+
+    it("should return 'can't take that' for containers", async () => {
+      const result = await ItemService.getItem(
+        testPlayerId,
+        testRoomId,
+        "wooden chest",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe("You can't take that.");
+    });
+
+    it("should prioritize items over features with same name", async () => {
+      // Create a feature named "lever"
+      await db.insert(features).values({
+        id: "feature-test-lever-2",
+        roomId: testRoomId,
+        name: "lever",
+        description: "A lever on the wall",
+        triggerVerbs: ["pull"],
+        triggerTarget: "lever",
+        isHidden: false,
+      });
+
+      // Also create an item named "lever" in the room
+      await db.insert(items).values({
+        id: "item-test-lever",
+        name: "lever",
+        description: "A detached lever",
+        category: "misc",
+        isBulk: false,
+      });
+      await db.insert(roomInventory).values({
+        id: "ri-lever",
+        roomId: testRoomId,
+        itemId: "item-test-lever",
+        quantity: 1,
+      });
+
+      // Should pick up the item, not fail with "can't take that"
+      const result = await ItemService.getItem(
+        testPlayerId,
+        testRoomId,
+        "lever",
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.item?.name).toBe("lever");
+      expect(result.message).toContain("pick up");
     });
   });
 

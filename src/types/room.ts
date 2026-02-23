@@ -17,11 +17,15 @@ export type Room = {
   id: string;
   name: string;
   description: string;
+  // Navigation description (e.g., "The path leads north to the village.")
+  navDescription?: string;
   region: string;
   exits: Partial<Record<Direction, Exit>>;
 };
 
 export type RoomWithContents = Room & {
+  // Composed description: description + revealed container texts + navDescription
+  fullDescription?: string;
   players: Player[];
   items: ItemStack[];
   monsters: MonsterInstance[];

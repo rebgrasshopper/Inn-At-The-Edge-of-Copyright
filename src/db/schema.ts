@@ -88,6 +88,8 @@ export const rooms = sqliteTable("rooms", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description").notNull(),
+  // Navigation description (e.g., "The path leads north to the village.")
+  navDescription: text("nav_description"),
   region: text("region").notNull(),
   // Exits stored as JSON: { "north": { roomId: "room_id", blocked?: true, blockMessage?: "..." } }
   exits: text("exits", { mode: "json" }).$type<
@@ -169,6 +171,10 @@ export const containers = sqliteTable("containers", {
     .references(() => rooms.id),
   name: text("name").notNull(),
   description: text("description").notNull(),
+  // Alternative names for the container (e.g., "pouch" for "hidden cache")
+  aliases: text("aliases", { mode: "json" }).$type<string[]>(),
+  // Text shown in room description when container is revealed (e.g., "Under a tree root you see a leather pouch.")
+  revealedText: text("revealed_text"),
   // null = never hidden (always visible), true = currently hidden, false = currently visible
   isHidden: integer("is_hidden", { mode: "boolean" }),
   // When the container was last revealed (for time-based re-hiding)

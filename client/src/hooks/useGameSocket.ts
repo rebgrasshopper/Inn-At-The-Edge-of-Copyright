@@ -40,7 +40,7 @@ function formatRoomDescription(room: Room, currentPlayerId?: string): string[] {
 
   // Room name and description
   lines.push(room.name);
-  lines.push(room.description);
+  lines.push(room.fullDescription || room.description);
 
   // Exits
   const exitDirs = Object.keys(room.exits);
@@ -110,7 +110,8 @@ export function useGameSocket(socket: Socket | null): void {
       }
     };
 
-    const handleRoomLeave = (data: { roomId: string; player: Player }) => {
+    const handleRoomLeave = (data: { roomId: string; player?: Player }) => {
+      if (!data.player) return;
       dispatch({
         type: "ADD_MESSAGE",
         payload: systemMessage(`${data.player.name} leaves.`),

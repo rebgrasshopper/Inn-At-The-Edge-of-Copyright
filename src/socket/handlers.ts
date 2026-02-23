@@ -173,7 +173,7 @@ export async function handleCommand(
   const parsed = CommandParser.parse(input);
 
   // Execute the command
-  const result = await CommandParser.execute(parsed, {
+  const result = await CommandParser.execute(input, {
     player,
     room,
     socket,
@@ -245,8 +245,13 @@ async function handleRoomChange(
 
   if (oldRoomId === newRoomId) return;
 
-  // Leave old socket room
+  // Notify others in old room that player left (before leaving socket room)
   if (oldRoomId) {
+    socket.to(getSocketRoomName(oldRoomId)).emit("system:message", {
+      content: `${player.name} has left.`,
+      timestamp: new Date().toISOString(),
+    });
+    // Leave old socket room
     socket.leave(getSocketRoomName(oldRoomId));
   }
 

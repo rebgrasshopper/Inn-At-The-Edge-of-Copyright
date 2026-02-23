@@ -44,6 +44,7 @@ export async function getRoom(roomId: string): Promise<Room | null> {
     id: record.id,
     name: record.name,
     description: record.description,
+    navDescription: record.navDescription || undefined,
     region: record.region,
     exits: (record.exits as Partial<Record<Direction, Exit>>) || {},
   };
@@ -176,6 +177,8 @@ export async function getRoomWithContents(
       roomId: record.roomId,
       name: record.name,
       description: record.description,
+      aliases: (record.aliases as string[]) || undefined,
+      revealedText: record.revealedText || undefined,
       isHidden: record.isHidden || false,
       isOpen: record.isOpen || false,
       revealCommand: record.revealCommand || undefined,
@@ -202,8 +205,23 @@ export async function getRoomWithContents(
       isDiscovered: record.isDiscovered || false,
     }));
 
+  // Compose full description: description + revealed container texts + navDescription
+  const revealedTexts = transformedContainers
+    .filter((c): c is Container & { revealedText: string } => !!c.revealedText)
+    .map((c) => c.revealedText);
+
+  const descriptionParts = [room.description];
+  if (revealedTexts.length > 0) {
+    descriptionParts.push(...revealedTexts);
+  }
+  if (room.navDescription) {
+    descriptionParts.push(room.navDescription);
+  }
+  const fullDescription = descriptionParts.join(" ");
+
   return {
     ...room,
+    fullDescription,
     players: roomPlayers,
     items: roomItems,
     monsters: roomMonsters,

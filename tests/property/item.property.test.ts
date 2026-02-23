@@ -18,7 +18,7 @@ import {
   rooms,
   users,
 } from "../../src/db/schema.js";
-import * as ItemService from "../../src/services/ItemService.js";
+import * as ItemService from "../../src/services/items/index.js";
 import { quantityArb } from "../generators/item.generator.js";
 
 const testUserId = "test-user-item-prop";

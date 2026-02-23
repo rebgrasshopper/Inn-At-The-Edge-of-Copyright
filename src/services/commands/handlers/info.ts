@@ -1,0 +1,117 @@
+/**
+ * Info command handlers.
+ */
+
+import type { CommandContext, CommandResult } from "../../../types/command.js";
+import * as RoomService from "../../RoomService.js";
+import { COMMAND_ALIASES } from "../aliases.js";
+import { COMMAND_REGISTRY } from "../registry.js";
+import { Command } from "../types.js";
+
+/**
+ * Handle look command
+ */
+export async function handleLook(
+  args: string[],
+  context: CommandContext,
+): Promise<CommandResult> {
+  const { player, room } = context;
+
+  // If there's a target, redirect to examine
+  if (args.length > 0) {
+    // Strip "at" if present (e.g., "look at sword")
+    const targetArgs = args[0] === "at" ? args.slice(1) : args;
+    const target = targetArgs.join(" ");
+
+    if (target) {
+      // Import dynamically to avoid circular dependency
+      const { handleExamine } = await import("./items.js");
+      return handleExamine(targetArgs, context);
+    }
+  }
+
+  // Get fresh room data
+  const roomData = await RoomService.getRoomWithContents(room.id);
+  if (!roomData) {
+    return { success: false, message: "You are nowhere." };
+  }
+
+  // Send room data to client - client handles formatting
+  return {
+    success: true,
+    broadcast: [
+      {
+        event: "room:look",
+        room: `player:${player.id}`,
+        data: { room: roomData },
+      },
+    ],
+  };
+}
+
+/**
+ * Handle stats command
+ */
+export async function handleStats(
+  _args: string[],
+  context: CommandContext,
+): Promise<CommandResult> {
+  const { player } = context;
+
+  const lines = [
+    `${player.name} - Level ${player.level}`,
+    `HP: ${player.currentHp}/${player.maxHp}  XP: ${player.xp}`,
+    `STR: ${player.stats.str}  DEX: ${player.stats.dex}  CON: ${player.stats.con}`,
+    `INT: ${player.stats.int}  WIS: ${player.stats.wis}  CHA: ${player.stats.cha}`,
+  ];
+  return { success: true, message: lines.join("\n") };
+}
+
+/**
+ * Handle help command
+ */
+export async function handleHelp(
+  args: string[],
+  _context: CommandContext,
+): Promise<CommandResult> {
+  if (args.length === 0) {
+    // General help - list all commands
+    const lines = ["Available commands:", ""];
+
+    for (const cmd of Object.values(Command)) {
+      const def = COMMAND_REGISTRY[cmd];
+      const aliasStr =
+        def.help.aliases.length > 0
+          ? ` (${def.help.aliases.slice(0, 3).join(", ")}${def.help.aliases.length > 3 ? "..." : ""})`
+          : "";
+      lines.push(`  ${cmd}${aliasStr} - ${def.help.summary}`);
+    }
+
+    lines.push("");
+    lines.push('Type "help <command>" for details on a specific command.');
+    return { success: true, message: lines.join("\n") };
+  }
+
+  // Specific command help
+  const topic = args[0].toLowerCase();
+  const command = COMMAND_ALIASES[topic];
+
+  if (!command) {
+    return { success: false, message: `Unknown command: ${topic}` };
+  }
+
+  const def = COMMAND_REGISTRY[command];
+  const lines = [
+    `${command} - ${def.help.summary}`,
+    "",
+    "Usage:",
+    ...def.help.usage.map((u) => `  ${u}`),
+    "",
+    `Aliases: ${def.help.aliases.join(", ") || "none"}`,
+    "",
+    "Examples:",
+    ...def.help.examples.map((ex) => `  ${ex}`),
+  ];
+
+  return { success: true, message: lines.join("\n") };
+}

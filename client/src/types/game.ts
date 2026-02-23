@@ -37,6 +37,8 @@ export type Room = {
   id: string;
   name: string;
   description: string;
+  // Composed description with revealed containers and nav text
+  fullDescription?: string;
   region: string;
   exits: Partial<Record<string, string>>;
   players: Player[];
