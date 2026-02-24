@@ -50,7 +50,7 @@ async function seed() {
       id: townSquareId,
       name: "Town Square",
       description:
-        "You stand in the heart of a small village. A weathered stone fountain bubbles quietly in the center, surrounded by cobblestones worn smooth by countless footsteps.",
+        "You stand in the heart of a small village. A weathered stone fountain bubbles quietly in the center, surrounded by cobblestones worn smooth by countless footsteps. A moss-covered statue of some forgotten hero stands watch nearby.",
       navDescription:
         "To the north, the warm glow of a tavern beckons. An open-air market lies to the east, and a dirt path leads south into a dark forest.",
       region: "village",
@@ -64,7 +64,7 @@ async function seed() {
       id: tavernId,
       name: "The Rusty Tankard",
       description:
-        "The tavern is warm and inviting, filled with the smell of roasting meat and spilled ale. A crackling fireplace dominates one wall, casting dancing shadows across rough wooden tables. A grizzled barkeep polishes mugs behind a long oak counter.",
+        "The tavern is warm and inviting, filled with the smell of roasting meat and spilled ale. A crackling fireplace dominates one wall, casting dancing shadows across rough wooden tables. A grizzled barkeep polishes mugs behind a long oak counter. Above the bar hangs a mounted trophy - the head of some fearsome beast. In the corner, a well-worn dartboard awaits challengers.",
       navDescription: "The exit to the town square lies to the south.",
       region: "village",
       exits: { south: { roomId: townSquareId } },
@@ -73,7 +73,7 @@ async function seed() {
       id: marketId,
       name: "Village Market",
       description:
-        "Colorful stalls line this bustling marketplace. Merchants hawk their wares - fresh bread, gleaming weapons, mysterious potions, and bolts of fine cloth. The air is thick with the mingled scents of spices and leather.",
+        "Colorful stalls line this bustling marketplace. Merchants hawk their wares - fresh bread, gleaming weapons, mysterious potions, and bolts of fine cloth. The air is thick with the mingled scents of spices from nearby barrels. A weathered notice board stands near the entrance.",
       navDescription: "The town square is to the west.",
       region: "village",
       exits: { west: { roomId: townSquareId } },
@@ -82,7 +82,7 @@ async function seed() {
       id: forestPathId,
       name: "Forest Path",
       description:
-        "A narrow dirt path winds between ancient oak trees. Dappled sunlight filters through the canopy above, and the sounds of the village fade behind you. The undergrowth rustles with unseen creatures.",
+        "A narrow dirt path winds between ancient oak trees. Dappled sunlight filters through the canopy above, and the sounds of the village fade behind you. The undergrowth rustles with unseen creatures. Weathered trail markers point the way deeper into the woods.",
       navDescription:
         "The path continues deeper into the forest to the south, or you can return north to the village.",
       region: "darkwood",
@@ -95,7 +95,7 @@ async function seed() {
       id: forestClearingId,
       name: "Forest Clearing",
       description:
-        "You emerge into a small clearing carpeted with soft moss. Shafts of golden light pierce the canopy, illuminating a ring of mushrooms at the clearing's center. The forest feels ancient here, watchful. Strange sounds echo from deeper in the woods.",
+        "You emerge into a small clearing carpeted with soft moss. Shafts of golden light pierce the canopy, illuminating a ring of mushrooms at the clearing's center. A gnarled tree with a twisted trunk dominates one edge. The forest feels ancient here, watchful. Strange sounds echo from deeper in the woods.",
       navDescription: "The path back to the village lies to the north.",
       region: "darkwood",
       exits: { north: { roomId: forestPathId } },
@@ -202,6 +202,15 @@ async function seed() {
         "A smooth, palm-sized rock. Good for skipping across water or throwing at things.",
       category: "junk",
       isBulk: true,
+    },
+    {
+      id: "item-blue-feather",
+      name: "blue feather",
+      pluralName: "blue feathers",
+      description:
+        "A brilliant blue feather, likely from a jay or some exotic forest bird. It shimmers faintly in the light.",
+      category: "junk",
+      isBulk: false,
     },
   ];
 
@@ -487,6 +496,16 @@ async function seed() {
       isHidden: true,
       revealCommand: "search mushrooms",
     },
+    {
+      id: "container-market-stash",
+      roomId: marketId,
+      name: "hidden compartment",
+      description:
+        "A small compartment hidden beneath the loose board. It looks like someone's secret stash.",
+      aliases: ["compartment", "stash"],
+      revealedText: "A hidden compartment lies open beneath the loose board.",
+      isHidden: true,
+    },
   ];
 
   for (const container of containersData) {
@@ -517,6 +536,18 @@ async function seed() {
       containerId: "container-hidden-cache",
       itemId: "item-gold-coin",
       quantity: 5,
+    },
+    {
+      id: randomUUID(),
+      containerId: "container-market-stash",
+      itemId: "item-gold-coin",
+      quantity: 8,
+    },
+    {
+      id: randomUUID(),
+      containerId: "container-market-stash",
+      itemId: "item-copper-coin",
+      quantity: 15,
     },
   ];
 
@@ -549,6 +580,8 @@ async function seed() {
       isDiscovered: false,
       refuseGetMessage:
         "You reach toward the glittering coins, but a strange sense of foreboding stays your hand. Best not to tempt fate.",
+      refuseDropMessage:
+        "You consider tossing something into the fountain, but think better of it. Who knows what wishes might be disturbed?",
     },
     {
       id: "feature-mushroom-ring",
@@ -556,7 +589,7 @@ async function seed() {
       name: "ring of mushrooms",
       description:
         "A perfect circle of red-capped mushrooms. They seem to glow faintly.",
-      triggerVerbs: ["search", "examine", "inspect"],
+      triggerVerbs: ["search"],
       triggerTarget: "mushrooms",
       successMessage:
         "You carefully search around the mushroom ring and discover a hidden cache beneath a nearby tree root!",
@@ -575,6 +608,231 @@ async function seed() {
       successMessage:
         "You warm yourself by the fire. The heat soothes your tired muscles.",
       successEffects: [{ type: "heal" as const, amount: 3 }],
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-oak-counter",
+      roomId: tavernId,
+      name: "oak counter",
+      description:
+        "A long counter of polished oak, scarred by years of use. Behind it, shelves hold an impressive array of bottles, tankards, and mysterious jars. A chalkboard lists the day's offerings.",
+      triggerVerbs: ["read"],
+      triggerTarget: "counter",
+      successMessage:
+        "You squint at the chalkboard menu: 'Ale - 2 copper. Stew - 5 copper. Mystery Meat - 3 copper (don't ask). Rooms - 1 silver/night.' Someone has added in smaller writing: 'No credit. No exceptions. Yes, that means you, Bjorn.'",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-mounted-trophy",
+      roomId: tavernId,
+      name: "mounted trophy",
+      description:
+        "The massive head of a dire wolf hangs above the bar, its glass eyes gleaming in the firelight. The beast's jaws are frozen in a permanent snarl, revealing yellowed fangs as long as daggers.",
+      triggerVerbs: ["read"],
+      triggerTarget: "trophy",
+      successMessage:
+        "A brass plaque beneath the trophy reads: 'Shadowfang - Terror of the Darkwood. Slain by Grimjaw the Barkeep, Winter of the Red Moon.' You glance at the barkeep with newfound respect.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-dartboard",
+      roomId: tavernId,
+      name: "dartboard",
+      description:
+        "A circular dartboard hangs on the wall, its surface pockmarked from countless throws. A few darts are embedded in the board, and several more lie scattered on the floor beneath it.",
+      triggerVerbs: ["play", "throw"],
+      triggerTarget: "darts",
+      successMessage:
+        "You grab a dart and take aim. The throw goes wide, thunking into the wall a good foot from the board. A nearby patron chuckles. 'Don't quit your day job, friend.'",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // Village Market features
+    {
+      id: "feature-merchant-stalls",
+      roomId: marketId,
+      name: "merchant stalls",
+      description:
+        "Wooden stalls draped with colorful awnings display an array of goods: polished daggers, leather pouches, bundles of herbs, and curious trinkets. One stall catches your eye - its owner seems to have stepped away, leaving the wares unattended.",
+      triggerVerbs: ["search"],
+      triggerTarget: "stalls",
+      successMessage:
+        "You casually browse the unattended stall. Behind a stack of cloth, you notice a loose board...",
+      revealsFeatureId: "feature-loose-board",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-loose-board",
+      roomId: marketId,
+      name: "loose board",
+      description:
+        "A weathered board at the back of the stall sits slightly askew. It looks like it could be pried up.",
+      triggerVerbs: ["pry", "lift", "open", "move"],
+      triggerTarget: "board",
+      successMessage:
+        "You carefully lift the loose board, revealing a small hidden compartment beneath!",
+      revealsContainerId: "container-market-stash",
+      isHidden: true,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-spice-barrels",
+      roomId: marketId,
+      name: "spice barrels",
+      description:
+        "Large wooden barrels line one side of the market, each filled with exotic spices from distant lands. Labels in faded ink read: Saffron, Cardamom, Star Anise, Dragon Pepper.",
+      triggerVerbs: ["smell", "sniff"],
+      triggerTarget: "barrels",
+      successMessage:
+        "You lean in and inhale deeply. The heady mix of cinnamon, pepper, and something floral fills your senses. For a moment, you imagine yourself in a far-off bazaar under a blazing sun.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-notice-board",
+      roomId: marketId,
+      name: "notice board",
+      description:
+        "A weathered wooden board mounted on a post, covered in old nail holes and faded paper scraps. A few tattered notices flutter in the breeze.",
+      triggerVerbs: ["read"],
+      triggerTarget: "board",
+      successMessage:
+        "You scan the notice board. Most postings are old and illegible, but one newer notice catches your eye: 'ADVENTURERS WANTED - Inquire at the Rusty Tankard.' Below it, someone has scrawled: 'No epic quests today. Check back later.'",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // Town Square features
+    {
+      id: "feature-statue-moss",
+      roomId: townSquareId,
+      name: "moss",
+      description:
+        "Thick green moss clings to the statue, softening its features. It's the kind that thrives in damp, shaded places - the fountain's mist must keep it well-watered.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-weathered-statue",
+      roomId: townSquareId,
+      name: "weathered statue",
+      description:
+        "A moss-covered statue of a warrior in ancient armor stands on a low pedestal. Time has worn away most of the details, but you can still make out a stern face and a sword held aloft. A bronze plaque is mounted at the base.",
+      triggerVerbs: ["read"],
+      triggerTarget: "statue",
+      successMessage:
+        "The plaque reads: 'Sir Aldric the Steadfast - Founder of Millbrook. He who stood against the darkness when all others fled.' The date is too weathered to read.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-cobblestones",
+      roomId: townSquareId,
+      name: "worn cobblestones",
+      description:
+        "The cobblestones here have been worn smooth by generations of footsteps. Gaps between the stones have collected dirt, leaves, and the occasional glint of something metallic.",
+      triggerVerbs: ["search", "rummage"],
+      triggerTarget: "cobblestones",
+      successMessage:
+        "You crouch down and sift through the debris between the stones. Your fingers close around a tarnished copper coin that someone must have dropped long ago!",
+      successEffects: [
+        {
+          type: "give_item" as const,
+          itemId: "item-copper-coin",
+          quantity: 1,
+        },
+      ],
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // Forest Path features
+    {
+      id: "feature-ancient-oaks",
+      roomId: forestPathId,
+      name: "ancient oak trees",
+      description:
+        "These massive oaks have stood for centuries, their gnarled trunks wider than a man's armspan. Strange symbols are carved into the bark of the largest one - old druidic marks, perhaps, or warnings from a forgotten age.",
+      triggerVerbs: ["touch", "feel"],
+      triggerTarget: "oaks",
+      successMessage:
+        "You place your hand on the rough bark. For a moment, you feel a faint pulse, as if the tree itself were breathing. The forest seems to watch you with ancient eyes.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-undergrowth",
+      roomId: forestPathId,
+      name: "rustling undergrowth",
+      description:
+        "Dense ferns and brambles crowd the edges of the path. Something small moves within, disturbing the leaves.",
+      triggerVerbs: ["search", "rummage"],
+      triggerTarget: "undergrowth",
+      successMessage:
+        "You carefully part the ferns and peer into the undergrowth. A startled bird bursts out, leaving behind a brilliant blue feather!",
+      successEffects: [
+        {
+          type: "give_item" as const,
+          itemId: "item-blue-feather",
+          quantity: 1,
+        },
+      ],
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-trail-markers",
+      roomId: forestPathId,
+      name: "trail markers",
+      description:
+        "Weathered wooden posts mark the path at intervals. Faded paint indicates directions: an arrow pointing north is labeled 'Village', while the southern arrow reads 'Darkwood - Beware'.",
+      triggerVerbs: ["read"],
+      triggerTarget: "markers",
+      successMessage:
+        "You study the markers more closely. Someone has scratched additional notes: 'Mushroom ring - don't step inside' and 'Wolves at dusk'. Helpful, if a bit ominous.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // Forest Clearing features
+    {
+      id: "feature-gnarled-tree",
+      roomId: forestClearingId,
+      name: "gnarled tree",
+      description:
+        "An ancient tree dominates one edge of the clearing, its trunk twisted into impossible shapes. Deep grooves in the bark form patterns that almost look like faces - or perhaps that's just a trick of the light.",
+      triggerVerbs: ["touch", "feel"],
+      triggerTarget: "tree",
+      successMessage:
+        "You press your palm against the rough bark. The wood is warm, almost feverishly so. For a heartbeat, you could swear you feel it pulse beneath your hand.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-soft-moss",
+      roomId: forestClearingId,
+      name: "soft moss",
+      description:
+        "A thick carpet of emerald moss covers much of the clearing floor. It looks impossibly soft and inviting.",
+      triggerVerbs: ["rest", "sit"],
+      triggerTarget: "moss",
+      successMessage:
+        "You settle onto the moss. It's softer than any bed you've slept in. The forest seems to hum a quiet lullaby, and you feel your aches begin to fade.",
+      successEffects: [{ type: "heal" as const, amount: 2 }],
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-strange-sounds",
+      roomId: forestClearingId,
+      name: "strange sounds",
+      description:
+        "Odd noises drift from deeper in the forest - creaking branches, distant howls, and something that might be whispered voices.",
+      triggerVerbs: ["listen"],
+      triggerTarget: "sounds",
+      successMessage:
+        "You stand perfectly still and listen. Beneath the rustle of leaves, you hear it: a low, rhythmic chanting from somewhere to the south. It stops abruptly, as if aware of your attention.",
       isHidden: false,
       isDiscovered: false,
     },

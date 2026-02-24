@@ -30,8 +30,6 @@ Items to revisit after the initial prototype is working.
 
 - [ ] **Command history persistence**: Optionally persist command history to localStorage across sessions.
 
-- [ ] **Add small features**: Add features to interesting things from a room's description, even if there's not a lot of interactibility - just the ability to examine something noted in the room description and get a more detailed description.
-
 - [ ] **Formatting stats**: Make stats and equipment more nicely formatted.
 
 - [ ] **Item and container sizes**: Add t-shirt size system (tiny, small, medium, large, huge) to items and containers. Items can only be placed in containers strictly smaller than the container (`item.size < container.size`). Huge containers exist mainly to hold large items. Players cannot take huge items.
@@ -48,3 +46,28 @@ Items to revisit after the initial prototype is working.
 - [ ] **Back equipment slot**: Add "back" equipment slot for backpacks/cloaks. Backpacks could function as wearable containers that expand inventory capacity if we implement inventory limits.
 
 - [ ] **EffectHandler registry pattern**: Consider refactoring EffectHandler.ts to use a registry pattern (similar to CommandParser) when more effect types are added. The current switch statement in `apply()` is manageable but could grow unwieldy. Low priority - revisit when adding new effect types.
+
+- [ ] **Expand world map**: Flesh out more locations beyond the starter area. Ideas:
+  - Forest depths with wishing well (random luck effects when tossing coins)
+  - Cave system accessible from forest
+  - Road leading to other villages/towns
+  - Riverside or lake area
+  - Abandoned ruins with puzzles
+  - Each area should have 3-5 rooms with interconnected features
+  - Aim for 1 in 5-6 rooms to have a discovery chain (like mushrooms → hidden cache)
+
+- [ ] **Randomized loot from features**: Some features (like bird nests, undergrowth) should give random items from a loot table instead of fixed items. Include cooldown so it's empty if recently looted. Example: nest gives feather (common), egg (rare), or nothing (if looted within last hour).
+
+## Standard Feature Trigger Verbs
+
+Use these consistently across all features to avoid player frustration:
+
+- **Search/Discovery**: `search`, `rummage` - for finding hidden things
+- **Read/Information**: `read` - for signs, plaques, menus, notices
+- **Physical Interaction**: `touch`, `feel`, `push`, `pull`, `pry`, `lift`, `move`, `open` - for manipulating objects
+- **Sensory**: `smell`, `sniff`, `listen` - for atmospheric/sensory experiences
+- **Rest/Comfort**: `warm`, `rest`, `sit` - for resting spots
+- **Play/Games**: `play`, `throw` - for minigames/activities
+- **Consume**: `drink`, `taste`, `eat` - for consumables
+
+Note: Don't use `examine`, `inspect`, or `look` as trigger verbs - these are handled by the command system and show descriptions without triggering effects.

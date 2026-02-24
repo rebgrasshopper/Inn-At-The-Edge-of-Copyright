@@ -505,6 +505,18 @@ export async function putItemInContainer(
   const container = await findContainerInRoom(roomId, containerName);
 
   if (!container) {
+    // Check if it's a feature (non-container thing like a fountain)
+    const feature = await FeatureService.findFeatureByName(
+      roomId,
+      containerName,
+    );
+    if (feature) {
+      return {
+        success: false,
+        message: feature.refuseDropMessage || "You can't put anything in that.",
+      };
+    }
+
     return {
       success: false,
       message: `You don't see any "${containerName}" here.`,

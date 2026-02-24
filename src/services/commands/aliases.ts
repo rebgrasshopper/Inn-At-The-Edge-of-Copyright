@@ -82,6 +82,10 @@ export const COMMAND_ALIASES: Record<string, Command> = {
   kill: Command.Attack,
   hit: Command.Attack,
   strike: Command.Attack,
+
+  // Multi-word aliases
+  "pick up": Command.Get,
+  "put down": Command.Drop,
 };
 
 /**

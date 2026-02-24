@@ -102,6 +102,15 @@ function normalizeDirection(token: string): string {
 }
 
 /**
+ * Safely look up a command alias, avoiding prototype pollution
+ * @param key - The alias to look up
+ * @returns The Command if found, undefined otherwise
+ */
+function getAlias(key: string): Command | undefined {
+  return Object.hasOwn(COMMAND_ALIASES, key) ? COMMAND_ALIASES[key] : undefined;
+}
+
+/**
  * Parse raw user input into a structured command
  * @param input - Raw user input string
  * @returns ParsedCommand with type, action, target, and args
@@ -117,8 +126,14 @@ export function parse(input: string): ParsedCommand {
     };
   }
 
+  // Check for two-word command first (e.g., "pick up")
+  const twoWordKey =
+    tokens.length >= 2 ? `${tokens[0]} ${tokens[1]}` : undefined;
+  const twoWordCommand = twoWordKey ? getAlias(twoWordKey) : undefined;
+
   const firstToken = tokens[0];
-  const command = COMMAND_ALIASES[firstToken];
+  const command = twoWordCommand || getAlias(firstToken);
+  const argsStartIndex = twoWordCommand ? 2 : 1;
 
   // Handle "look at X" as examine
   if (command === Command.Look && tokens[1] === "at" && tokens.length > 2) {
@@ -145,8 +160,8 @@ export function parse(input: string): ParsedCommand {
   if (command) {
     const category = COMMAND_CATEGORIES[command];
     const legacyAction = LEGACY_ACTIONS[command] || command;
-    let target = tokens.slice(1).join(" ") || undefined;
-    let args = tokens.slice(1);
+    let target = tokens.slice(argsStartIndex).join(" ") || undefined;
+    let args = tokens.slice(argsStartIndex);
 
     // Special handling for movement commands
     if (command === Command.Move) {
@@ -198,12 +213,18 @@ export async function execute(
     return { success: false, message: "What?" };
   }
 
+  // Check for two-word command first (e.g., "pick up")
+  const twoWordKey =
+    tokens.length >= 2 ? `${tokens[0]} ${tokens[1]}` : undefined;
+  const twoWordCommand = twoWordKey ? getAlias(twoWordKey) : undefined;
+
   const firstToken = tokens[0];
-  const command = COMMAND_ALIASES[firstToken];
+  const command = twoWordCommand || getAlias(firstToken);
+  const argsStartIndex = twoWordCommand ? 2 : 1;
 
   if (command) {
     const definition = COMMAND_REGISTRY[command];
-    const args = tokens.slice(1);
+    const args = tokens.slice(argsStartIndex);
     return definition.handler(args, context, input);
   }
 
