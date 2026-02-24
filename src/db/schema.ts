@@ -286,4 +286,8 @@ export const features = sqliteTable("features", {
   // null = never revealed or permanently visible
   revealedAt: integer("revealed_at", { mode: "timestamp" }),
   isDiscovered: integer("is_discovered", { mode: "boolean" }).default(false),
+
+  // Custom refusal messages for invalid actions (optional, fallback to generic)
+  refuseGetMessage: text("refuse_get_message"),
+  refuseDropMessage: text("refuse_drop_message"),
 });

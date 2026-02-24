@@ -43,6 +43,9 @@ export type Feature = {
   // When the feature was last revealed (for time-based re-hiding)
   revealedAt?: Date;
   isDiscovered: boolean;
+  // Custom refusal messages for invalid actions
+  refuseGetMessage?: string;
+  refuseDropMessage?: string;
 };
 
 export type EffectResult = {

@@ -477,6 +477,8 @@ async function seed() {
       successEffects: [{ type: "heal" as const, amount: 5 }],
       isHidden: false,
       isDiscovered: false,
+      refuseGetMessage:
+        "You reach toward the glittering coins, but a strange sense of foreboding stays your hand. Best not to tempt fate.",
     },
     {
       id: "feature-mushroom-ring",

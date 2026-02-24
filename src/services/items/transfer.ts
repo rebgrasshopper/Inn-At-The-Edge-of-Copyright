@@ -63,16 +63,13 @@ export async function getItem(
       }
     }
 
-    // Check if target is a feature or container (non-takeable things)
-    const features = await FeatureService.getFeaturesInRoom(roomId);
-    const nameLower = itemName.toLowerCase();
-    const matchesFeature = features.some((f) => {
-      const targetLower = f.triggerTarget.toLowerCase();
-      return targetLower === nameLower || targetLower.startsWith(nameLower);
-    });
-
-    if (matchesFeature) {
-      return { success: false, message: "You can't take that." };
+    // Check if target is a feature (non-takeable thing)
+    const feature = await FeatureService.findFeatureByName(roomId, itemName);
+    if (feature) {
+      return {
+        success: false,
+        message: feature.refuseGetMessage || "You can't take that.",
+      };
     }
 
     const container = await findContainerInRoom(roomId, itemName);
@@ -264,6 +261,19 @@ export async function getItemFromContainer(
   const container = await findContainerInRoom(roomId, containerName);
 
   if (!container) {
+    // Check if it's a feature (non-container thing like a fountain)
+    const feature = await FeatureService.findFeatureByName(
+      roomId,
+      containerName,
+    );
+    if (feature) {
+      return {
+        success: false,
+        message:
+          feature.refuseGetMessage || "You can't take anything from that.",
+      };
+    }
+
     return {
       success: false,
       message: `You don't see any "${containerName}" here.`,

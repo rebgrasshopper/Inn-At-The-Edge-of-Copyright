@@ -170,34 +170,14 @@ export async function handleExamine(
     searchOwn,
   );
 
-  // If item not found, check for a feature with this target
+  // If item not found, check for a feature by name (just show description)
   if (!result.success) {
-    const feature = await FeatureService.findFeatureByCommand(
-      room.id,
-      "examine",
-      target,
-    );
+    const feature = await FeatureService.findFeatureByName(room.id, target);
     if (feature) {
-      const featureResult = await FeatureService.interactWithFeature(
-        player.id,
-        feature,
-      );
-      const messages = [featureResult.message];
-      for (const effect of featureResult.effectsApplied) {
-        if (effect.message) {
-          messages.push(effect.message);
-        }
-      }
-      if (featureResult.revealedFeature) {
-        messages.push(`You discover: ${featureResult.revealedFeature.name}`);
-      }
-      if (featureResult.revealedContainer) {
-        messages.push(`You find: ${featureResult.revealedContainer.name}`);
-      }
-      return { success: featureResult.success, message: messages.join("\n") };
+      return { success: true, message: feature.description };
     }
 
-    // If no feature, check for a container
+    // If no feature by name, check for a container
     const containerResult = await ItemService.examineContainer(room.id, target);
     if (containerResult.success) {
       return { success: true, message: containerResult.description };

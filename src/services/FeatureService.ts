@@ -13,6 +13,7 @@ import type {
   Feature,
   FeatureCondition,
 } from "../types/feature.js";
+import { stripFillerWords } from "../utils/text.js";
 import * as EffectHandler from "./EffectHandler.js";
 
 /** Time in milliseconds for hidden features to re-hide (2 hours) */
@@ -39,6 +40,8 @@ function toFeature(row: typeof features.$inferSelect): Feature {
     isHidden: row.isHidden,
     revealedAt: row.revealedAt ?? undefined,
     isDiscovered: row.isDiscovered ?? false,
+    refuseGetMessage: row.refuseGetMessage ?? undefined,
+    refuseDropMessage: row.refuseDropMessage ?? undefined,
   };
 }
 
@@ -106,6 +109,34 @@ export async function getFeaturesInRoom(
 }
 
 /**
+ * Find a feature by name (for examine/look commands)
+ * @param roomId - The room to search in
+ * @param name - The name to match against feature names
+ * @returns The matching feature or null
+ */
+export async function findFeatureByName(
+  roomId: string,
+  name: string,
+): Promise<Feature | null> {
+  const roomFeatures = await getFeaturesInRoom(roomId, false);
+  const nameLower = name.toLowerCase();
+
+  for (const feature of roomFeatures) {
+    const featureName = feature.name.toLowerCase();
+    // Match full name, or partial match (e.g., "fountain" matches "stone fountain")
+    if (
+      featureName === nameLower ||
+      featureName.includes(nameLower) ||
+      nameLower.includes(featureName)
+    ) {
+      return feature;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Find a feature by command (verb + target)
  * @param roomId - The room to search in
  * @param verb - The action verb (e.g., "pull", "move", "search")
@@ -120,7 +151,7 @@ export async function findFeatureByCommand(
   const roomFeatures = await getFeaturesInRoom(roomId, false);
 
   const verbLower = verb.toLowerCase();
-  const targetLower = target.toLowerCase();
+  const targetLower = stripFillerWords(target);
 
   for (const feature of roomFeatures) {
     // Check if verb matches any trigger verb
@@ -133,7 +164,8 @@ export async function findFeatureByCommand(
     const featureTarget = feature.triggerTarget.toLowerCase();
     if (
       featureTarget === targetLower ||
-      featureTarget.startsWith(targetLower)
+      featureTarget.startsWith(targetLower) ||
+      targetLower.includes(featureTarget)
     ) {
       return feature;
     }
