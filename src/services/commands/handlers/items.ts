@@ -6,11 +6,13 @@ import { eq } from "drizzle-orm";
 import { db } from "../../../db/index.js";
 import { players } from "../../../db/schema.js";
 import type { CommandContext, CommandResult } from "../../../types/command.js";
+import * as CorpseService from "../../CorpseService.js";
 import * as FeatureService from "../../FeatureService.js";
 import * as ItemService from "../../items/index.js";
 
 /**
  * Parse quantity from args if present (e.g., "3" or "all")
+ * Does NOT consume "all" if followed by "from" (that's "get all from X")
  */
 function parseQuantity(args: string[]): {
   quantity: number | "all" | undefined;
@@ -22,7 +24,8 @@ function parseQuantity(args: string[]): {
 
   const first = args[0];
 
-  if (first === "all") {
+  // Don't consume "all" if followed by "from" - that's "get all from X"
+  if (first === "all" && args[1] !== "from") {
     return { quantity: "all", remainingArgs: args.slice(1) };
   }
 
@@ -42,31 +45,103 @@ export async function handleGet(
   context: CommandContext,
 ): Promise<CommandResult> {
   const { player, room } = context;
-  const { quantity, remainingArgs } = parseQuantity(args);
-  const target = remainingArgs.join(" ");
+  const target = args.join(" ");
 
   if (!target) {
     return { success: false, message: "What do you want to pick up?" };
   }
 
-  // Check for "get X from Y" pattern
+  // Check for "get X from Y" pattern FIRST (before quantity parsing)
   const fromMatch = target.match(/^(.+?)\s+from\s+(.+)$/i);
   if (fromMatch) {
-    const [, itemName, containerName] = fromMatch;
+    const [, itemPart, sourceName] = fromMatch;
+    const sourceNameLower = sourceName.trim().toLowerCase();
+
+    // Parse quantity from the item part
+    const itemTokens = itemPart.trim().split(/\s+/);
+    let quantity: number | "all" | undefined;
+    let itemName: string;
+
+    if (itemTokens[0] === "all") {
+      quantity = "all";
+      itemName = "all";
+    } else {
+      const num = parseInt(itemTokens[0], 10);
+      if (!isNaN(num) && num > 0) {
+        quantity = num;
+        itemName = itemTokens.slice(1).join(" ");
+      } else {
+        quantity = undefined;
+        itemName = itemPart.trim();
+      }
+    }
+
+    // Check if source is a corpse
+    if (
+      sourceNameLower === "corpse" ||
+      sourceNameLower.startsWith("corpse of ")
+    ) {
+      const corpseResult = await CorpseService.findCorpseInRoom(
+        room.id,
+        sourceName.trim(),
+      );
+      if (!corpseResult.found) {
+        return { success: false, message: corpseResult.error };
+      }
+
+      const lootResult = await CorpseService.lootItemByName(
+        player.id,
+        corpseResult.corpse,
+        itemName,
+        quantity,
+      );
+
+      // If corpse was deleted, add broadcast for disappearance message
+      if (lootResult.corpseDeleted) {
+        return {
+          success: lootResult.success,
+          message: lootResult.message,
+          broadcast: [
+            {
+              room: lootResult.corpseDeleted.roomId,
+              event: "chat:message",
+              data: {
+                id: crypto.randomUUID(),
+                type: "system",
+                content: `The corpse of ${lootResult.corpseDeleted.playerName} crumbles into dust and fades away.`,
+                timestamp: new Date().toISOString(),
+              },
+            },
+          ],
+        };
+      }
+
+      return { success: lootResult.success, message: lootResult.message };
+    }
+
+    // Otherwise treat as container
     const result = await ItemService.getItemFromContainer(
       player.id,
       room.id,
-      itemName.trim(),
-      containerName.trim(),
+      itemName,
+      sourceName.trim(),
       quantity,
     );
     return { success: result.success, message: result.message };
   }
 
+  // No "from" pattern - parse quantity normally
+  const { quantity, remainingArgs } = parseQuantity(args);
+  const itemTarget = remainingArgs.join(" ");
+
+  if (!itemTarget) {
+    return { success: false, message: "What do you want to pick up?" };
+  }
+
   const result = await ItemService.getItem(
     player.id,
     room.id,
-    target,
+    itemTarget,
     quantity,
   );
   return { success: result.success, message: result.message };
@@ -149,7 +224,7 @@ export async function handleExamine(
   const selfWords = ["self", "me", "myself", player.name.toLowerCase()];
   if (selfWords.includes(target.toLowerCase())) {
     // Fetch fresh player data from database to get current HP/XP
-    const freshPlayer = await db
+    const freshPlayer = db
       .select()
       .from(players)
       .where(eq(players.id, player.id))
@@ -169,6 +244,43 @@ export async function handleExamine(
       "",
       equipResult.message,
     ];
+    return { success: true, message: lines.join("\n") };
+  }
+
+  // Check for corpse examination
+  const targetLower = target.toLowerCase();
+  if (targetLower === "corpse" || targetLower.startsWith("corpse of ")) {
+    const corpseResult = await CorpseService.findCorpseInRoom(room.id, target);
+    if (!corpseResult.found) {
+      return { success: false, message: corpseResult.error };
+    }
+
+    const corpse = corpseResult.corpse;
+    const lines = [`The corpse of ${corpse.playerName}.`];
+
+    if (corpse.inventory.length === 0) {
+      lines.push("It is empty.");
+    } else {
+      lines.push("It contains:");
+      for (const item of corpse.inventory) {
+        if (item.quantity === 1) {
+          lines.push(`  ${item.itemName}`);
+        } else {
+          const displayName = item.itemPluralName || `${item.itemName}s`;
+          lines.push(`  ${item.quantity} ${displayName}`);
+        }
+      }
+    }
+
+    // Check if locked for this player
+    const canLoot = await CorpseService.canLootCorpse(player.id, corpse.id);
+    if (!canLoot) {
+      const timeLeft = Math.ceil(
+        (corpse.unlocksAt.getTime() - Date.now()) / 60000,
+      );
+      lines.push(`(Locked for ${timeLeft} more minutes)`);
+    }
+
     return { success: true, message: lines.join("\n") };
   }
 

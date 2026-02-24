@@ -10,6 +10,7 @@ import {
   EQUIPMENT_SLOT_TO_FIELD,
   type PlayerEquipment,
 } from "../../types/player.js";
+import { fuzzyMatch } from "../../utils/fuzzyMatch.js";
 import { toItem } from "../ItemService.utils.js";
 import { findItemInPlayerInventory } from "./finders.js";
 import type { ItemResult } from "./transfer.js";
@@ -250,22 +251,15 @@ export async function unequipItem(
     };
   }
 
-  // Try to find by item name
-  const nameLower = itemNameOrSlot.toLowerCase();
-
-  // Check each equipped slot for a matching item
+  // Try to find by item name using fuzzy matching
   for (const [slot, itemId] of Object.entries(equipment)) {
     if (!itemId) continue;
 
     const item = db.select().from(items).where(eq(items.id, itemId)).get();
     if (!item) continue;
 
-    if (
-      item.name.toLowerCase() === nameLower ||
-      item.name.toLowerCase().startsWith(nameLower) ||
-      item.pluralName?.toLowerCase() === nameLower ||
-      item.pluralName?.toLowerCase().startsWith(nameLower)
-    ) {
+    const matchResult = fuzzyMatch(itemNameOrSlot, item.name, item.pluralName);
+    if (matchResult.matches) {
       // Found the item, unequip it
       const dbColumn = SLOT_TO_DB_COLUMN[slot as keyof PlayerEquipment];
       await db

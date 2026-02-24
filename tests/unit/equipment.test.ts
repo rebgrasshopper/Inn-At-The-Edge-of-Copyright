@@ -323,6 +323,36 @@ describe("Equipment Operations", () => {
         .get();
       expect(player?.wornMainHand).toBeNull();
     });
+
+    it("should unequip by word match (fuzzy)", async () => {
+      // "sword" should match "iron sword"
+      const result = await ItemService.unequipItem(testPlayerId, "sword");
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain("iron sword");
+
+      const player = await db
+        .select()
+        .from(players)
+        .where(eq(players.id, testPlayerId))
+        .get();
+      expect(player?.wornMainHand).toBeNull();
+    });
+
+    it("should unequip by prefix match (fuzzy)", async () => {
+      // "iron" should match "iron sword"
+      const result = await ItemService.unequipItem(testPlayerId, "iron");
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain("iron sword");
+
+      const player = await db
+        .select()
+        .from(players)
+        .where(eq(players.id, testPlayerId))
+        .get();
+      expect(player?.wornMainHand).toBeNull();
+    });
   });
 
   describe("getEquipmentList", () => {

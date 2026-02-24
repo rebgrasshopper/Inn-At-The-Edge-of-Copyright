@@ -6,6 +6,8 @@ import path from "path";
 import { Server } from "socket.io";
 import { fileURLToPath } from "url";
 import { authRouter, charactersRouter } from "./routes/index.js";
+import * as CorpseService from "./services/CorpseService.js";
+import { getSocketRoomName } from "./socket/handlers.js";
 import { registerHandlers, socketAuthMiddleware } from "./socket/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -54,6 +56,28 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+// Corpse cleanup interval (every 5 minutes)
+const CORPSE_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+
+setInterval(async () => {
+  try {
+    const expiredCorpses = await CorpseService.cleanupExpiredCorpses();
+    for (const corpse of expiredCorpses) {
+      io.to(getSocketRoomName(corpse.roomId)).emit("chat:message", {
+        id: crypto.randomUUID(),
+        type: "system",
+        content: `The corpse of ${corpse.playerName} crumbles into dust and fades away.`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    if (expiredCorpses.length > 0) {
+      console.log(`Cleaned up ${expiredCorpses.length} expired corpse(s)`);
+    }
+  } catch (error) {
+    console.error("Error cleaning up expired corpses:", error);
+  }
+}, CORPSE_CLEANUP_INTERVAL_MS);
 
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

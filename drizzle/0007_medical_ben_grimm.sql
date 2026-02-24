@@ -1,0 +1,1 @@
+ALTER TABLE `corpses` ADD `expires_at` integer NOT NULL;

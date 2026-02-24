@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { db } from "../../db/index.js";
 import {
   containerInventory,
+  items,
   playerInventory,
   players,
   roomInventory,
@@ -245,7 +246,7 @@ export async function dropItem(
  * Get an item from a container and add it to player's inventory.
  * @param playerId - The player getting the item
  * @param roomId - The room the player is in
- * @param itemName - The name of the item to get
+ * @param itemName - The name of the item to get, or "all" for everything
  * @param containerName - The name of the container to get from
  * @param requestedQuantity - How many to get
  * @returns ItemResult with success status and message
@@ -284,6 +285,67 @@ export async function getItemFromContainer(
     return { success: false, message: `The ${container.name} is closed.` };
   }
 
+  // Handle "all" - take everything from container
+  if (itemName.toLowerCase() === "all") {
+    const allItems = await db
+      .select()
+      .from(containerInventory)
+      .innerJoin(items, eq(containerInventory.itemId, items.id))
+      .where(eq(containerInventory.containerId, container.id));
+
+    if (allItems.length === 0) {
+      return { success: false, message: `The ${container.name} is empty.` };
+    }
+
+    const takenItems: string[] = [];
+    for (const record of allItems) {
+      // Transfer each item to player
+      const existingInventory = db
+        .select()
+        .from(playerInventory)
+        .where(
+          and(
+            eq(playerInventory.playerId, playerId),
+            eq(playerInventory.itemId, record.items.id),
+          ),
+        )
+        .get();
+
+      if (existingInventory) {
+        await db
+          .update(playerInventory)
+          .set({
+            quantity:
+              existingInventory.quantity + record.container_inventory.quantity,
+          })
+          .where(eq(playerInventory.id, existingInventory.id));
+      } else {
+        await db.insert(playerInventory).values({
+          id: uuidv4(),
+          playerId,
+          itemId: record.items.id,
+          quantity: record.container_inventory.quantity,
+        });
+      }
+
+      // Remove from container
+      await db
+        .delete(containerInventory)
+        .where(eq(containerInventory.id, record.container_inventory.id));
+
+      const displayName =
+        record.container_inventory.quantity === 1
+          ? record.items.name
+          : `${record.container_inventory.quantity} ${record.items.pluralName || record.items.name + "s"}`;
+      takenItems.push(displayName);
+    }
+
+    return {
+      success: true,
+      message: `You take ${takenItems.join(", ")} from the ${container.name}.`,
+    };
+  }
+
   // Find the item in the container
   const found = await findItemInContainer(container.id, itemName);
   if (!found) {
@@ -319,7 +381,7 @@ export async function getItemFromContainer(
   );
 
   // Check if player already has this item
-  const existingInventory = await db
+  const existingInventory = db
     .select()
     .from(playerInventory)
     .where(

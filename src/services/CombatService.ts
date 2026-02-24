@@ -6,15 +6,7 @@
 import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
-import {
-  corpseInventory,
-  corpses,
-  monsterInstances,
-  monsters,
-  playerInventory,
-  players,
-  rooms,
-} from "../db/schema.js";
+import { monsterInstances, monsters, players, rooms } from "../db/schema.js";
 import type {
   ActiveCombat,
   AttackResult,
@@ -24,6 +16,7 @@ import type {
   FleeResult,
 } from "../types/combat.js";
 import type { Direction, Exit } from "../types/room.js";
+import * as CorpseService from "./CorpseService.js";
 import { roll, rollD20 } from "./DiceService.js";
 import {
   calculateAC,
@@ -38,9 +31,6 @@ import { getEquippedItems } from "./items/equipment.js";
 
 /** Default respawn room ID (Town Square) */
 const DEFAULT_RESPAWN_ROOM = "room-town-square";
-
-/** Corpse lock duration in milliseconds (1 hour) */
-const CORPSE_LOCK_DURATION_MS = 60 * 60 * 1000;
 
 // ============================================
 // In-Memory Combat State
@@ -709,38 +699,9 @@ export async function handlePlayerDeath(
   // Apply XP penalty
   const newXp = calculateXpAfterDeath(player.xp);
 
-  // Create corpse
-  const corpseId = randomUUID();
-  const now = new Date();
-  const unlocksAt = new Date(now.getTime() + CORPSE_LOCK_DURATION_MS);
-
-  await db.insert(corpses).values({
-    id: corpseId,
-    playerId,
-    roomId,
-    createdAt: now,
-    unlocksAt,
-  });
-
-  // Transfer inventory to corpse
-  const inventory = await db
-    .select()
-    .from(playerInventory)
-    .where(eq(playerInventory.playerId, playerId));
-
-  for (const item of inventory) {
-    await db.insert(corpseInventory).values({
-      id: randomUUID(),
-      corpseId,
-      itemId: item.itemId,
-      quantity: item.quantity,
-    });
-  }
-
-  // Clear player inventory
-  await db
-    .delete(playerInventory)
-    .where(eq(playerInventory.playerId, playerId));
+  // Create corpse and transfer inventory using CorpseService
+  const corpseId = await CorpseService.createCorpse(playerId, roomId);
+  await CorpseService.transferInventoryToCorpse(playerId, corpseId);
 
   // Clear worn equipment
   await db

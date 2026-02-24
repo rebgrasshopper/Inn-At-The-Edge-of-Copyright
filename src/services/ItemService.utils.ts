@@ -1,5 +1,6 @@
 import type { items } from "../db/schema.js";
 import type { Item } from "../types/item.js";
+import { fuzzyMatch } from "../utils/fuzzyMatch.js";
 
 export type ItemFindResult = {
   item: Item;
@@ -39,84 +40,31 @@ export type GenericFindResult<T> = {
 } | null;
 
 /**
- * Find an item by name using exact, prefix, or word matching.
+ * Find an item by name using fuzzy matching (exact, prefix, or word match).
  * This is the generic matcher used by all inventory searches.
  * @template T - The inventory record type
  * @param entries - Array of inventory entries to search
- * @param searchName - The name to search for (will be lowercased)
+ * @param searchName - The name to search for
  * @returns The matching item with inventory record, or null if not found
  */
 export function findItemByName<T>(
   entries: InventoryEntry<T>[],
   searchName: string,
 ): GenericFindResult<T> {
-  const nameLower = searchName.toLowerCase();
-
-  // Helper to check name/pluralName match
-  const checkMatch = (
-    record: ItemRecord,
-    matchFn: (name: string) => boolean,
-  ): boolean => {
-    if (matchFn(record.name.toLowerCase())) return true;
-    if (record.pluralName && matchFn(record.pluralName.toLowerCase()))
-      return true;
-    return false;
-  };
-
-  // Try exact match first
-  const exactMatch = entries.find((e) =>
-    checkMatch(e.itemRecord, (name) => name === nameLower),
-  );
-  if (exactMatch) {
-    return {
-      item: toItem(exactMatch.rawItem),
-      inventoryRecord: exactMatch.inventoryRecord,
-      matchedPlural: matchesPlural(
-        nameLower,
-        exactMatch.itemRecord.name,
-        exactMatch.itemRecord.pluralName,
-      ),
-    };
-  }
-
-  // Try prefix match
-  const prefixMatch = entries.find((e) =>
-    checkMatch(e.itemRecord, (name) => name.startsWith(nameLower)),
-  );
-  if (prefixMatch) {
-    return {
-      item: toItem(prefixMatch.rawItem),
-      inventoryRecord: prefixMatch.inventoryRecord,
-      matchedPlural: matchesPlural(
-        nameLower,
-        prefixMatch.itemRecord.name,
-        prefixMatch.itemRecord.pluralName,
-      ),
-    };
-  }
-
-  // Try word match (any word in the name starts with the search term)
-  const wordMatch = entries.find((e) => {
-    const words = e.itemRecord.name.toLowerCase().split(/\s+/);
-    const pluralWords =
-      e.itemRecord.pluralName?.toLowerCase().split(/\s+/) || [];
-    return (
-      words.some((w) => w.startsWith(nameLower)) ||
-      pluralWords.some((w) => w.startsWith(nameLower))
+  for (const entry of entries) {
+    const result = fuzzyMatch(
+      searchName,
+      entry.itemRecord.name,
+      entry.itemRecord.pluralName,
     );
-  });
-  if (wordMatch) {
-    return {
-      item: toItem(wordMatch.rawItem),
-      inventoryRecord: wordMatch.inventoryRecord,
-      matchedPlural: matchesPlural(
-        nameLower,
-        wordMatch.itemRecord.name,
-        wordMatch.itemRecord.pluralName,
-      ),
-    };
+    if (result.matches) {
+      return {
+        item: toItem(entry.rawItem),
+        inventoryRecord: entry.inventoryRecord,
+        matchedPlural: result.matchedPlural,
+      };
+    }
   }
-
   return null;
 }
 
@@ -147,46 +95,6 @@ export function toItem(row: typeof items.$inferSelect): Item {
       hp: row.hpEffect ?? undefined,
     },
   };
-}
-
-/**
- * Check if a search term matches the plural form of an item.
- * @param nameLower - Lowercase search term
- * @param singularName - Item's singular name
- * @param pluralName - Item's plural name (optional)
- * @returns True if the search term matches the plural form
- */
-export function matchesPlural(
-  nameLower: string,
-  singularName: string,
-  pluralName: string | null | undefined,
-): boolean {
-  const singular = singularName.toLowerCase();
-  const plural = pluralName?.toLowerCase();
-
-  // Exact plural match
-  if (plural && nameLower === plural) return true;
-
-  // Prefix match on plural (but not singular)
-  if (plural && nameLower.length > 0) {
-    const matchesPluralPrefix = plural.startsWith(nameLower);
-    const matchesSingularPrefix = singular.startsWith(nameLower);
-    // If it matches plural prefix but not singular, it's plural
-    if (matchesPluralPrefix && !matchesSingularPrefix) return true;
-  }
-
-  // Word match on plural words (but not singular words)
-  if (plural) {
-    const singularWords = singular.split(/\s+/);
-    const pluralWords = plural.split(/\s+/);
-    const matchesPluralWord = pluralWords.some((w) => w.startsWith(nameLower));
-    const matchesSingularWord = singularWords.some((w) =>
-      w.startsWith(nameLower),
-    );
-    if (matchesPluralWord && !matchesSingularWord) return true;
-  }
-
-  return false;
 }
 
 /**

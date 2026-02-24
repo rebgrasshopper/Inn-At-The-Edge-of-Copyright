@@ -353,4 +353,188 @@ describe("Container Operations", () => {
       expect(playerItems[0].quantity).toBe(7);
     });
   });
+
+  describe("getItemFromContainer", () => {
+    it("should get item from open container", async () => {
+      await db
+        .update(containers)
+        .set({ isOpen: true })
+        .where(eq(containers.id, testContainerId));
+
+      await db.insert(containerInventory).values({
+        id: "ci-get-1",
+        containerId: testContainerId,
+        itemId: testItemId,
+        quantity: 3,
+      });
+
+      const result = await ItemService.getItemFromContainer(
+        testPlayerId,
+        testRoomId,
+        "healing potion",
+        "wooden chest",
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain("take");
+      expect(result.message).toContain("healing potion");
+
+      // Verify item is in player inventory
+      const playerItems = await db
+        .select()
+        .from(playerInventory)
+        .where(eq(playerInventory.playerId, testPlayerId));
+      expect(playerItems).toHaveLength(1);
+      expect(playerItems[0].quantity).toBe(1);
+
+      // Verify item removed from container
+      const containerItems = await db
+        .select()
+        .from(containerInventory)
+        .where(eq(containerInventory.containerId, testContainerId));
+      expect(containerItems[0].quantity).toBe(2);
+    });
+
+    it("should get all items from container with 'all' itemName", async () => {
+      await db
+        .update(containers)
+        .set({ isOpen: true })
+        .where(eq(containers.id, testContainerId));
+
+      // Add a second item type
+      const secondItemId = "test-item-rock";
+      await db.insert(items).values({
+        id: secondItemId,
+        name: "small rock",
+        pluralName: "small rocks",
+        description: "A small rock",
+        category: "misc",
+        isBulk: true,
+      });
+
+      await db.insert(containerInventory).values([
+        {
+          id: "ci-all-1",
+          containerId: testContainerId,
+          itemId: testItemId,
+          quantity: 2,
+        },
+        {
+          id: "ci-all-2",
+          containerId: testContainerId,
+          itemId: secondItemId,
+          quantity: 5,
+        },
+      ]);
+
+      const result = await ItemService.getItemFromContainer(
+        testPlayerId,
+        testRoomId,
+        "all",
+        "wooden chest",
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain("healing potions");
+      expect(result.message).toContain("small rocks");
+
+      // Verify all items are in player inventory
+      const playerItems = await db
+        .select()
+        .from(playerInventory)
+        .where(eq(playerInventory.playerId, testPlayerId));
+      expect(playerItems).toHaveLength(2);
+
+      // Verify container is empty
+      const containerItems = await db
+        .select()
+        .from(containerInventory)
+        .where(eq(containerInventory.containerId, testContainerId));
+      expect(containerItems).toHaveLength(0);
+
+      // Cleanup - delete player inventory first (foreign key), then item
+      await db
+        .delete(playerInventory)
+        .where(eq(playerInventory.itemId, secondItemId));
+      await db.delete(items).where(eq(items.id, secondItemId));
+    });
+
+    it("should fail to get all from empty container", async () => {
+      await db
+        .update(containers)
+        .set({ isOpen: true })
+        .where(eq(containers.id, testContainerId));
+
+      const result = await ItemService.getItemFromContainer(
+        testPlayerId,
+        testRoomId,
+        "all",
+        "wooden chest",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("empty");
+    });
+
+    it("should match item by word (fuzzy match)", async () => {
+      await db
+        .update(containers)
+        .set({ isOpen: true })
+        .where(eq(containers.id, testContainerId));
+
+      await db.insert(containerInventory).values({
+        id: "ci-fuzzy-1",
+        containerId: testContainerId,
+        itemId: testItemId,
+        quantity: 1,
+      });
+
+      // "potion" should match "healing potion"
+      const result = await ItemService.getItemFromContainer(
+        testPlayerId,
+        testRoomId,
+        "potion",
+        "wooden chest",
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain("healing potion");
+    });
+
+    it("should fail if container is closed", async () => {
+      await db.insert(containerInventory).values({
+        id: "ci-closed-1",
+        containerId: testContainerId,
+        itemId: testItemId,
+        quantity: 1,
+      });
+
+      const result = await ItemService.getItemFromContainer(
+        testPlayerId,
+        testRoomId,
+        "healing potion",
+        "wooden chest",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("closed");
+    });
+
+    it("should fail if item not in container", async () => {
+      await db
+        .update(containers)
+        .set({ isOpen: true })
+        .where(eq(containers.id, testContainerId));
+
+      const result = await ItemService.getItemFromContainer(
+        testPlayerId,
+        testRoomId,
+        "nonexistent",
+        "wooden chest",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("no");
+    });
+  });
 });

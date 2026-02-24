@@ -317,6 +317,8 @@ export const corpses = sqliteTable("corpses", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   // Time when the corpse becomes lootable by anyone (1 hour after creation)
   unlocksAt: integer("unlocks_at", { mode: "timestamp" }).notNull(),
+  // Time when the corpse expires and is automatically deleted (24 hours after creation)
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
 });
 
 // Corpse inventory (items dropped on death)
