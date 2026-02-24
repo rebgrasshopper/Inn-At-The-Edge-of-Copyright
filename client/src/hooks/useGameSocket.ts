@@ -57,6 +57,18 @@ function formatRoomDescription(room: Room, currentPlayerId?: string): string[] {
     lines.push(`Players here: ${names}`);
   }
 
+  // Monsters
+  if (room.monsters && room.monsters.length > 0) {
+    const monsterNames = room.monsters.map((m) => m.monster.name);
+    lines.push(`Creatures here: ${monsterNames.join(", ")}`);
+  }
+
+  // Corpses
+  if (room.corpses && room.corpses.length > 0) {
+    const corpseDescs = room.corpses.map((c) => `corpse of ${c.playerName}`);
+    lines.push(`You see: ${corpseDescs.join(", ")}`);
+  }
+
   // Items on the ground
   if (room.items.length > 0) {
     const itemDescs = room.items.map((stack) => {

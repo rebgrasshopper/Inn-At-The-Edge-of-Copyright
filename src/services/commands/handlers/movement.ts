@@ -4,6 +4,7 @@
 
 import type { CommandContext, CommandResult } from "../../../types/command.js";
 import type { Direction } from "../../../types/room.js";
+import * as CombatService from "../../CombatService.js";
 import * as RoomService from "../../RoomService.js";
 
 /** Direction aliases */
@@ -35,6 +36,20 @@ export async function handleMove(
   rawInput: string,
 ): Promise<CommandResult> {
   const { player, room } = context;
+
+  // Check if player is in combat - must flee instead of walking away
+  const combat = CombatService.getCombatForPlayer(player.id);
+  if (combat) {
+    // Find the monster(s) attacking the player
+    const monsters = Array.from(combat.participants.values()).filter(
+      (p) => p.type === "monster",
+    );
+    const monsterName = monsters[0]?.name || "something";
+    return {
+      success: false,
+      message: `You should probably focus on the ${monsterName} attacking you! (Try "flee" to escape)`,
+    };
+  }
 
   // Check if the first token of raw input is a direction (e.g., "north" or "n")
   const firstToken = rawInput.trim().toLowerCase().split(/\s+/)[0];

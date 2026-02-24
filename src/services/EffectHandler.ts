@@ -1,7 +1,14 @@
 import { and, eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db/index.js";
-import { items, playerInventory, players, rooms } from "../db/schema.js";
+import {
+  items,
+  monsterInstances,
+  monsters,
+  playerInventory,
+  players,
+  rooms,
+} from "../db/schema.js";
 import type { EffectResult, PlayerEffect } from "../types/feature.js";
 import type { PlayerStats } from "../types/player.js";
 
@@ -367,6 +374,68 @@ export async function unblockExit(
 }
 
 /**
+ * Spawn a monster in a room
+ * @param playerId - The player triggering the spawn (used to get current room if roomId not specified)
+ * @param monsterId - The monster type ID to spawn
+ * @param roomId - Optional room ID (defaults to player's current room)
+ * @returns EffectResult with success status and message
+ */
+export async function spawnMonster(
+  playerId: string,
+  monsterId: string,
+  roomId?: string,
+): Promise<EffectResult> {
+  // Get target room
+  let targetRoomId = roomId;
+  if (!targetRoomId) {
+    const player = await db
+      .select()
+      .from(players)
+      .where(eq(players.id, playerId))
+      .get();
+    targetRoomId = player?.currentRoomId ?? undefined;
+  }
+
+  if (!targetRoomId) {
+    return {
+      type: "spawn_monster",
+      success: false,
+      message: "No room to spawn monster in.",
+    };
+  }
+
+  // Get monster template
+  const monster = await db
+    .select()
+    .from(monsters)
+    .where(eq(monsters.id, monsterId))
+    .get();
+
+  if (!monster) {
+    return {
+      type: "spawn_monster",
+      success: false,
+      message: "Monster type not found.",
+    };
+  }
+
+  // Create monster instance
+  await db.insert(monsterInstances).values({
+    id: uuidv4(),
+    monsterId,
+    roomId: targetRoomId,
+    currentHp: monster.maxHp,
+    spawnedAt: new Date(),
+  });
+
+  return {
+    type: "spawn_monster",
+    success: true,
+    message: `A ${monster.name} appears!`,
+  };
+}
+
+/**
  * Apply an array of effects to a player
  * @param playerId - The player to apply effects to
  * @param effects - Array of effects to apply
@@ -405,6 +474,9 @@ export async function apply(
         break;
       case "unblock_exit":
         result = await unblockExit(playerId, effect.direction);
+        break;
+      case "spawn_monster":
+        result = await spawnMonster(playerId, effect.monsterId, effect.roomId);
         break;
       default:
         result = {

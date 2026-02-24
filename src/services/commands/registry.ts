@@ -13,6 +13,7 @@ import {
   handleShout,
   handleWhisper,
 } from "./handlers/chat.js";
+import { handleAttack, handleFlee } from "./handlers/combat.js";
 import { handleHelp, handleLook, handleStats } from "./handlers/info.js";
 import {
   handleClose,
@@ -214,15 +215,22 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
   },
 
   [Command.Attack]: {
-    handler: async () => ({
-      success: false,
-      message: "Combat is not yet implemented.",
-    }),
+    handler: handleAttack,
     help: {
-      summary: "Attack a creature (coming soon)",
+      summary: "Attack a creature",
       usage: ["attack <target>"],
       aliases: getAliasesForCommand(Command.Attack),
-      examples: ["attack goblin", "fight spider", "kill rat"],
+      examples: ["attack goblin", "fight spider", "kill wolf"],
+    },
+  },
+
+  [Command.Flee]: {
+    handler: handleFlee,
+    help: {
+      summary: "Flee from combat in a random direction",
+      usage: ["flee"],
+      aliases: getAliasesForCommand(Command.Flee),
+      examples: ["flee", "run", "escape"],
     },
   },
 };

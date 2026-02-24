@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   containers,
+  corpses,
   features,
   items,
   monsterInstances,
@@ -17,7 +18,13 @@ import type { ItemStack } from "../types/item.js";
 import type { MonsterInstance } from "../types/monster.js";
 import type { NPC } from "../types/npc.js";
 import type { Player } from "../types/player.js";
-import type { Direction, Exit, Room, RoomWithContents } from "../types/room.js";
+import type {
+  Direction,
+  Exit,
+  Room,
+  RoomCorpse,
+  RoomWithContents,
+} from "../types/room.js";
 import { toPlayer } from "./CharacterService.utils.js";
 
 export type MoveResult = {
@@ -100,6 +107,7 @@ export async function getRoomWithContents(
     roomNpcs,
     roomContainers,
     roomFeatures,
+    roomCorpses,
   ] = await Promise.all([
     getPlayersInRoom(roomId),
     db
@@ -115,6 +123,11 @@ export async function getRoomWithContents(
     db.select().from(npcs).where(eq(npcs.roomId, roomId)),
     db.select().from(containers).where(eq(containers.roomId, roomId)),
     db.select().from(features).where(eq(features.roomId, roomId)),
+    db
+      .select()
+      .from(corpses)
+      .innerJoin(players, eq(corpses.playerId, players.id))
+      .where(eq(corpses.roomId, roomId)),
   ]);
 
   // Transform items to ItemStack format
@@ -156,6 +169,9 @@ export async function getRoomWithContents(
       },
       maxHp: record.monsters.maxHp,
       xpReward: record.monsters.xpReward,
+      aggroScore: record.monsters.aggroScore,
+      weaponDamage: record.monsters.weaponDamage || "1d4",
+      level: record.monsters.level,
     },
     roomId: record.monster_instances.roomId,
     currentHp: record.monster_instances.currentHp,
@@ -205,6 +221,14 @@ export async function getRoomWithContents(
       isDiscovered: record.isDiscovered || false,
     }));
 
+  // Transform corpses
+  const transformedCorpses: RoomCorpse[] = roomCorpses.map((record) => ({
+    id: record.corpses.id,
+    playerId: record.corpses.playerId,
+    playerName: record.players.name,
+    roomId: record.corpses.roomId,
+  }));
+
   // Compose full description: description + revealed container texts + navDescription
   const revealedTexts = transformedContainers
     .filter((c): c is Container & { revealedText: string } => !!c.revealedText)
@@ -228,6 +252,7 @@ export async function getRoomWithContents(
     npcs: transformedNpcs,
     containers: transformedContainers,
     features: transformedFeatures,
+    corpses: transformedCorpses,
   };
 }
 

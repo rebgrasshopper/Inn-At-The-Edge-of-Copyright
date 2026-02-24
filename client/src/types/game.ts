@@ -33,6 +33,23 @@ export type ItemStack = {
   quantity: number;
 };
 
+export type MonsterInstance = {
+  id: string;
+  monster: {
+    id: string;
+    name: string;
+    description: string;
+  };
+  currentHp: number;
+};
+
+export type Corpse = {
+  id: string;
+  playerId: string;
+  playerName: string;
+  roomId: string;
+};
+
 export type Room = {
   id: string;
   name: string;
@@ -43,6 +60,8 @@ export type Room = {
   exits: Partial<Record<string, string>>;
   players: Player[];
   items: ItemStack[];
+  monsters?: MonsterInstance[];
+  corpses?: Corpse[];
 };
 
 export type ConnectionStatus =

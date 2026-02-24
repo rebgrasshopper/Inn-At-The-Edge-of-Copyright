@@ -158,10 +158,12 @@ export async function findFeatureByCommand(
     const verbMatches = feature.triggerVerbs.some(
       (v) => v.toLowerCase() === verbLower,
     );
+
     if (!verbMatches) continue;
 
     // Check if target matches (exact or prefix)
     const featureTarget = feature.triggerTarget.toLowerCase();
+
     if (
       featureTarget === targetLower ||
       featureTarget.startsWith(targetLower) ||

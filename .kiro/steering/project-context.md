@@ -50,6 +50,12 @@ Building a MUD (multi-user dungeon) game as a learning project for AI-assisted c
 - Must be stable for periods of inactivity (no frequently-deprecated infrastructure)
 - Avoid free tiers with inconvenient limits
 
+## Database Commands
+
+- Use `npm run db:reset` to reset the database (deletes game.db, generates migrations, migrates, and seeds)
+- This is the preferred command for schema changes during development
+- Avoid running db:generate, db:migrate, db:seed separately unless debugging
+
 ## Reference Codebase
 
 This workspace contains an old MUD project built when the user was learning to code. It's offered as reference for understanding desired features, but:

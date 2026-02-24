@@ -39,6 +39,7 @@ export enum Command {
 
   // Combat (deferred but needed for parsing)
   Attack = "attack",
+  Flee = "flee",
 }
 
 /** Command category for legacy type compatibility */
@@ -65,6 +66,7 @@ export const COMMAND_CATEGORIES: Record<Command, CommandCategory> = {
   [Command.Stats]: "info",
   [Command.Help]: "info",
   [Command.Attack]: "combat",
+  [Command.Flee]: "combat",
 };
 
 /** Maps commands to their legacy action names (for backward compatibility) */
@@ -72,6 +74,7 @@ export const LEGACY_ACTIONS: Partial<Record<Command, string>> = {
   [Command.Say]: "speak",
   [Command.Move]: "move",
   [Command.Attack]: "attack",
+  [Command.Flee]: "flee",
 };
 
 /** Help information for a command */

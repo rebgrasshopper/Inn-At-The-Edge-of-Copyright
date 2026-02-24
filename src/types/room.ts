@@ -23,6 +23,14 @@ export type Room = {
   exits: Partial<Record<Direction, Exit>>;
 };
 
+/** Corpse data for room display */
+export type RoomCorpse = {
+  id: string;
+  playerId: string;
+  playerName: string;
+  roomId: string;
+};
+
 export type RoomWithContents = Room & {
   // Composed description: description + revealed container texts + navDescription
   fullDescription?: string;
@@ -32,4 +40,5 @@ export type RoomWithContents = Room & {
   npcs: NPC[];
   containers: Container[];
   features: Feature[];
+  corpses: RoomCorpse[];
 };

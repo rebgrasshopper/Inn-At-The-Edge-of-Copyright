@@ -8,6 +8,7 @@ import type {
   CommandResult,
   ParsedCommand,
 } from "../../types/command.js";
+import * as CombatService from "../CombatService.js";
 import * as FeatureService from "../FeatureService.js";
 import { COMMAND_ALIASES } from "./aliases.js";
 import { COMMAND_REGISTRY } from "./registry.js";
@@ -256,6 +257,17 @@ export async function execute(
       }
       if (result.revealedContainer) {
         messages.push(`You find: ${result.revealedContainer.name}`);
+      }
+
+      // Check for monster aggro if a monster was spawned
+      const spawnedMonster = result.effectsApplied.some(
+        (e) => e.type === "spawn_monster" && e.success,
+      );
+      if (spawnedMonster) {
+        await CombatService.checkMonsterAggro(
+          context.player.id,
+          context.room.id,
+        );
       }
 
       return { success: result.success, message: messages.join("\n") };

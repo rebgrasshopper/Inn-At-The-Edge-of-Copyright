@@ -22,7 +22,8 @@ export type PlayerEffect =
   | { type: "give_item"; itemId: string; quantity?: number }
   | { type: "teleport"; roomId: string }
   | { type: "status"; status: string; duration?: number }
-  | { type: "unblock_exit"; direction: Direction };
+  | { type: "unblock_exit"; direction: Direction }
+  | { type: "spawn_monster"; monsterId: string; roomId?: string };
 
 export type Feature = {
   id: string;

@@ -2,9 +2,11 @@ import { eq } from "drizzle-orm";
 import type { Server, Socket } from "socket.io";
 import { db } from "../db/index.js";
 import { players } from "../db/schema.js";
+import * as CombatService from "../services/CombatService.js";
 import * as CommandParser from "../services/CommandParser.js";
 import * as FeatureService from "../services/FeatureService.js";
 import * as RoomService from "../services/RoomService.js";
+import type { CombatEvent } from "../types/combat.js";
 import type { Player } from "../types/player.js";
 
 /** Data sent when a player enters a room */
@@ -33,6 +35,12 @@ type PlayerUpdateData = {
   player: Partial<Player> & { id: string };
 };
 
+/** Store io instance for combat broadcasts */
+let ioInstance: Server | null = null;
+
+/** Map of playerId -> Socket for death respawn handling */
+const playerSockets = new Map<string, Socket>();
+
 /**
  * Get the socket room name for a game room
  * @param roomId - The game room ID
@@ -49,6 +57,132 @@ export function getSocketRoomName(roomId: string): string {
  */
 export function getPlayerRoomName(playerId: string): string {
   return `player:${playerId}`;
+}
+
+/**
+ * Broadcast a combat event to a room
+ * @param roomId - The game room ID
+ * @param event - The combat event to broadcast
+ * @param excludePlayerId - Optional player ID to exclude from broadcast
+ */
+function broadcastCombatEvent(
+  roomId: string,
+  event: CombatEvent,
+  excludePlayerId?: string,
+): void {
+  if (!ioInstance) return;
+
+  const socketRoom = getSocketRoomName(roomId);
+  let message: string;
+
+  switch (event.type) {
+    case "combat_start":
+      message = `${event.attackerName} attacks ${event.defenderName}!`;
+      break;
+    case "attack":
+      message = event.message;
+      break;
+    case "flee_success":
+      message = `${event.playerName} flees ${event.direction}!`;
+      break;
+    case "flee_fail":
+      message = `${event.playerName} tries to flee but fails!`;
+      break;
+    case "player_death":
+      message = `${event.playerName} has been slain by ${event.killerName}!`;
+      break;
+    case "monster_death":
+      message = `${event.killerName} defeats the ${event.monsterName}! (+${event.xpAwarded} XP)`;
+      break;
+    case "combat_end":
+      message = event.reason;
+      break;
+    default:
+      return; // Unknown event type, don't broadcast
+  }
+
+  const chatMessage: ChatMessageData = {
+    id: crypto.randomUUID(),
+    type: "system",
+    content: message,
+    timestamp: new Date().toISOString(),
+  };
+
+  // If excluding a player, use their socket to broadcast to others
+  if (excludePlayerId) {
+    const excludeSocket = playerSockets.get(excludePlayerId);
+    if (excludeSocket) {
+      excludeSocket.to(socketRoom).emit("chat:message", chatMessage);
+      return;
+    }
+  }
+
+  // No exclusion, broadcast to everyone
+  ioInstance.to(socketRoom).emit("chat:message", chatMessage);
+}
+
+/**
+ * Handle player death - move to respawn room and update client state
+ * @param playerId - The player who died
+ * @param deathRoomId - The room where death occurred
+ * @param respawnRoomId - The room to respawn in
+ */
+async function handlePlayerDeathRespawn(
+  playerId: string,
+  deathRoomId: string,
+  respawnRoomId: string,
+): Promise<void> {
+  const socket = playerSockets.get(playerId);
+  if (!socket || !ioInstance || !socket.player) return;
+
+  // Leave old socket room
+  socket.leave(getSocketRoomName(deathRoomId));
+
+  // Join new socket room
+  socket.join(getSocketRoomName(respawnRoomId));
+
+  // Get updated player data from database
+  const updatedPlayer = db
+    .select()
+    .from(players)
+    .where(eq(players.id, playerId))
+    .get();
+
+  if (!updatedPlayer) return;
+
+  // Update socket's player reference
+  socket.player = {
+    ...socket.player,
+    currentRoomId: respawnRoomId,
+    currentHp: updatedPlayer.currentHp,
+    xp: updatedPlayer.xp,
+  };
+
+  // Get respawn room data
+  const respawnRoom = await RoomService.getRoomWithContents(respawnRoomId);
+  if (!respawnRoom) return;
+
+  // Send respawn message and new room data to the player
+  const respawnMessage: ChatMessageData = {
+    id: crypto.randomUUID(),
+    type: "system",
+    content: "You wake up at the town square, feeling weak but alive. (HP: 1)",
+    timestamp: new Date().toISOString(),
+  };
+  socket.emit("chat:message", respawnMessage);
+
+  // Send room data
+  const enterData: RoomEnterData = {
+    room: respawnRoom,
+    player: socket.player,
+  };
+  socket.emit("room:enter", enterData);
+
+  // Notify respawn room that player appeared
+  socket.to(getSocketRoomName(respawnRoomId)).emit("system:message", {
+    content: `${socket.player.name} appears in a flash of light.`,
+    timestamp: new Date().toISOString(),
+  });
 }
 
 /**
@@ -81,6 +215,9 @@ export async function handleConnection(
 
   // Update online status
   await updateOnlineStatus(player.id, true);
+
+  // Register socket for death respawn handling
+  playerSockets.set(player.id, socket);
 
   // Join the player's private channel (for whispers)
   socket.join(getPlayerRoomName(player.id));
@@ -118,10 +255,13 @@ export async function handleConnection(
     content: `${player.name} has entered.`,
     timestamp: new Date().toISOString(),
   });
+
+  // Check for monster aggro
+  await CombatService.checkMonsterAggro(player.id, player.currentRoomId);
 }
 
 /**
- * Handle player disconnection - set offline, notify room
+ * Handle player disconnection - set offline, handle combat death, notify room
  * @param _io - Socket.io server instance (unused, kept for API consistency)
  * @param socket - The disconnecting socket
  */
@@ -131,6 +271,11 @@ export async function handleDisconnect(
 ): Promise<void> {
   const player = socket.player;
   if (!player) return;
+
+  // Handle combat death on disconnect
+  if (CombatService.isPlayerInCombat(player.id)) {
+    await CombatService.handleDisconnect(player.id);
+  }
 
   // Update online status
   await updateOnlineStatus(player.id, false);
@@ -163,7 +308,7 @@ export async function handleCommand(
   }
 
   // Get current room
-  const room = await RoomService.getRoom(player.currentRoomId);
+  const room = await RoomService.getRoomWithContents(player.currentRoomId);
   if (!room) {
     socket.emit("error", { message: "Room not found" });
     return;
@@ -286,6 +431,9 @@ async function handleRoomChange(
       content: `${player.name} has arrived.`,
       timestamp: new Date().toISOString(),
     });
+
+    // Check for monster aggro in new room
+    await CombatService.checkMonsterAggro(player.id, newRoomId);
   }
 }
 
@@ -342,6 +490,13 @@ export function broadcastRoomLeave(
  * @param socket - The connected socket
  */
 export function registerHandlers(io: Server, socket: Socket): void {
+  // Store io instance for combat broadcasts
+  if (!ioInstance) {
+    ioInstance = io;
+    CombatService.setBroadcaster(broadcastCombatEvent);
+    CombatService.setDeathCallback(handlePlayerDeathRespawn);
+  }
+
   // Handle connection setup
   handleConnection(io, socket);
 

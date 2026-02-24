@@ -43,6 +43,13 @@
       "when": 1771890846752,
       "tag": "0005_dashing_pete_wisdom",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1771907625164,
+      "tag": "0006_nosy_bloodscream",
+      "breakpoints": true
     }
   ]
 }

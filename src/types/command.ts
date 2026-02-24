@@ -1,6 +1,6 @@
 import type { Socket } from "socket.io";
 import type { Player } from "./player.js";
-import type { Room } from "./room.js";
+import type { RoomWithContents } from "./room.js";
 
 export type CommandType =
   | "command"
@@ -22,7 +22,7 @@ export type ParsedCommand = {
 
 export type CommandContext = {
   player: Player;
-  room: Room;
+  room: RoomWithContents;
   socket: Socket;
 };
 

@@ -34,7 +34,8 @@ export type PlayerEffect =
   | { type: "give_item"; itemId: string; quantity?: number }
   | { type: "teleport"; roomId: string }
   | { type: "status"; status: string; duration?: number }
-  | { type: "unblock_exit"; direction: Direction };
+  | { type: "unblock_exit"; direction: Direction }
+  | { type: "spawn_monster"; monsterId: string; roomId?: string };
 
 // Users table (authentication)
 export const users = sqliteTable("users", {
@@ -52,6 +53,9 @@ export const players = sqliteTable("players", {
     .references(() => users.id),
   name: text("name").notNull().unique(),
   currentRoomId: text("current_room_id"),
+
+  // Respawn location (defaults to Town Square if null)
+  respawnRoomId: text("respawn_room_id"),
 
   // Pathfinder stats
   str: integer("str").notNull().default(10),
@@ -211,6 +215,15 @@ export const monsters = sqliteTable("monsters", {
 
   maxHp: integer("max_hp").notNull().default(10),
   xpReward: integer("xp_reward").notNull().default(10),
+
+  // Aggro score: 0 = passive (only fights back), >0 = attacks players at or below this level
+  aggroScore: integer("aggro_score").notNull().default(0),
+
+  // Weapon damage for monster attacks (e.g., "1d6", "2d4+1")
+  weaponDamage: text("weapon_damage").default("1d4"),
+
+  // Monster level (used for flee DC calculation)
+  level: integer("level").notNull().default(1),
 });
 
 // Monster instances (spawned monsters in rooms)
@@ -290,4 +303,30 @@ export const features = sqliteTable("features", {
   // Custom refusal messages for invalid actions (optional, fallback to generic)
   refuseGetMessage: text("refuse_get_message"),
   refuseDropMessage: text("refuse_drop_message"),
+});
+
+// Corpses (player death drops with timed locking)
+export const corpses = sqliteTable("corpses", {
+  id: text("id").primaryKey(),
+  playerId: text("player_id")
+    .notNull()
+    .references(() => players.id),
+  roomId: text("room_id")
+    .notNull()
+    .references(() => rooms.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  // Time when the corpse becomes lootable by anyone (1 hour after creation)
+  unlocksAt: integer("unlocks_at", { mode: "timestamp" }).notNull(),
+});
+
+// Corpse inventory (items dropped on death)
+export const corpseInventory = sqliteTable("corpse_inventory", {
+  id: text("id").primaryKey(),
+  corpseId: text("corpse_id")
+    .notNull()
+    .references(() => corpses.id),
+  itemId: text("item_id")
+    .notNull()
+    .references(() => items.id),
+  quantity: integer("quantity").notNull().default(1),
 });

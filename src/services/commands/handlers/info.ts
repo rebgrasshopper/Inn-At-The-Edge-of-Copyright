@@ -2,6 +2,9 @@
  * Info command handlers.
  */
 
+import { eq } from "drizzle-orm";
+import { db } from "../../../db/index.js";
+import { players } from "../../../db/schema.js";
 import type { CommandContext, CommandResult } from "../../../types/command.js";
 import * as RoomService from "../../RoomService.js";
 import { COMMAND_ALIASES } from "../aliases.js";
@@ -58,11 +61,22 @@ export async function handleStats(
 ): Promise<CommandResult> {
   const { player } = context;
 
+  // Fetch fresh player data from database to get current HP/XP
+  const freshPlayer = await db
+    .select()
+    .from(players)
+    .where(eq(players.id, player.id))
+    .get();
+
+  if (!freshPlayer) {
+    return { success: false, message: "Player not found." };
+  }
+
   const lines = [
-    `${player.name} - Level ${player.level}`,
-    `HP: ${player.currentHp}/${player.maxHp}  XP: ${player.xp}`,
-    `STR: ${player.stats.str}  DEX: ${player.stats.dex}  CON: ${player.stats.con}`,
-    `INT: ${player.stats.int}  WIS: ${player.stats.wis}  CHA: ${player.stats.cha}`,
+    `${freshPlayer.name} - Level ${freshPlayer.level}`,
+    `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}  XP: ${freshPlayer.xp}`,
+    `STR: ${freshPlayer.str}  DEX: ${freshPlayer.dex}  CON: ${freshPlayer.con}`,
+    `INT: ${freshPlayer.int}  WIS: ${freshPlayer.wis}  CHA: ${freshPlayer.cha}`,
   ];
   return { success: true, message: lines.join("\n") };
 }

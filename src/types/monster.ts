@@ -7,6 +7,12 @@ export type Monster = {
   stats: PlayerStats;
   maxHp: number;
   xpReward: number;
+  /** Aggro score: 0 = passive, >0 = attacks players at or below this level */
+  aggroScore: number;
+  /** Weapon damage dice notation (e.g., "1d6"), defaults to "1d4" */
+  weaponDamage: string;
+  /** Monster level for flee DC calculation */
+  level: number;
 };
 
 export type MonsterInstance = {

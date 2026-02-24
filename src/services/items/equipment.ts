@@ -334,3 +334,46 @@ export async function getEquipmentList(
 
   return { success: true, message: lines.join("\n") };
 }
+
+/**
+ * Get all equipped items with their full data.
+ * @param playerId - The player's ID
+ * @returns Array of equipped items with their data
+ */
+export async function getEquippedItems(playerId: string): Promise<
+  Array<{
+    slot: keyof PlayerEquipment;
+    id: string;
+    name: string;
+    weaponDamage: string | null;
+    conEffect: number | null;
+  }>
+> {
+  const equipment = await getPlayerEquipment(playerId);
+  if (!equipment) return [];
+
+  const result: Array<{
+    slot: keyof PlayerEquipment;
+    id: string;
+    name: string;
+    weaponDamage: string | null;
+    conEffect: number | null;
+  }> = [];
+
+  for (const [slot, itemId] of Object.entries(equipment)) {
+    if (!itemId) continue;
+
+    const item = db.select().from(items).where(eq(items.id, itemId)).get();
+    if (item) {
+      result.push({
+        slot: slot as keyof PlayerEquipment,
+        id: item.id,
+        name: item.name,
+        weaponDamage: item.weaponDamage,
+        conEffect: item.conEffect,
+      });
+    }
+  }
+
+  return result;
+}

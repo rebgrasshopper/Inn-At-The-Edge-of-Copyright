@@ -347,6 +347,9 @@ async function seed() {
       cha: 6,
       maxHp: 8,
       xpReward: 25,
+      aggroScore: 2, // Attacks level 1-2 players
+      weaponDamage: "1d4",
+      level: 1,
     },
     {
       id: "monster-wolf",
@@ -361,6 +364,9 @@ async function seed() {
       cha: 6,
       maxHp: 12,
       xpReward: 50,
+      aggroScore: 3, // Attacks level 1-3 players
+      weaponDamage: "1d6",
+      level: 2,
     },
     {
       id: "monster-giant-spider",
@@ -375,6 +381,9 @@ async function seed() {
       cha: 2,
       maxHp: 10,
       xpReward: 40,
+      aggroScore: 0, // Passive - only attacks when provoked
+      weaponDamage: "1d4+1",
+      level: 2,
     },
   ];
 
@@ -833,6 +842,21 @@ async function seed() {
       triggerTarget: "sounds",
       successMessage:
         "You stand perfectly still and listen. Beneath the rustle of leaves, you hear it: a low, rhythmic chanting from somewhere to the south. It stops abruptly, as if aware of your attention.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // Debug feature - summon wolf for testing combat
+    {
+      id: "feature-howl",
+      roomId: forestClearingId,
+      name: "howl",
+      description: "You can howl to summon a wolf.",
+      triggerVerbs: ["howl"],
+      triggerTarget: "wolf",
+      successMessage: "You let out a howl...",
+      successEffects: [
+        { type: "spawn_monster" as const, monsterId: "monster-wolf" },
+      ],
       isHidden: false,
       isDiscovered: false,
     },
