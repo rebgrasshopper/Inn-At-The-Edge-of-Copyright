@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import Database from "better-sqlite3";
 import { randomUUID } from "crypto";
 import * as dotenv from "dotenv";
@@ -11,6 +12,27 @@ const db = drizzle(sqlite, { schema });
 
 async function seed() {
   console.log("🌱 Seeding database...\n");
+
+  // ============================================
+  // TEST ACCOUNT - For development convenience
+  // ============================================
+  console.log("Creating test account...");
+
+  const testUserId = "user-test-fox";
+  const testPlayerId = "player-test-djim";
+  const passwordHash = await bcrypt.hash("henhouse", 10);
+
+  await db
+    .insert(schema.users)
+    .values({
+      id: testUserId,
+      username: "fox",
+      passwordHash,
+      createdAt: new Date(),
+    })
+    .onConflictDoNothing();
+
+  console.log("  ✓ Created test user (fox/henhouse)\n");
 
   // ============================================
   // ROOMS - A small starter area
@@ -187,6 +209,54 @@ async function seed() {
     await db.insert(schema.items).values(item).onConflictDoNothing();
   }
   console.log(`  ✓ Created ${itemsData.length} items\n`);
+
+  // ============================================
+  // TEST PLAYER - Djim with starting gear
+  // ============================================
+  console.log("Creating test character...");
+
+  await db
+    .insert(schema.players)
+    .values({
+      id: testPlayerId,
+      userId: testUserId,
+      name: "Djim",
+      currentRoomId: townSquareId,
+      str: 12,
+      dex: 14,
+      con: 10,
+      int: 10,
+      wis: 10,
+      cha: 12,
+      currentHp: 12,
+      maxHp: 12,
+      xp: 0,
+      level: 1,
+      isOnline: false,
+      createdAt: new Date(),
+    })
+    .onConflictDoNothing();
+
+  // Give Djim starting inventory
+  await db
+    .insert(schema.playerInventory)
+    .values([
+      {
+        id: randomUUID(),
+        playerId: testPlayerId,
+        itemId: "item-rusty-sword",
+        quantity: 1,
+      },
+      {
+        id: randomUUID(),
+        playerId: testPlayerId,
+        itemId: "item-gold-coin",
+        quantity: 3,
+      },
+    ])
+    .onConflictDoNothing();
+
+  console.log("  ✓ Created Djim with rusty sword and 3 gold coins\n");
 
   // ============================================
   // ROOM INVENTORY - Place some items in rooms
