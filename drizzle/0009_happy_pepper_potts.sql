@@ -1,0 +1,1 @@
+ALTER TABLE `players` ADD `worn_back` text;

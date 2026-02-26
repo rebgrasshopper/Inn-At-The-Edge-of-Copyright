@@ -21,6 +21,7 @@ export type PlayerEquipment = {
   neck: string | null;
   ring1: string | null;
   ring2: string | null;
+  back: string | null;
 };
 
 /** Maps equipment slot names to player worn field names */
@@ -40,6 +41,7 @@ export const EQUIPMENT_SLOT_TO_FIELD: Record<
   ring: "ring1", // Default ring slot
   ring1: "ring1",
   ring2: "ring2",
+  back: "back",
 };
 
 export type Player = {

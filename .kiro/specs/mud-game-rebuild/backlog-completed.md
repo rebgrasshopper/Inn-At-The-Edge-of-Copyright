@@ -17,3 +17,5 @@ Items that were in the backlog and have been completed.
 - [x] **Virtual scrolling**: Added @tanstack/react-virtual to ChatPanel for efficient rendering of large message lists. Uses dynamic row measurement for variable-height messages, preserves smart auto-scroll behavior (only scrolls when user is at bottom), and renders ~5 overscan items above/below viewport for smooth scrolling.
 
 - [x] **Item and container sizes**: Added t-shirt size system (tiny=0, small=1, medium=2, large=3, huge=4) to items and containers. Items can only be placed in containers where `item.size < container.size`. Players cannot take huge items. Added `size` field to both `items` and `containers` tables in schema. Updated seed data with appropriate sizes (coins=tiny, potions=small, swords=medium, greatswords=large). Deferred portable container implementation (isContainer, itemInventory table) to later.
+
+- [x] **Back equipment slot**: Added "back" equipment slot for backpacks/cloaks. Updated schema, types, and equipment service. Added aliases: back, backpack, cloak, cape. Future: backpacks could expand inventory capacity if inventory limits are implemented.

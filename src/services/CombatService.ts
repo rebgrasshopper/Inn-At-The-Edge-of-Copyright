@@ -848,6 +848,7 @@ export async function handlePlayerDeath(
       wornNeck: null,
       wornRing1: null,
       wornRing2: null,
+      wornBack: null,
     })
     .where(eq(players.id, playerId));
 

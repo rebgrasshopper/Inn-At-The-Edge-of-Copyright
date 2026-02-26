@@ -37,6 +37,7 @@ export function toPlayer(record: typeof players.$inferSelect): Player {
       neck: record.wornNeck,
       ring1: record.wornRing1,
       ring2: record.wornRing2,
+      back: record.wornBack,
     },
   };
 }
@@ -58,5 +59,6 @@ export function emptyEquipment(): PlayerEquipment {
     neck: null,
     ring1: null,
     ring2: null,
+    back: null,
   };
 }

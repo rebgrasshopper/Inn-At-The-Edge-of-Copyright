@@ -28,6 +28,7 @@ const SLOT_TO_DB_COLUMN: Record<keyof PlayerEquipment, string> = {
   neck: "wornNeck",
   ring1: "wornRing1",
   ring2: "wornRing2",
+  back: "wornBack",
 };
 
 /** Slot aliases for user input */
@@ -61,6 +62,10 @@ const SLOT_ALIASES: Record<string, EquipmentSlot | "ring1" | "ring2"> = {
   ring: "ring",
   ring1: "ring1",
   ring2: "ring2",
+  back: "back",
+  backpack: "back",
+  cloak: "back",
+  cape: "back",
 };
 
 /**
@@ -103,6 +108,7 @@ export async function getPlayerEquipment(
     neck: player.wornNeck,
     ring1: player.wornRing1,
     ring2: player.wornRing2,
+    back: player.wornBack,
   };
 }
 
@@ -309,6 +315,7 @@ export async function getEquipmentList(
     neck: "Neck",
     ring1: "Ring 1",
     ring2: "Ring 2",
+    back: "Back",
   };
 
   for (const [slot, itemId] of Object.entries(equipment)) {

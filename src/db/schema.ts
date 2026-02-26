@@ -88,6 +88,7 @@ export const players = sqliteTable("players", {
   wornNeck: text("worn_neck"),
   wornRing1: text("worn_ring1"),
   wornRing2: text("worn_ring2"),
+  wornBack: text("worn_back"),
 });
 
 // Rooms table
@@ -115,7 +116,8 @@ export type EquipmentSlot =
   | "mainHand"
   | "offHand"
   | "neck"
-  | "ring";
+  | "ring"
+  | "back";
 
 // Item size type (0=tiny, 1=small, 2=medium, 3=large, 4=huge)
 export type ItemSize = 0 | 1 | 2 | 3 | 4;

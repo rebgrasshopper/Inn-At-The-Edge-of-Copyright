@@ -34,8 +34,6 @@ Items to revisit after the initial prototype is working.
 
 - [ ] **Formatting stats**: Make stats and equipment more nicely formatted.
 
-- [ ] **Back equipment slot**: Add "back" equipment slot for backpacks/cloaks. Backpacks could function as wearable containers that expand inventory capacity if we implement inventory limits.
-
 - [ ] **EffectHandler registry pattern**: Consider refactoring EffectHandler.ts to use a registry pattern (similar to CommandParser) when more effect types are added. The current switch statement in `apply()` is manageable but could grow unwieldy. Low priority - revisit when adding new effect types.
 
 - [ ] **Expand world map**: Flesh out more locations beyond the starter area. Ideas:

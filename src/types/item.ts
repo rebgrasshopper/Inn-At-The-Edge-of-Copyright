@@ -43,7 +43,8 @@ export type EquipmentSlot =
   | "mainHand"
   | "offHand"
   | "neck"
-  | "ring";
+  | "ring"
+  | "back";
 
 export type Item = {
   id: string;
