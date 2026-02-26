@@ -4,8 +4,6 @@ Items to revisit after the initial prototype is working.
 
 ## Pending
 
-- [x] **iPad/mobile testing**: Router may have AP isolation enabled blocking local network access. Check router settings (192.168.0.1) and disable "AP Isolation" or "Client Isolation" if present. Vite config already has `host: true`. Alternative: use ngrok for tunneling.
-
 - [ ] **Feats system**: Add feats table and player_feats junction table. Feats grant special abilities, modify rules (e.g., dual wielding), and unlock options.
 
 - [ ] **Dual wielding restrictions**: By default, players can only equip one weapon. Require a "Two-Weapon Fighting" feat to equip weapons in both mainHand and offHand.
@@ -23,6 +21,12 @@ Items to revisit after the initial prototype is working.
 - [ ] **Session-based discoveries**: Some discoveries should be visible to all players (e.g., sweeping leaves reveals trapdoor to everyone). Current time-based reset is MVP approximation.
 
 - [ ] **Property 21-23 (Socket tests)**: Defer socket room membership, disconnect state, and reconnection restoration property tests to integration testing phase. These require real socket connections and are better tested end-to-end.
+
+- [ ] **Multi-monster combat unit tests**: Add unit tests for the multi-monster combat state management. Currently only manually tested. Potential tests:
+  - `removeMonsterFromCombat()`: Verify player stays in combat with remaining monsters when one dies
+  - `addMonsterToCombat()`: Verify monster joins existing player combat correctly
+  - `clearPendingAggro()`: Verify timers are cancelled when player leaves room
+  - Staggered aggro timing (would need timer mocking with vi.useFakeTimers)
 
 - [ ] **Tab completion**: Add command/target auto-completion in InputPanel (Tab key). Old project had `parseSuggestion` for reference.
 

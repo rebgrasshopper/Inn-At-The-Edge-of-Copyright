@@ -22,7 +22,18 @@ const io = new Server(httpServer, {
     origin:
       process.env.NODE_ENV === "production"
         ? false
-        : ["http://localhost:5173", "http://localhost:3000"],
+        : (origin, callback) => {
+            // Allow localhost, local network IPs, and ngrok URLs
+            const allowed =
+              !origin ||
+              origin.includes("localhost") ||
+              origin.includes("127.0.0.1") ||
+              origin.match(/^https?:\/\/192\.168\.\d+\.\d+/) ||
+              origin.match(/^https?:\/\/10\.\d+\.\d+\.\d+/) ||
+              origin.includes(".ngrok-free.app") ||
+              origin.includes(".ngrok.io");
+            callback(null, allowed);
+          },
     methods: ["GET", "POST"],
   },
 });
