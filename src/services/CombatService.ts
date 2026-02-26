@@ -486,11 +486,15 @@ export async function initiateCombat(
     scheduleAttack(combat, playerId, monsterInstanceId);
     scheduleAttack(combat, monsterInstanceId, playerId);
 
-    broadcast(roomId, {
-      type: "combat_start",
-      attackerName: playerParticipant.name,
-      defenderName: monsterParticipant.name,
-    });
+    broadcast(
+      roomId,
+      {
+        type: "combat_start",
+        attackerName: playerParticipant.name,
+        defenderName: monsterParticipant.name,
+      },
+      playerId,
+    );
 
     return {
       success: true,
@@ -535,11 +539,15 @@ export async function initiateCombat(
     };
   }
 
-  broadcast(roomId, {
-    type: "combat_start",
-    attackerName: playerParticipant.name,
-    defenderName: monsterParticipant.name,
-  });
+  broadcast(
+    roomId,
+    {
+      type: "combat_start",
+      attackerName: playerParticipant.name,
+      defenderName: monsterParticipant.name,
+    },
+    playerId,
+  );
 
   return {
     success: true,

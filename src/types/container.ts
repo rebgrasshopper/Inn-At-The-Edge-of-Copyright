@@ -1,3 +1,5 @@
+import type { ItemSize } from "../db/schema.js";
+
 export type Container = {
   id: string;
   roomId: string;
@@ -13,4 +15,6 @@ export type Container = {
   revealedAt?: Date;
   isOpen: boolean;
   revealCommand?: string;
+  /** Size: 0=tiny, 1=small, 2=medium, 3=large, 4=huge. Items must be strictly smaller to fit. */
+  size: ItemSize;
 };

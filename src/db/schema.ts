@@ -3,6 +3,9 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 // Direction type for exits
 export type Direction = "north" | "south" | "east" | "west" | "up" | "down";
 
+// Item size type (0=tiny, 1=small, 2=medium, 3=large, 4=huge)
+export type ItemSize = 0 | 1 | 2 | 3 | 4;
+
 // Exit type with optional blocking
 export type Exit = {
   roomId: string;
@@ -114,6 +117,9 @@ export type EquipmentSlot =
   | "neck"
   | "ring";
 
+// Item size type (0=tiny, 1=small, 2=medium, 3=large, 4=huge)
+export type ItemSize = 0 | 1 | 2 | 3 | 4;
+
 // Items table (item definitions)
 export const items = sqliteTable("items", {
   id: text("id").primaryKey(),
@@ -122,6 +128,10 @@ export const items = sqliteTable("items", {
   description: text("description").notNull(),
   category: text("category"),
   isBulk: integer("is_bulk", { mode: "boolean" }).default(false),
+
+  // Size: 0=tiny, 1=small, 2=medium, 3=large, 4=huge
+  // Players cannot take huge (4) items
+  size: integer("size").$type<ItemSize>().notNull().default(2),
 
   // Equipment slots this item can be worn in (JSON array, first is default)
   equipSlots: text("equip_slots", { mode: "json" }).$type<EquipmentSlot[]>(),
@@ -186,6 +196,9 @@ export const containers = sqliteTable("containers", {
   revealedAt: integer("revealed_at", { mode: "timestamp" }),
   isOpen: integer("is_open", { mode: "boolean" }).default(false),
   revealCommand: text("reveal_command"),
+  // Size: 0=tiny, 1=small, 2=medium, 3=large, 4=huge
+  // Items can only be placed if item.size < container.size
+  size: integer("size").$type<ItemSize>().notNull().default(3),
 });
 
 // Container inventory

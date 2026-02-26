@@ -80,20 +80,10 @@ export async function handleAttack(
     return { success: false, message: result.message };
   }
 
+  // Combat service handles the broadcast to other players
   return {
     success: true,
     message: result.message,
-    broadcast: [
-      {
-        event: "combat:start",
-        room: room.id,
-        data: {
-          attackerId: player.id,
-          attackerName: player.name,
-          targetId: monsterInstanceId,
-        },
-      },
-    ],
   };
 }
 

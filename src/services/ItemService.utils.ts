@@ -1,4 +1,4 @@
-import type { items } from "../db/schema.js";
+import type { items, ItemSize } from "../db/schema.js";
 import type { Item } from "../types/item.js";
 import { fuzzyMatch } from "../utils/fuzzyMatch.js";
 
@@ -81,6 +81,7 @@ export function toItem(row: typeof items.$inferSelect): Item {
     description: row.description,
     category: row.category ?? undefined,
     isBulk: row.isBulk ?? false,
+    size: (row.size ?? 2) as ItemSize, // default medium
     equipSlots: row.equipSlots ?? undefined,
     weaponDamage: row.weaponDamage ?? undefined,
     weaponType: row.weaponType ?? undefined,

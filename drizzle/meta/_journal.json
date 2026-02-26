@@ -57,6 +57,13 @@
       "when": 1771974234724,
       "tag": "0007_medical_ben_grimm",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1772085452445,
+      "tag": "0008_powerful_leper_queen",
+      "breakpoints": true
     }
   ]
 }

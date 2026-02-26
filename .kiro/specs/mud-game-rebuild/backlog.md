@@ -30,22 +30,9 @@ Items to revisit after the initial prototype is working.
 
 - [ ] **Tab completion**: Add command/target auto-completion in InputPanel (Tab key). Old project had `parseSuggestion` for reference.
 
-- [ ] **Virtual scrolling**: If chat performance degrades with many messages, add react-window or @tanstack/virtual to only render visible messages.
-
 - [ ] **Command history persistence**: Optionally persist command history to localStorage across sessions.
 
 - [ ] **Formatting stats**: Make stats and equipment more nicely formatted.
-
-- [ ] **Item and container sizes**: Add t-shirt size system (tiny, small, medium, large, huge) to items and containers. Items can only be placed in containers strictly smaller than the container (`item.size < container.size`). Huge containers exist mainly to hold large items. Players cannot take huge items.
-
-  **Design decisions:**
-  - Containers = room fixtures (chest, hidden cache, hole in tree) - cannot be taken
-  - Items with `isContainer: true` = portable containers (pouch, backpack, sack) - can be taken and used from inventory
-  - Add `size` field to both items and containers schemas
-  - Add `isContainer` boolean to items schema
-  - Create `itemInventory` table for items that function as containers
-  - Portable containers in player inventory support `put X in Y` and `get X from Y`
-  - Defer portable container implementation to later; start with just size enforcement on room containers
 
 - [ ] **Back equipment slot**: Add "back" equipment slot for backpacks/cloaks. Backpacks could function as wearable containers that expand inventory capacity if we implement inventory limits.
 

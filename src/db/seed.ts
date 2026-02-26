@@ -125,6 +125,7 @@ async function seed() {
       weaponType: "slashing",
       strEffect: 2,
       isBulk: false,
+      size: 2, // medium
     },
     {
       id: "item-leather-cap",
@@ -136,6 +137,7 @@ async function seed() {
       equipSlots: ["head"],
       conEffect: 1,
       isBulk: false,
+      size: 1, // small
     },
     {
       id: "item-healing-potion",
@@ -146,6 +148,7 @@ async function seed() {
       category: "consumable",
       hpEffect: 10,
       isBulk: false,
+      size: 1, // small
     },
     {
       id: "item-torch",
@@ -156,6 +159,7 @@ async function seed() {
       category: "tool",
       equipSlots: ["mainHand", "offHand"],
       isBulk: false,
+      size: 2, // medium
     },
     {
       id: "item-gold-coin",
@@ -165,6 +169,7 @@ async function seed() {
         "A shiny gold coin stamped with the image of a long-forgotten king.",
       category: "currency",
       isBulk: true,
+      size: 0, // tiny
     },
     {
       id: "item-stale-bread",
@@ -175,6 +180,7 @@ async function seed() {
       category: "food",
       hpEffect: 2,
       isBulk: false,
+      size: 1, // small
     },
     {
       id: "item-circus-flyer",
@@ -184,6 +190,7 @@ async function seed() {
         "A colorful paper flyer advertising 'The Magnificent Traveling Circus of Wonders!' It promises acrobats, fire-breathers, and a mysterious fortune teller. The show dates have long since passed.",
       category: "junk",
       isBulk: false,
+      size: 0, // tiny
     },
     {
       id: "item-copper-coin",
@@ -193,6 +200,7 @@ async function seed() {
         "A tarnished copper coin. It's not worth much, but every bit counts.",
       category: "currency",
       isBulk: true,
+      size: 0, // tiny
     },
     {
       id: "item-small-rock",
@@ -202,6 +210,7 @@ async function seed() {
         "A smooth, palm-sized rock. Good for skipping across water or throwing at things.",
       category: "junk",
       isBulk: true,
+      size: 0, // tiny
     },
     {
       id: "item-blue-feather",
@@ -211,6 +220,7 @@ async function seed() {
         "A brilliant blue feather, likely from a jay or some exotic forest bird. It shimmers faintly in the light.",
       category: "junk",
       isBulk: false,
+      size: 0, // tiny
     },
   ];
 
@@ -485,7 +495,7 @@ async function seed() {
   // ============================================
   console.log("Creating containers...");
 
-  const containersData = [
+  const containersData: (typeof schema.containers.$inferInsert)[] = [
     {
       id: "container-tavern-chest",
       roomId: tavernId,
@@ -493,6 +503,7 @@ async function seed() {
       description:
         "A dusty wooden chest sits in the corner, half-hidden behind some barrels.",
       isHidden: false,
+      size: 4 as const, // huge - can hold large items
     },
     {
       id: "container-hidden-cache",
@@ -504,6 +515,7 @@ async function seed() {
       revealedText: "Under the root of a nearby tree you see a leather pouch.",
       isHidden: true,
       revealCommand: "search mushrooms",
+      size: 2 as const, // medium - can hold small items only
     },
     {
       id: "container-market-stash",
@@ -514,6 +526,7 @@ async function seed() {
       aliases: ["compartment", "stash"],
       revealedText: "A hidden compartment lies open beneath the loose board.",
       isHidden: true,
+      size: 3 as const, // large - can hold medium items
     },
   ];
 

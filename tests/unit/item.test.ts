@@ -72,6 +72,7 @@ beforeAll(async () => {
       weaponDamage: "1d6",
       weaponType: "slashing",
       strEffect: 2,
+      size: 2, // medium
     },
     {
       id: "item-test-coin",
@@ -80,6 +81,7 @@ beforeAll(async () => {
       description: "Shiny gold coins",
       category: "currency",
       isBulk: true,
+      size: 0, // tiny
     },
     {
       id: "item-test-potion",
@@ -89,18 +91,52 @@ beforeAll(async () => {
       category: "consumable",
       isBulk: false,
       hpEffect: 10,
+      size: 1, // small
+    },
+    {
+      id: "item-test-boulder",
+      name: "huge boulder",
+      pluralName: "huge boulders",
+      description: "A massive boulder too heavy to lift",
+      category: "scenery",
+      isBulk: false,
+      size: 4, // huge - cannot be taken
+    },
+    {
+      id: "item-test-greatsword",
+      name: "greatsword",
+      pluralName: "greatswords",
+      description: "A large two-handed sword",
+      category: "weapon",
+      isBulk: false,
+      equipSlots: ["mainHand"],
+      weaponDamage: "2d6",
+      weaponType: "slashing",
+      size: 3, // large
     },
   ]);
 
-  // Create a container
-  await db.insert(containers).values({
-    id: "container-test-chest",
-    roomId: testRoomId,
-    name: "wooden chest",
-    description: "A simple wooden chest",
-    isHidden: false,
-    isOpen: false,
-  });
+  // Create containers with different sizes
+  await db.insert(containers).values([
+    {
+      id: "container-test-chest",
+      roomId: testRoomId,
+      name: "wooden chest",
+      description: "A simple wooden chest",
+      isHidden: false,
+      isOpen: false,
+      size: 4 as const, // huge - can hold large items
+    },
+    {
+      id: "container-test-pouch",
+      roomId: testRoomId,
+      name: "small pouch",
+      description: "A tiny leather pouch",
+      isHidden: false,
+      isOpen: false,
+      size: 2 as const, // medium - can only hold small/tiny items
+    },
+  ]);
 });
 
 afterAll(async () => {
@@ -674,6 +710,171 @@ describe("ItemService", () => {
 
       expect(result.success).toBe(false);
       expect(result.message).toContain("yourself");
+    });
+  });
+
+  describe("size validation", () => {
+    describe("getItem - huge items", () => {
+      it("should prevent picking up huge items", async () => {
+        await db.insert(roomInventory).values({
+          id: "ri-huge-1",
+          roomId: testRoomId,
+          itemId: "item-test-boulder",
+          quantity: 1,
+        });
+
+        const result = await ItemService.getItem(
+          testPlayerId,
+          testRoomId,
+          "huge boulder",
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain("too large to carry");
+      });
+
+      it("should allow picking up large items", async () => {
+        await db.insert(roomInventory).values({
+          id: "ri-large-1",
+          roomId: testRoomId,
+          itemId: "item-test-greatsword",
+          quantity: 1,
+        });
+
+        const result = await ItemService.getItem(
+          testPlayerId,
+          testRoomId,
+          "greatsword",
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.item?.name).toBe("greatsword");
+      });
+    });
+
+    describe("putItemInContainer - size constraints", () => {
+      it("should allow putting small items in medium container", async () => {
+        // Open the pouch
+        await db
+          .update(containers)
+          .set({ isOpen: true })
+          .where(eq(containers.id, "container-test-pouch"));
+
+        // Give player a small item (potion)
+        await db.insert(playerInventory).values({
+          id: "pi-size-1",
+          playerId: testPlayerId,
+          itemId: "item-test-potion",
+          quantity: 1,
+        });
+
+        const result = await ItemService.putItemInContainer(
+          testPlayerId,
+          testRoomId,
+          "healing potion",
+          "small pouch",
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.message).toContain("put");
+      });
+
+      it("should allow putting tiny items in medium container", async () => {
+        await db
+          .update(containers)
+          .set({ isOpen: true })
+          .where(eq(containers.id, "container-test-pouch"));
+
+        await db.insert(playerInventory).values({
+          id: "pi-size-2",
+          playerId: testPlayerId,
+          itemId: "item-test-coin",
+          quantity: 5,
+        });
+
+        const result = await ItemService.putItemInContainer(
+          testPlayerId,
+          testRoomId,
+          "gold coins",
+          "small pouch",
+        );
+
+        expect(result.success).toBe(true);
+      });
+
+      it("should prevent putting medium items in medium container", async () => {
+        await db
+          .update(containers)
+          .set({ isOpen: true })
+          .where(eq(containers.id, "container-test-pouch"));
+
+        await db.insert(playerInventory).values({
+          id: "pi-size-3",
+          playerId: testPlayerId,
+          itemId: "item-test-sword",
+          quantity: 1,
+        });
+
+        const result = await ItemService.putItemInContainer(
+          testPlayerId,
+          testRoomId,
+          "test sword",
+          "small pouch",
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain("too large to fit");
+        expect(result.message).toContain("medium item");
+        expect(result.message).toContain("medium container");
+      });
+
+      it("should prevent putting large items in medium container", async () => {
+        await db
+          .update(containers)
+          .set({ isOpen: true })
+          .where(eq(containers.id, "container-test-pouch"));
+
+        await db.insert(playerInventory).values({
+          id: "pi-size-4",
+          playerId: testPlayerId,
+          itemId: "item-test-greatsword",
+          quantity: 1,
+        });
+
+        const result = await ItemService.putItemInContainer(
+          testPlayerId,
+          testRoomId,
+          "greatsword",
+          "small pouch",
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain("too large to fit");
+      });
+
+      it("should allow putting large items in huge container", async () => {
+        await db
+          .update(containers)
+          .set({ isOpen: true })
+          .where(eq(containers.id, "container-test-chest"));
+
+        await db.insert(playerInventory).values({
+          id: "pi-size-5",
+          playerId: testPlayerId,
+          itemId: "item-test-greatsword",
+          quantity: 1,
+        });
+
+        const result = await ItemService.putItemInContainer(
+          testPlayerId,
+          testRoomId,
+          "greatsword",
+          "wooden chest",
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.message).toContain("put");
+      });
     });
   });
 });

@@ -8,10 +8,12 @@ import { db } from "../../db/index.js";
 import {
   containerInventory,
   items,
+  type ItemSize,
   playerInventory,
   players,
   roomInventory,
 } from "../../db/schema.js";
+import { SIZE_HUGE, SIZE_NAMES } from "../../types/item.js";
 import * as FeatureService from "../FeatureService.js";
 import { getItemDisplayName, resolveQuantity } from "../ItemService.utils.js";
 import {
@@ -87,6 +89,14 @@ export async function getItem(
     quantity: availableQuantity,
     matchedPlural,
   } = found;
+
+  // Check if item is too large to carry
+  if ((item.size as ItemSize) >= SIZE_HUGE) {
+    return {
+      success: false,
+      message: `The ${item.name} is too large to carry.`,
+    };
+  }
 
   // Validate requested quantity if explicit
   if (
@@ -601,6 +611,18 @@ export async function putItemInContainer(
     quantity: availableQuantity,
     matchedPlural,
   } = found;
+
+  // Check if item is too large for the container
+  const itemSize = (item.size ?? 2) as ItemSize; // default medium if not set
+  const containerSize = (container.size ?? 3) as ItemSize; // default large if not set
+  if (itemSize >= containerSize) {
+    const itemSizeName = SIZE_NAMES[itemSize];
+    const containerSizeName = SIZE_NAMES[containerSize];
+    return {
+      success: false,
+      message: `The ${item.name} is too large to fit in the ${container.name}. (${itemSizeName} item, ${containerSizeName} container)`,
+    };
+  }
 
   // Validate requested quantity if explicit
   if (
