@@ -47,8 +47,6 @@ Items to revisit after the initial prototype is working.
 
 - [ ] **Randomized loot from features**: Some features (like bird nests, undergrowth) should give random items from a loot table instead of fixed items. Include cooldown so it's empty if recently looted. Example: nest gives feather (common), egg (rare), or nothing (if looted within last hour).
 
-- [ ] **Unified "can't do that" messaging**: Currently each command handler has to know about corpses, features, monsters, NPCs, etc. to avoid "no X here" messages for things that ARE visible. Consider a centralized "entity resolver" that checks all entity types and returns appropriate "you can't <verb> that" messages instead of "no X here". This would improve maintainability as new entity types are added.
-
 ## Standard Feature Trigger Verbs
 
 Use these consistently across all features to avoid player frustration:

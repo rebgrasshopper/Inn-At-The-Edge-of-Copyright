@@ -5,6 +5,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { containerInventory, containers, items } from "../../db/schema.js";
+import { resolveEntity } from "../EntityResolver.js";
 import { findContainerInRoom } from "./finders.js";
 
 /**
@@ -20,6 +21,14 @@ export async function openContainer(
   const container = await findContainerInRoom(roomId, containerName);
 
   if (!container) {
+    // Use EntityResolver to check for wrong-type matches
+    const resolved = await resolveEntity(roomId, containerName, ["container"]);
+    if (resolved.status === "wrong_type") {
+      return {
+        success: false,
+        message: `You can't open the ${resolved.name}.`,
+      };
+    }
     return {
       success: false,
       message: `You don't see any "${containerName}" here.`,
@@ -54,6 +63,14 @@ export async function closeContainer(
   const container = await findContainerInRoom(roomId, containerName);
 
   if (!container) {
+    // Use EntityResolver to check for wrong-type matches
+    const resolved = await resolveEntity(roomId, containerName, ["container"]);
+    if (resolved.status === "wrong_type") {
+      return {
+        success: false,
+        message: `You can't close the ${resolved.name}.`,
+      };
+    }
     return {
       success: false,
       message: `You don't see any "${containerName}" here.`,

@@ -14,6 +14,7 @@ import {
   roomInventory,
 } from "../../db/schema.js";
 import { SIZE_HUGE, SIZE_NAMES } from "../../types/item.js";
+import { resolveEntity } from "../EntityResolver.js";
 import * as FeatureService from "../FeatureService.js";
 import { getItemDisplayName, resolveQuantity } from "../ItemService.utils.js";
 import {
@@ -66,17 +67,19 @@ export async function getItem(
       }
     }
 
-    // Check if target is a feature (non-takeable thing)
-    const feature = await FeatureService.findFeatureByName(roomId, itemName);
-    if (feature) {
-      return {
-        success: false,
-        message: feature.refuseGetMessage || "You can't take that.",
-      };
-    }
-
-    const container = await findContainerInRoom(roomId, itemName);
-    if (container) {
+    // Use EntityResolver to check for wrong-type matches
+    const resolved = await resolveEntity(roomId, itemName, ["item"]);
+    if (resolved.status === "wrong_type") {
+      // Check for custom refusal message on features
+      if (resolved.type === "feature") {
+        const feature = await FeatureService.findFeatureByName(
+          roomId,
+          itemName,
+        );
+        if (feature?.refuseGetMessage) {
+          return { success: false, message: feature.refuseGetMessage };
+        }
+      }
       return { success: false, message: "You can't take that." };
     }
 
@@ -272,17 +275,20 @@ export async function getItemFromContainer(
   const container = await findContainerInRoom(roomId, containerName);
 
   if (!container) {
-    // Check if it's a feature (non-container thing like a fountain)
-    const feature = await FeatureService.findFeatureByName(
-      roomId,
-      containerName,
-    );
-    if (feature) {
-      return {
-        success: false,
-        message:
-          feature.refuseGetMessage || "You can't take anything from that.",
-      };
+    // Use EntityResolver to check for wrong-type matches
+    const resolved = await resolveEntity(roomId, containerName, ["container"]);
+    if (resolved.status === "wrong_type") {
+      // Check for custom refusal message on features
+      if (resolved.type === "feature") {
+        const feature = await FeatureService.findFeatureByName(
+          roomId,
+          containerName,
+        );
+        if (feature?.refuseGetMessage) {
+          return { success: false, message: feature.refuseGetMessage };
+        }
+      }
+      return { success: false, message: "You can't take anything from that." };
     }
 
     return {
@@ -577,16 +583,20 @@ export async function putItemInContainer(
   const container = await findContainerInRoom(roomId, containerName);
 
   if (!container) {
-    // Check if it's a feature (non-container thing like a fountain)
-    const feature = await FeatureService.findFeatureByName(
-      roomId,
-      containerName,
-    );
-    if (feature) {
-      return {
-        success: false,
-        message: feature.refuseDropMessage || "You can't put anything in that.",
-      };
+    // Use EntityResolver to check for wrong-type matches
+    const resolved = await resolveEntity(roomId, containerName, ["container"]);
+    if (resolved.status === "wrong_type") {
+      // Check for custom refusal message on features
+      if (resolved.type === "feature") {
+        const feature = await FeatureService.findFeatureByName(
+          roomId,
+          containerName,
+        );
+        if (feature?.refuseDropMessage) {
+          return { success: false, message: feature.refuseDropMessage };
+        }
+      }
+      return { success: false, message: "You can't put anything in that." };
     }
 
     return {

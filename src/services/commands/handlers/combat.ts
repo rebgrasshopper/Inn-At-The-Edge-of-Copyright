@@ -4,32 +4,7 @@
 
 import type { CommandContext, CommandResult } from "../../../types/command.js";
 import * as CombatService from "../../CombatService.js";
-
-/**
- * Find a monster in the room by name (partial match)
- * @param room - The room context
- * @param targetName - The target name to search for
- * @returns The monster instance ID if found, null otherwise
- */
-function findMonsterByName(
-  room: CommandContext["room"],
-  targetName: string,
-): string | null {
-  const lowerTarget = targetName.toLowerCase();
-
-  for (const monster of room.monsters) {
-    const monsterName = monster.monster.name.toLowerCase();
-    if (
-      monsterName === lowerTarget ||
-      monsterName.includes(lowerTarget) ||
-      lowerTarget.includes(monsterName)
-    ) {
-      return monster.id;
-    }
-  }
-
-  return null;
-}
+import { resolveEntity } from "../../EntityResolver.js";
 
 /**
  * Handle attack command
@@ -59,31 +34,44 @@ export async function handleAttack(
     };
   }
 
-  // Find the monster in the room
-  const monsterInstanceId = findMonsterByName(room, targetName);
+  // Use EntityResolver to find the target
+  const result = await resolveEntity(room.id, targetName, ["monster"]);
 
-  if (!monsterInstanceId) {
+  if (result.status === "not_found") {
     return {
       success: false,
       message: `You don't see "${targetName}" here.`,
     };
   }
 
+  if (result.status === "wrong_type") {
+    return {
+      success: false,
+      message: `You can't attack the ${result.name}.`,
+    };
+  }
+
+  // Extract monster instance ID from the resolved entity
+  const monsterRecord = result.entity as {
+    monster_instances: { id: string };
+  };
+  const monsterInstanceId = monsterRecord.monster_instances.id;
+
   // Initiate combat
-  const result = await CombatService.initiateCombat(
+  const combatResult = await CombatService.initiateCombat(
     player.id,
     monsterInstanceId,
     room.id,
   );
 
-  if (!result.success) {
-    return { success: false, message: result.message };
+  if (!combatResult.success) {
+    return { success: false, message: combatResult.message };
   }
 
   // Combat service handles the broadcast to other players
   return {
     success: true,
-    message: result.message,
+    message: combatResult.message,
   };
 }
 
