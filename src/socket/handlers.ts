@@ -272,6 +272,9 @@ export async function handleDisconnect(
   const player = socket.player;
   if (!player) return;
 
+  // Clear any pending aggro timers
+  CombatService.clearPendingAggro(player.id);
+
   // Handle combat death on disconnect
   if (CombatService.isPlayerInCombat(player.id)) {
     await CombatService.handleDisconnect(player.id);
@@ -359,8 +362,11 @@ export async function handleCommand(
     }
   }
 
-  // Handle room changes (movement)
+  // Handle room changes (movement or flee)
   if (parsed.type === "movement" && result.success) {
+    await handleRoomChange(io, socket, player);
+  } else if (parsed.action === "flee" && result.success) {
+    // Flee also causes room change
     await handleRoomChange(io, socket, player);
   }
 }
@@ -392,6 +398,9 @@ async function handleRoomChange(
 
   // Notify others in old room that player left (before leaving socket room)
   if (oldRoomId) {
+    // Clear any pending aggro timers from the old room
+    CombatService.clearPendingAggro(player.id);
+
     socket.to(getSocketRoomName(oldRoomId)).emit("system:message", {
       content: `${player.name} has left.`,
       timestamp: new Date().toISOString(),

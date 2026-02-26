@@ -1,5 +1,7 @@
 # Coding Standards
 
+- Always offer a design with reasoning first, and only implement code changes after seeking approval.
+
 ## TypeScript Preferences
 
 - Use `type` instead of `interface` for type definitions

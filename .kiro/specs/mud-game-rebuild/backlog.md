@@ -4,9 +4,7 @@ Items to revisit after the initial prototype is working.
 
 ## Pending
 
-- [ ] **Multiple simultaneous attackers**: Allow multiple monsters to attack a player at once. Currently only one monster initiates aggro. The `monsterTargets` map in CombatService already tracks multiple monsters, but aggro initiation needs to support multiple combatants. Consider: should all aggressive monsters in a room attack immediately, or stagger their engagement?
-
-- [ ] **iPad/mobile testing**: Router may have AP isolation enabled blocking local network access. Check router settings (192.168.0.1) and disable "AP Isolation" or "Client Isolation" if present. Vite config already has `host: true`. Alternative: use ngrok for tunneling.
+- [x] **iPad/mobile testing**: Router may have AP isolation enabled blocking local network access. Check router settings (192.168.0.1) and disable "AP Isolation" or "Client Isolation" if present. Vite config already has `host: true`. Alternative: use ngrok for tunneling.
 
 - [ ] **Feats system**: Add feats table and player_feats junction table. Feats grant special abilities, modify rules (e.g., dual wielding), and unlock options.
 

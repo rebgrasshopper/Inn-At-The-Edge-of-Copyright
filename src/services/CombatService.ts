@@ -45,6 +45,9 @@ const playerCombatMap = new Map<string, string>();
 /** Map of monsterInstanceId -> combatId for quick lookup */
 const monsterCombatMap = new Map<string, string>();
 
+/** Map of playerId -> pending aggro timers (for cleanup on room leave) */
+const pendingAggroTimers = new Map<string, NodeJS.Timeout[]>();
+
 /** Broadcaster function set by socket handler integration */
 let broadcaster: CombatBroadcaster | null = null;
 
@@ -216,6 +219,55 @@ async function buildMonsterParticipant(
 }
 
 /**
+ * Add a monster to an existing combat (for multi-monster aggro)
+ * @param combat - The existing combat to join
+ * @param playerId - The player being attacked
+ * @param monsterInstanceId - The monster joining the fight
+ * @param roomId - The room where combat is happening
+ * @returns Combat result
+ */
+async function addMonsterToCombat(
+  combat: ActiveCombat,
+  playerId: string,
+  monsterInstanceId: string,
+  roomId: string,
+): Promise<CombatResult> {
+  const monsterParticipant = await buildMonsterParticipant(monsterInstanceId);
+  if (!monsterParticipant) {
+    return {
+      success: false,
+      message: "That creature isn't here.",
+      combatId: null,
+    };
+  }
+
+  // Add monster to combat
+  combat.participants.set(monsterInstanceId, monsterParticipant);
+  monsterCombatMap.set(monsterInstanceId, combat.id);
+
+  // Create target set for this monster
+  combat.monsterTargets.set(monsterInstanceId, new Set([playerId]));
+
+  // Start attack timer for monster attacking player
+  scheduleAttack(combat, monsterInstanceId, playerId);
+
+  const playerParticipant = combat.participants.get(playerId);
+  const playerName = playerParticipant?.name || "You";
+
+  broadcast(roomId, {
+    type: "combat_start",
+    attackerName: monsterParticipant.name,
+    defenderName: playerName,
+  });
+
+  return {
+    success: true,
+    message: `The ${monsterParticipant.name} joins the fight!`,
+    combatId: combat.id,
+  };
+}
+
+/**
  * Broadcast a combat event if broadcaster is set
  */
 function broadcast(
@@ -383,6 +435,17 @@ export async function initiateCombat(
         combatId: null,
       };
     }
+
+    // If monster-initiated (aggro), allow monster to join existing combat
+    if (monsterInitiated && existingCombat) {
+      return addMonsterToCombat(
+        existingCombat,
+        playerId,
+        monsterInstanceId,
+        roomId,
+      );
+    }
+
     return {
       success: false,
       message: "You're already in combat!",
@@ -532,6 +595,65 @@ export function endCombatForPlayer(playerId: string): void {
   if (remainingPlayers.length === 0) {
     // No players left, end combat
     cleanupCombat(combatId);
+  }
+}
+
+/**
+ * Remove a dead monster from combat, keeping players in combat with remaining monsters
+ * @param combat - The combat instance
+ * @param monsterInstanceId - The dead monster's ID
+ */
+function removeMonsterFromCombat(
+  combat: ActiveCombat,
+  monsterInstanceId: string,
+): void {
+  // Get players who were fighting this monster
+  const targets = combat.monsterTargets.get(monsterInstanceId);
+  if (!targets) return;
+
+  // Clear monster's attack timer
+  const monsterTimer = combat.attackTimers.get(monsterInstanceId);
+  if (monsterTimer) {
+    clearTimeout(monsterTimer);
+    combat.attackTimers.delete(monsterInstanceId);
+  }
+
+  // For each player fighting this monster, check if they have other monsters to fight
+  for (const playerId of targets) {
+    // Clear player's attack timer for this specific monster
+    // (player may have multiple attack timers if fighting multiple monsters)
+    const playerTimer = combat.attackTimers.get(playerId);
+    if (playerTimer) {
+      clearTimeout(playerTimer);
+      combat.attackTimers.delete(playerId);
+    }
+
+    // Check if player is fighting any other monsters
+    let hasOtherMonsters = false;
+    for (const [otherId, otherTargets] of combat.monsterTargets) {
+      if (otherId !== monsterInstanceId && otherTargets.has(playerId)) {
+        hasOtherMonsters = true;
+        // Reschedule player's attack against remaining monster
+        scheduleAttack(combat, playerId, otherId);
+        break;
+      }
+    }
+
+    // If player has no other monsters to fight, end their combat
+    if (!hasOtherMonsters) {
+      combat.participants.delete(playerId);
+      playerCombatMap.delete(playerId);
+    }
+  }
+
+  // Remove monster from combat
+  combat.participants.delete(monsterInstanceId);
+  combat.monsterTargets.delete(monsterInstanceId);
+  monsterCombatMap.delete(monsterInstanceId);
+
+  // Clean up combat if empty
+  if (combat.participants.size === 0) {
+    cleanupCombat(combat.id);
   }
 }
 
@@ -784,28 +906,9 @@ export async function handleMonsterDeath(
       .where(eq(players.id, killerPlayerId));
   }
 
-  // End combat for all players fighting this monster
+  // Remove monster from combat, keeping players in combat with remaining monsters
   if (combat) {
-    const targets = combat.monsterTargets.get(monsterInstanceId);
-    if (targets) {
-      for (const playerId of targets) {
-        endCombatForPlayer(playerId);
-      }
-    }
-
-    // Clear monster from combat
-    const monsterTimer = combat.attackTimers.get(monsterInstanceId);
-    if (monsterTimer) {
-      clearTimeout(monsterTimer);
-    }
-    combat.participants.delete(monsterInstanceId);
-    combat.monsterTargets.delete(monsterInstanceId);
-    monsterCombatMap.delete(monsterInstanceId);
-
-    // Clean up combat if empty
-    if (combat.participants.size === 0) {
-      cleanupCombat(combat.id);
-    }
+    removeMonsterFromCombat(combat, monsterInstanceId);
   }
 
   // Remove monster instance from database
@@ -838,8 +941,44 @@ export async function handleDisconnect(playerId: string): Promise<void> {
 // Monster Aggro
 // ============================================
 
+/** Minimum delay before first monster attacks (ms) */
+const AGGRO_INITIAL_DELAY_MIN = 3000;
+/** Maximum delay before first monster attacks (ms) */
+const AGGRO_INITIAL_DELAY_MAX = 5000;
+/** Minimum delay between subsequent monster attacks (ms) */
+const AGGRO_STAGGER_DELAY_MIN = 3000;
+/** Maximum delay between subsequent monster attacks (ms) */
+const AGGRO_STAGGER_DELAY_MAX = 5000;
+
 /**
- * Check and trigger monster aggro when player enters room
+ * Generate a random delay within a range
+ * @param min - Minimum delay in ms
+ * @param max - Maximum delay in ms
+ * @returns Random delay between min and max
+ */
+function randomDelay(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * Clear pending aggro timers for a player (called when they leave the room)
+ * @param playerId - The player whose timers to clear
+ */
+export function clearPendingAggro(playerId: string): void {
+  const timers = pendingAggroTimers.get(playerId);
+  if (timers) {
+    for (const timer of timers) {
+      clearTimeout(timer);
+    }
+    pendingAggroTimers.delete(playerId);
+  }
+}
+
+/**
+ * Check and trigger monster aggro when player enters room.
+ * Aggressive monsters attack with staggered timing:
+ * - First monster attacks after 3-5 seconds
+ * - Additional monsters join every 3-5 seconds after that
  * @param playerId - The entering player's ID
  * @param roomId - The room being entered
  */
@@ -847,6 +986,9 @@ export async function checkMonsterAggro(
   playerId: string,
   roomId: string,
 ): Promise<void> {
+  // Clear any existing pending aggro timers for this player
+  clearPendingAggro(playerId);
+
   // Get player level
   const player = await db
     .select()
@@ -873,29 +1015,50 @@ export async function checkMonsterAggro(
 
   if (aggressiveMonsters.length === 0) return;
 
-  // Pick a random aggressive monster to attack
-  const attacker =
-    aggressiveMonsters[Math.floor(Math.random() * aggressiveMonsters.length)];
+  // Shuffle monsters for random attack order
+  const shuffled = [...aggressiveMonsters].sort(() => Math.random() - 0.5);
 
-  // Small delay before aggro triggers (feels more natural)
-  setTimeout(async () => {
-    // Re-check player is still in room and not in combat
-    const currentPlayer = await db
-      .select()
-      .from(players)
-      .where(eq(players.id, playerId))
-      .get();
+  // Schedule staggered attacks
+  const timers: NodeJS.Timeout[] = [];
+  let cumulativeDelay = randomDelay(
+    AGGRO_INITIAL_DELAY_MIN,
+    AGGRO_INITIAL_DELAY_MAX,
+  );
 
-    if (
-      currentPlayer?.currentRoomId === roomId &&
-      !isPlayerInCombat(playerId)
-    ) {
-      await initiateCombat(
-        playerId,
-        attacker.monster_instances.id,
-        roomId,
-        true,
-      );
-    }
-  }, 500);
+  for (const attacker of shuffled) {
+    const monsterInstanceId = attacker.monster_instances.id;
+    const delay = cumulativeDelay;
+
+    const timer = setTimeout(async () => {
+      // Re-check player is still in room
+      const currentPlayer = await db
+        .select()
+        .from(players)
+        .where(eq(players.id, playerId))
+        .get();
+
+      if (currentPlayer?.currentRoomId !== roomId) {
+        return; // Player left the room
+      }
+
+      // Check if monster is still available (not already in combat or dead)
+      if (isMonsterInCombat(monsterInstanceId)) {
+        return;
+      }
+
+      // Initiate combat - this now handles both new combat and joining existing
+      await initiateCombat(playerId, monsterInstanceId, roomId, true);
+    }, delay);
+
+    timers.push(timer);
+
+    // Add stagger delay for next monster
+    cumulativeDelay += randomDelay(
+      AGGRO_STAGGER_DELAY_MIN,
+      AGGRO_STAGGER_DELAY_MAX,
+    );
+  }
+
+  // Store timers for cleanup if player leaves
+  pendingAggroTimers.set(playerId, timers);
 }
