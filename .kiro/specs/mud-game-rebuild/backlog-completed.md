@@ -21,3 +21,5 @@ Items that were in the backlog and have been completed.
 - [x] **Back equipment slot**: Added "back" equipment slot for backpacks/cloaks. Updated schema, types, and equipment service. Added aliases: back, backpack, cloak, cape. Future: backpacks could expand inventory capacity if inventory limits are implemented.
 
 - [x] **Unified "can't do that" messaging**: Created `EntityResolver.ts` that searches all visible entity types (items, monsters, NPCs, players, features, containers, corpses) in parallel and returns "wrong_type" when a match exists but isn't valid for the action. Updated `handleAttack`, `getItem`, `getItemFromContainer`, `putItemInContainer`, `openContainer`, and `closeContainer` to use it. Now "attack fountain" returns "You can't attack the fountain" instead of "You don't see fountain here".
+
+- [x] **Display equipment bonuses in stats**: Show stat bonuses from worn items in the `stats` command output. Stats display with inline bonuses (e.g., "STR: 12 (+2)") and an "Equipment Bonuses" section lists each item's contribution.

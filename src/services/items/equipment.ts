@@ -341,25 +341,33 @@ export async function getEquipmentList(
  * @param playerId - The player's ID
  * @returns Array of equipped items with their data
  */
-export async function getEquippedItems(playerId: string): Promise<
-  Array<{
-    slot: keyof PlayerEquipment;
-    id: string;
-    name: string;
-    weaponDamage: string | null;
-    conEffect: number | null;
-  }>
-> {
+/** Equipped item with all stat effects */
+export type EquippedItemData = {
+  slot: keyof PlayerEquipment;
+  id: string;
+  name: string;
+  weaponDamage: string | null;
+  strEffect: number | null;
+  dexEffect: number | null;
+  conEffect: number | null;
+  intEffect: number | null;
+  wisEffect: number | null;
+  chaEffect: number | null;
+  hpEffect: number | null;
+};
+
+/**
+ * Get all equipped items with their full data including stat effects.
+ * @param playerId - The player's ID
+ * @returns Array of equipped items with slot, name, and all stat effects
+ */
+export async function getEquippedItems(
+  playerId: string,
+): Promise<EquippedItemData[]> {
   const equipment = await getPlayerEquipment(playerId);
   if (!equipment) return [];
 
-  const result: Array<{
-    slot: keyof PlayerEquipment;
-    id: string;
-    name: string;
-    weaponDamage: string | null;
-    conEffect: number | null;
-  }> = [];
+  const result: EquippedItemData[] = [];
 
   for (const [slot, itemId] of Object.entries(equipment)) {
     if (!itemId) continue;
@@ -371,10 +379,75 @@ export async function getEquippedItems(playerId: string): Promise<
         id: item.id,
         name: item.name,
         weaponDamage: item.weaponDamage,
+        strEffect: item.strEffect,
+        dexEffect: item.dexEffect,
         conEffect: item.conEffect,
+        intEffect: item.intEffect,
+        wisEffect: item.wisEffect,
+        chaEffect: item.chaEffect,
+        hpEffect: item.hpEffect,
       });
     }
   }
 
   return result;
+}
+
+/** Individual stat bonus from an equipped item */
+export type StatBonus = {
+  stat: "str" | "dex" | "con" | "int" | "wis" | "cha" | "hp";
+  amount: number;
+  itemName: string;
+};
+
+/** Aggregated equipment stat bonuses */
+export type EquipmentBonuses = {
+  totals: {
+    str: number;
+    dex: number;
+    con: number;
+    int: number;
+    wis: number;
+    cha: number;
+    hp: number;
+  };
+  bonuses: StatBonus[];
+};
+
+/**
+ * Get aggregated stat bonuses from all equipped items.
+ * @param playerId - The player's ID
+ * @returns Totals per stat and list of individual bonuses with item names
+ */
+export async function getEquipmentStatBonuses(
+  playerId: string,
+): Promise<EquipmentBonuses> {
+  const equippedItems = await getEquippedItems(playerId);
+
+  const totals = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0, hp: 0 };
+  const bonuses: StatBonus[] = [];
+
+  for (const item of equippedItems) {
+    const effects: Array<{
+      stat: StatBonus["stat"];
+      value: number | null;
+    }> = [
+      { stat: "str", value: item.strEffect },
+      { stat: "dex", value: item.dexEffect },
+      { stat: "con", value: item.conEffect },
+      { stat: "int", value: item.intEffect },
+      { stat: "wis", value: item.wisEffect },
+      { stat: "cha", value: item.chaEffect },
+      { stat: "hp", value: item.hpEffect },
+    ];
+
+    for (const { stat, value } of effects) {
+      if (value && value !== 0) {
+        totals[stat] += value;
+        bonuses.push({ stat, amount: value, itemName: item.name });
+      }
+    }
+  }
+
+  return { totals, bonuses };
 }

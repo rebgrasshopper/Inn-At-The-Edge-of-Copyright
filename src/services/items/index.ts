@@ -22,6 +22,7 @@ export {
 export {
   equipItem,
   getEquipmentList,
+  getEquipmentStatBonuses,
   getPlayerEquipment,
   unequipItem,
 } from "./equipment.js";

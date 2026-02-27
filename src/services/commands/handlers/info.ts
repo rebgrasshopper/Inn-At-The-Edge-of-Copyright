@@ -53,6 +53,20 @@ export async function handleLook(
 }
 
 /**
+ * Format a stat value with its equipment bonus.
+ * @param baseStat - The base stat value
+ * @param bonus - The equipment bonus (can be positive or negative)
+ * @returns Formatted string like "12 (+2)" or "10" if no bonus
+ */
+function formatStatWithBonus(baseStat: number, bonus: number): string {
+  if (bonus === 0) {
+    return String(baseStat + bonus);
+  }
+  const sign = bonus > 0 ? "+" : "";
+  return `${baseStat + bonus} (${sign}${bonus})`;
+}
+
+/**
  * Handle stats command
  */
 export async function handleStats(
@@ -72,12 +86,37 @@ export async function handleStats(
     return { success: false, message: "Player not found." };
   }
 
+  // Get equipment bonuses
+  const { getEquipmentStatBonuses } = await import("../../items/equipment.js");
+  const { totals, bonuses } = await getEquipmentStatBonuses(player.id);
+
+  const strDisplay = formatStatWithBonus(freshPlayer.str, totals.str);
+  const dexDisplay = formatStatWithBonus(freshPlayer.dex, totals.dex);
+  const conDisplay = formatStatWithBonus(freshPlayer.con, totals.con);
+  const intDisplay = formatStatWithBonus(freshPlayer.int, totals.int);
+  const wisDisplay = formatStatWithBonus(freshPlayer.wis, totals.wis);
+  const chaDisplay = formatStatWithBonus(freshPlayer.cha, totals.cha);
+
   const lines = [
     `${freshPlayer.name} - Level ${freshPlayer.level}`,
     `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}  XP: ${freshPlayer.xp}`,
-    `STR: ${freshPlayer.str}  DEX: ${freshPlayer.dex}  CON: ${freshPlayer.con}`,
-    `INT: ${freshPlayer.int}  WIS: ${freshPlayer.wis}  CHA: ${freshPlayer.cha}`,
+    `STR: ${strDisplay}  DEX: ${dexDisplay}  CON: ${conDisplay}`,
+    `INT: ${intDisplay}  WIS: ${wisDisplay}  CHA: ${chaDisplay}`,
   ];
+
+  // Add equipment bonuses section if any exist
+  const statBonuses = bonuses.filter((b) => b.stat !== "hp");
+  if (statBonuses.length > 0) {
+    lines.push("");
+    lines.push("Equipment Bonuses:");
+    for (const bonus of statBonuses) {
+      const sign = bonus.amount > 0 ? "+" : "";
+      lines.push(
+        `  ${sign}${bonus.amount} ${bonus.stat.toUpperCase()} from ${bonus.itemName}`,
+      );
+    }
+  }
+
   return { success: true, message: lines.join("\n") };
 }
 
