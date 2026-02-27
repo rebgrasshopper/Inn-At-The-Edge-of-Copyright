@@ -107,3 +107,74 @@ export function calculateFleeDC(
 ): number {
   return 10 + (monsterLevel - playerLevel) * 2;
 }
+
+// ============================================
+// XP and Leveling (PF2e-style)
+// ============================================
+
+/** XP required to level up (constant per PF2e) */
+export const XP_PER_LEVEL = 1000;
+
+/**
+ * Calculate XP reward based on monster level relative to player level (PF2e style).
+ * Uses a lookup table based on level difference.
+ * @param monsterLevel - The monster's level
+ * @param playerLevel - The player's level
+ * @returns XP to award
+ * @example calculateXpReward(5, 5) // returns 40 (same level)
+ * @example calculateXpReward(7, 5) // returns 80 (monster 2 levels higher)
+ * @example calculateXpReward(3, 5) // returns 20 (monster 2 levels lower)
+ */
+export function calculateXpReward(
+  monsterLevel: number,
+  playerLevel: number,
+): number {
+  const diff = monsterLevel - playerLevel;
+
+  if (diff <= -4) return 10;
+  if (diff === -3) return 15;
+  if (diff === -2) return 20;
+  if (diff === -1) return 30;
+  if (diff === 0) return 40;
+  if (diff === 1) return 60;
+  if (diff === 2) return 80;
+  if (diff === 3) return 120;
+  return 160; // diff >= 4
+}
+
+export type LevelUpResult = {
+  shouldLevel: boolean;
+  newLevel: number;
+  newXp: number;
+  attributePoints: number;
+};
+
+/**
+ * Check if player should level up and calculate new values.
+ * XP resets to surplus after leveling (carry over excess).
+ * @param currentXp - Player's current XP
+ * @param currentLevel - Player's current level
+ * @returns Level up result with new values and attribute points earned
+ * @example checkLevelUp(1200, 3) // { shouldLevel: true, newLevel: 4, newXp: 200, attributePoints: 2 }
+ * @example checkLevelUp(500, 3) // { shouldLevel: false, newLevel: 3, newXp: 500, attributePoints: 0 }
+ */
+export function checkLevelUp(
+  currentXp: number,
+  currentLevel: number,
+): LevelUpResult {
+  if (currentXp < XP_PER_LEVEL) {
+    return {
+      shouldLevel: false,
+      newLevel: currentLevel,
+      newXp: currentXp,
+      attributePoints: 0,
+    };
+  }
+
+  return {
+    shouldLevel: true,
+    newLevel: currentLevel + 1,
+    newXp: currentXp - XP_PER_LEVEL,
+    attributePoints: 2,
+  };
+}

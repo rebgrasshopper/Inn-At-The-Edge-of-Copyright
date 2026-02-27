@@ -100,4 +100,11 @@ export type CombatEvent =
       killerName: string;
       xpAwarded: number;
     }
+  | {
+      type: "level_up";
+      playerId: string;
+      playerName: string;
+      newLevel: number;
+      attributePoints: number;
+    }
   | { type: "combat_end"; reason: string };

@@ -1,0 +1,1 @@
+ALTER TABLE `players` ADD `unspent_attribute_points` integer DEFAULT 0 NOT NULL;

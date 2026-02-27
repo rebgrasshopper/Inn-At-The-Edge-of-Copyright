@@ -24,6 +24,7 @@ export function toPlayer(record: typeof players.$inferSelect): Player {
     maxHp: record.maxHp,
     xp: record.xp,
     level: record.level,
+    unspentAttributePoints: record.unspentAttributePoints,
     isOnline: record.isOnline,
     equipment: {
       head: record.wornHead,

@@ -24,6 +24,8 @@ import {
   calculateEquipmentConBonus,
   calculateFleeDC,
   calculateXpAfterDeath,
+  calculateXpReward,
+  checkLevelUp,
   getDamageModifier,
   getStatModifier,
 } from "./StatService.js";
@@ -877,7 +879,7 @@ export async function handlePlayerDeath(
 }
 
 /**
- * Handle monster death - award XP, remove monster, end combat
+ * Handle monster death - award XP, check for level up, remove monster, end combat
  * @param monsterInstanceId - The dying monster's instance ID
  * @param killerPlayerId - The player who dealt the killing blow
  */
@@ -899,9 +901,8 @@ export async function handleMonsterDeath(
   if (!record) return;
 
   const monster = record.monsters;
-  const xpReward = monster.xpReward;
 
-  // Award XP to killer
+  // Get killer for XP calculation
   const killer = await db
     .select()
     .from(players)
@@ -909,10 +910,54 @@ export async function handleMonsterDeath(
     .get();
 
   if (killer) {
-    await db
-      .update(players)
-      .set({ xp: killer.xp + xpReward })
-      .where(eq(players.id, killerPlayerId));
+    // Calculate XP based on level difference (PF2e style)
+    const xpReward = calculateXpReward(monster.level, killer.level);
+    const newXp = killer.xp + xpReward;
+
+    // Check for level up
+    const levelUpResult = checkLevelUp(newXp, killer.level);
+
+    if (levelUpResult.shouldLevel) {
+      // Level up! Update XP, level, and grant attribute points
+      const newUnspentPoints =
+        (killer.unspentAttributePoints ?? 0) + levelUpResult.attributePoints;
+
+      await db
+        .update(players)
+        .set({
+          xp: levelUpResult.newXp,
+          level: levelUpResult.newLevel,
+          unspentAttributePoints: newUnspentPoints,
+        })
+        .where(eq(players.id, killerPlayerId));
+
+      // Broadcast level up
+      if (roomId) {
+        broadcast(roomId, {
+          type: "level_up",
+          playerId: killerPlayerId,
+          playerName: killer.name,
+          newLevel: levelUpResult.newLevel,
+          attributePoints: levelUpResult.attributePoints,
+        });
+      }
+    } else {
+      // Just award XP
+      await db
+        .update(players)
+        .set({ xp: newXp })
+        .where(eq(players.id, killerPlayerId));
+    }
+
+    // Broadcast monster death with actual XP awarded
+    if (roomId) {
+      broadcast(roomId, {
+        type: "monster_death",
+        monsterName: monster.name,
+        killerName: killer.name,
+        xpAwarded: xpReward,
+      });
+    }
   }
 
   // Remove monster from combat, keeping players in combat with remaining monsters
@@ -924,15 +969,6 @@ export async function handleMonsterDeath(
   await db
     .delete(monsterInstances)
     .where(eq(monsterInstances.id, monsterInstanceId));
-
-  if (roomId) {
-    broadcast(roomId, {
-      type: "monster_death",
-      monsterName: monster.name,
-      killerName: killer?.name || "someone",
-      xpAwarded: xpReward,
-    });
-  }
 }
 
 /**

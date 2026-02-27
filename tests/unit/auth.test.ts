@@ -136,6 +136,7 @@ describe("AuthService", () => {
         maxHp: 15,
         xp: 100,
         level: 2,
+        unspentAttributePoints: 0,
         isOnline: false,
         createdAt: new Date(),
       });

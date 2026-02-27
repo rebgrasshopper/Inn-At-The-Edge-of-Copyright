@@ -7,6 +7,7 @@ import { getAliasesForCommand } from "./aliases.js";
 import { Command, type CommandDefinition } from "./types.js";
 
 // Import handlers
+import { handleTrain } from "./handlers/character.js";
 import {
   handleEmote,
   handleSay,
@@ -231,6 +232,16 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
       usage: ["flee"],
       aliases: getAliasesForCommand(Command.Flee),
       examples: ["flee", "run", "escape"],
+    },
+  },
+
+  [Command.Train]: {
+    handler: handleTrain,
+    help: {
+      summary: "Spend attribute points to increase stats",
+      usage: ["train", "train <stat>"],
+      aliases: getAliasesForCommand(Command.Train),
+      examples: ["train", "train str", "spend dex"],
     },
   },
 };

@@ -86,6 +86,10 @@ export const COMMAND_ALIASES: Record<string, Command> = {
   run: Command.Flee,
   escape: Command.Flee,
 
+  // Character
+  train: Command.Train,
+  spend: Command.Train,
+
   // Multi-word aliases
   "pick up": Command.Get,
   "put down": Command.Drop,

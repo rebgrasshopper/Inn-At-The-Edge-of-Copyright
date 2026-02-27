@@ -72,6 +72,9 @@ export const players = sqliteTable("players", {
   maxHp: integer("max_hp").notNull().default(10),
   xp: integer("xp").notNull().default(0),
   level: integer("level").notNull().default(1),
+  unspentAttributePoints: integer("unspent_attribute_points")
+    .notNull()
+    .default(0),
 
   isOnline: integer("is_online", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),

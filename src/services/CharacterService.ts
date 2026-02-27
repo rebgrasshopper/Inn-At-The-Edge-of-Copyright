@@ -96,6 +96,7 @@ export async function createCharacter(
       maxHp: startingHp,
       xp: 0,
       level: 1,
+      unspentAttributePoints: 0,
       isOnline: false,
       equipment: emptyEquipment(),
     };

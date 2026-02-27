@@ -82,6 +82,7 @@ describe("Socket Handler Integration", () => {
       maxHp: 10,
       xp: 0,
       level: 1,
+      unspentAttributePoints: 0,
       isOnline: false,
       createdAt: new Date(),
     });

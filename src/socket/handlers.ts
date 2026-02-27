@@ -94,6 +94,29 @@ function broadcastCombatEvent(
     case "monster_death":
       message = `${event.killerName} defeats the ${event.monsterName}! (+${event.xpAwarded} XP)`;
       break;
+    case "level_up": {
+      // Public announcement to the room
+      const publicMessage: ChatMessageData = {
+        id: crypto.randomUUID(),
+        type: "system",
+        content: `🎉 ${event.playerName} has reached level ${event.newLevel}!`,
+        timestamp: new Date().toISOString(),
+      };
+      ioInstance.to(socketRoom).emit("chat:message", publicMessage);
+
+      // Private message to the player about attribute points
+      const playerSocket = playerSockets.get(event.playerId);
+      if (playerSocket) {
+        const privateMessage: ChatMessageData = {
+          id: crypto.randomUUID(),
+          type: "system",
+          content: `You gained ${event.attributePoints} attribute points! Use "train" to spend them.`,
+          timestamp: new Date().toISOString(),
+        };
+        playerSocket.emit("chat:message", privateMessage);
+      }
+      return; // Already handled, don't fall through to default broadcast
+    }
     case "combat_end":
       message = event.reason;
       break;

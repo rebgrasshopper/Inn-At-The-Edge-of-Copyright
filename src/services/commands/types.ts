@@ -40,6 +40,9 @@ export enum Command {
   // Combat (deferred but needed for parsing)
   Attack = "attack",
   Flee = "flee",
+
+  // Character
+  Train = "train",
 }
 
 /** Command category for legacy type compatibility */
@@ -67,6 +70,7 @@ export const COMMAND_CATEGORIES: Record<Command, CommandCategory> = {
   [Command.Help]: "info",
   [Command.Attack]: "combat",
   [Command.Flee]: "combat",
+  [Command.Train]: "info",
 };
 
 /** Maps commands to their legacy action names (for backward compatibility) */

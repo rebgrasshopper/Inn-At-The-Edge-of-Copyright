@@ -93,6 +93,7 @@ describe("Auth Property Tests", () => {
           maxHp: 20,
           xp: 0,
           level: 1,
+          unspentAttributePoints: 0,
           isOnline: false,
           createdAt: new Date(),
         });

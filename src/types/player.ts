@@ -54,6 +54,7 @@ export type Player = {
   maxHp: number;
   xp: number;
   level: number;
+  unspentAttributePoints: number;
   isOnline: boolean;
   equipment: PlayerEquipment;
 };

@@ -251,6 +251,7 @@ async function seed() {
       maxHp: 12,
       xp: 0,
       level: 1,
+      unspentAttributePoints: 0,
       isOnline: false,
       createdAt: new Date(),
     })

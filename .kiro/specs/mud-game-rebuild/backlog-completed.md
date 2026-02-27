@@ -23,3 +23,5 @@ Items that were in the backlog and have been completed.
 - [x] **Unified "can't do that" messaging**: Created `EntityResolver.ts` that searches all visible entity types (items, monsters, NPCs, players, features, containers, corpses) in parallel and returns "wrong_type" when a match exists but isn't valid for the action. Updated `handleAttack`, `getItem`, `getItemFromContainer`, `putItemInContainer`, `openContainer`, and `closeContainer` to use it. Now "attack fountain" returns "You can't attack the fountain" instead of "You don't see fountain here".
 
 - [x] **Display equipment bonuses in stats**: Show stat bonuses from worn items in the `stats` command output. Stats display with inline bonuses (e.g., "STR: 12 (+2)") and an "Equipment Bonuses" section lists each item's contribution.
+
+- [x] **Attribute point spending command**: Added `train <stat>` command to spend unspent attribute points. Shows current points and stats with no args, spends 1 point to increase a stat with `train str/dex/con/int/wis/cha`. Stats capped at 99. Also aliased as `spend`. Created new `handlers/character.ts` for character-mutating commands (separate from info commands).
