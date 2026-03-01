@@ -3,6 +3,11 @@
  * Includes training stats, and future commands like feats.
  */
 
+import { getEquippedItems } from "@/services/items/equipment.js";
+import {
+  calculateEquipmentConBonus,
+  calculateMaxHp,
+} from "@/services/StatService.js";
 import { eq } from "drizzle-orm";
 import { db } from "../../../db/index.js";
 import { players } from "../../../db/schema.js";
@@ -107,12 +112,30 @@ export async function handleTrain(
   const newValue = currentValue + 1;
   const remainingPoints = unspentPoints - 1;
 
+  // Build update object
+  const updateData: Record<string, number> = {
+    [stat]: newValue,
+    unspentAttributePoints: remainingPoints,
+  };
+
+  // If training CON, recalculate max HP (preserve damage taken)
+  let hpMessage = "";
+  if (stat === "con") {
+    const equipped = await getEquippedItems(context.player.id);
+    const equipConBonus = calculateEquipmentConBonus(equipped);
+    const totalCon = newValue + equipConBonus;
+    const newMaxHp = calculateMaxHp(player.level, totalCon);
+    const hpGained = newMaxHp - player.maxHp;
+    const newCurrentHp = player.currentHp + hpGained;
+
+    updateData.maxHp = newMaxHp;
+    updateData.currentHp = newCurrentHp;
+    hpMessage = ` (+${hpGained} max HP)`;
+  }
+
   await db
     .update(players)
-    .set({
-      [stat]: newValue,
-      unspentAttributePoints: remainingPoints,
-    })
+    .set(updateData)
     .where(eq(players.id, context.player.id));
 
   const pointWord = remainingPoints === 1 ? "point" : "points";
@@ -123,6 +146,6 @@ export async function handleTrain(
 
   return {
     success: true,
-    message: `You increase your ${STAT_NAMES[stat]} to ${newValue}. ${remainingMsg}`,
+    message: `You increase your ${STAT_NAMES[stat]} to ${newValue}.${hpMessage} ${remainingMsg}`,
   };
 }

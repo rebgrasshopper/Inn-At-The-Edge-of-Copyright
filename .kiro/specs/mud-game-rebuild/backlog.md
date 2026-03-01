@@ -4,6 +4,12 @@ Items to revisit after the initial prototype is working.
 
 ## Pending
 
+- [ ] **INT → Spell system**: Add spells that players can learn/use based on INT modifier. Number of spell slots = INT modifier (minimum 0). Include a basic attack spell (e.g., "magic missile") so non-STR builds have a combat option. Spells could use a `spells` table and `player_spells` junction table.
+
+- [ ] **WIS → Perception/Discovery**: WIS modifier affects chance to notice hidden features, traps, or secrets. Could also affect saving throws against illusions or mind effects.
+
+- [ ] **CHA → NPC interactions**: CHA modifier affects NPC disposition, shop prices, quest rewards, or persuasion checks. Could unlock special dialogue options.
+
 - [ ] **Feats system**: Add feats table and player_feats junction table. Feats grant special abilities, modify rules (e.g., dual wielding), and unlock options.
 
 - [ ] **Dual wielding restrictions**: By default, players can only equip one weapon. Require a "Two-Weapon Fighting" feat to equip weapons in both mainHand and offHand.

@@ -150,4 +150,57 @@ describe("StatService", () => {
       expect(StatService.calculateFleeDC(3)).toBe(6); // 10 + (1-3)*2 = 6
     });
   });
+
+  describe("calculateMaxHp", () => {
+    it("should return 18 HP for level 1 with CON 10", () => {
+      // BASE_HP (10) + level (1) × (HP_PER_LEVEL (8) + conMod (0) × CON_BONUS_PER_LEVEL (2))
+      // = 10 + 1 × 8 = 18
+      expect(StatService.calculateMaxHp(1, 10)).toBe(18);
+    });
+
+    it("should increase HP with level", () => {
+      // Level 5, CON 10: 10 + 5 × 8 = 50
+      expect(StatService.calculateMaxHp(5, 10)).toBe(50);
+      // Level 10, CON 10: 10 + 10 × 8 = 90
+      expect(StatService.calculateMaxHp(10, 10)).toBe(90);
+    });
+
+    it("should add CON bonus per level", () => {
+      // Level 1, CON 14 (+2 mod): 10 + 1 × (8 + 2×2) = 10 + 12 = 22
+      expect(StatService.calculateMaxHp(1, 14)).toBe(22);
+      // Level 5, CON 14 (+2 mod): 10 + 5 × (8 + 2×2) = 10 + 60 = 70
+      expect(StatService.calculateMaxHp(5, 14)).toBe(70);
+    });
+
+    it("should reduce HP with low CON", () => {
+      // Level 1, CON 8 (-1 mod): 10 + 1 × (8 + (-1)×2) = 10 + 6 = 16
+      expect(StatService.calculateMaxHp(1, 8)).toBe(16);
+      // Level 5, CON 8 (-1 mod): 10 + 5 × (8 + (-1)×2) = 10 + 30 = 40
+      expect(StatService.calculateMaxHp(5, 8)).toBe(40);
+    });
+
+    it("should handle high CON", () => {
+      // Level 10, CON 18 (+4 mod): 10 + 10 × (8 + 4×2) = 10 + 160 = 170
+      expect(StatService.calculateMaxHp(10, 18)).toBe(170);
+    });
+  });
+
+  describe("calculateConHpBonus", () => {
+    it("should return 0 for CON 10", () => {
+      expect(StatService.calculateConHpBonus(1, 10)).toBe(0);
+      expect(StatService.calculateConHpBonus(5, 10)).toBe(0);
+    });
+
+    it("should return positive bonus for high CON", () => {
+      // Level 1, CON 14 (+2 mod): 1 × 2 × 2 = 4
+      expect(StatService.calculateConHpBonus(1, 14)).toBe(4);
+      // Level 5, CON 14 (+2 mod): 5 × 2 × 2 = 20
+      expect(StatService.calculateConHpBonus(5, 14)).toBe(20);
+    });
+
+    it("should return negative bonus for low CON", () => {
+      // Level 5, CON 8 (-1 mod): 5 × (-1) × 2 = -10
+      expect(StatService.calculateConHpBonus(5, 8)).toBe(-10);
+    });
+  });
 });

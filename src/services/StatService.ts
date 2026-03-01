@@ -18,6 +18,15 @@ const INTERVAL_PER_DEX_MOD = 200;
 /** Base AC before modifiers */
 const BASE_AC = 10;
 
+/** Base HP at level 1 */
+const BASE_HP = 10;
+
+/** HP gained per level (before CON bonus) */
+const HP_PER_LEVEL = 8;
+
+/** Bonus HP per level per point of CON modifier */
+const CON_BONUS_PER_LEVEL = 2;
+
 /**
  * Calculate D&D-style stat modifier from a raw stat value
  * @param stat - Raw stat value (e.g., 10, 14, 8)
@@ -82,6 +91,33 @@ export function calculateEquipmentConBonus(
     (total, item) => total + (item.conEffect ?? 0),
     0,
   );
+}
+
+/**
+ * Calculate max HP based on level and CON.
+ * Formula: BASE_HP + level × (HP_PER_LEVEL + conMod × CON_BONUS_PER_LEVEL)
+ * @param level - Player's level
+ * @param con - Player's total CON (base + equipment)
+ * @returns Calculated max HP
+ * @example calculateMaxHp(1, 10) // 18 (10 + 1×8)
+ * @example calculateMaxHp(5, 14) // 80 (10 + 5×(8 + 2×2) = 10 + 5×12)
+ */
+export function calculateMaxHp(level: number, con: number): number {
+  const conMod = getStatModifier(con);
+  const hpPerLevel = HP_PER_LEVEL + conMod * CON_BONUS_PER_LEVEL;
+  return BASE_HP + level * hpPerLevel;
+}
+
+/**
+ * Calculate the CON bonus portion of max HP (for display purposes).
+ * @param level - Player's level
+ * @param con - Player's total CON (base + equipment)
+ * @returns HP bonus from CON modifier
+ * @example calculateConHpBonus(5, 14) // 20 (5 levels × 2 CON mod × 2 per level)
+ */
+export function calculateConHpBonus(level: number, con: number): number {
+  const conMod = getStatModifier(con);
+  return level * conMod * CON_BONUS_PER_LEVEL;
 }
 
 /**

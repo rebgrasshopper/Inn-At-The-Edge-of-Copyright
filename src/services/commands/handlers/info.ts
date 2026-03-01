@@ -90,6 +90,11 @@ export async function handleStats(
   const { getEquipmentStatBonuses } = await import("../../items/equipment.js");
   const { totals, bonuses } = await getEquipmentStatBonuses(player.id);
 
+  // Calculate CON HP bonus for display
+  const { calculateConHpBonus } = await import("../../StatService.js");
+  const totalCon = freshPlayer.con + totals.con;
+  const conHpBonus = calculateConHpBonus(freshPlayer.level, totalCon);
+
   const strDisplay = formatStatWithBonus(freshPlayer.str, totals.str);
   const dexDisplay = formatStatWithBonus(freshPlayer.dex, totals.dex);
   const conDisplay = formatStatWithBonus(freshPlayer.con, totals.con);
@@ -97,9 +102,15 @@ export async function handleStats(
   const wisDisplay = formatStatWithBonus(freshPlayer.wis, totals.wis);
   const chaDisplay = formatStatWithBonus(freshPlayer.cha, totals.cha);
 
+  // Format HP with CON bonus in parentheses if non-zero
+  const hpDisplay =
+    conHpBonus !== 0
+      ? `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp} (${conHpBonus > 0 ? "+" : ""}${conHpBonus} from CON)`
+      : `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}`;
+
   const lines = [
     `${freshPlayer.name} - Level ${freshPlayer.level}`,
-    `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}  XP: ${freshPlayer.xp}`,
+    `${hpDisplay}  XP: ${freshPlayer.xp}`,
     `STR: ${strDisplay}  DEX: ${dexDisplay}  CON: ${conDisplay}`,
     `INT: ${intDisplay}  WIS: ${wisDisplay}  CHA: ${chaDisplay}`,
   ];

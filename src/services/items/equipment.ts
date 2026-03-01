@@ -12,6 +12,7 @@ import {
 } from "../../types/player.js";
 import { fuzzyMatch } from "../../utils/fuzzyMatch.js";
 import { toItem } from "../ItemService.utils.js";
+import { calculateEquipmentConBonus, calculateMaxHp } from "../StatService.js";
 import { findItemInPlayerInventory } from "./finders.js";
 import type { ItemResult } from "./transfer.js";
 
@@ -113,6 +114,51 @@ export async function getPlayerEquipment(
 }
 
 /**
+ * Recalculate and update player's max HP based on CON change from equipment.
+ * Preserves damage taken (difference between max and current HP).
+ * @param playerId - The player whose HP to recalculate
+ * @param oldConBonus - CON bonus before equipment change
+ * @param newConBonus - CON bonus after equipment change
+ * @returns HP change message if HP changed, empty string otherwise
+ */
+async function recalculateHpForConChange(
+  playerId: string,
+  oldConBonus: number,
+  newConBonus: number,
+): Promise<string> {
+  if (oldConBonus === newConBonus) return "";
+
+  const player = db
+    .select()
+    .from(players)
+    .where(eq(players.id, playerId))
+    .get();
+
+  if (!player) return "";
+
+  const oldTotalCon = player.con + oldConBonus;
+  const newTotalCon = player.con + newConBonus;
+
+  const oldMaxHp = calculateMaxHp(player.level, oldTotalCon);
+  const newMaxHp = calculateMaxHp(player.level, newTotalCon);
+
+  if (oldMaxHp === newMaxHp) return "";
+
+  // Preserve damage taken
+  const damageTaken = player.maxHp - player.currentHp;
+  const newCurrentHp = Math.max(1, newMaxHp - damageTaken);
+
+  await db
+    .update(players)
+    .set({ maxHp: newMaxHp, currentHp: newCurrentHp })
+    .where(eq(players.id, playerId));
+
+  const hpDiff = newMaxHp - oldMaxHp;
+  const sign = hpDiff > 0 ? "+" : "";
+  return ` (${sign}${hpDiff} max HP)`;
+}
+
+/**
  * Equip an item from the player's inventory.
  * @param playerId - The player equipping the item
  * @param itemName - The name of the item to equip
@@ -184,9 +230,10 @@ export async function equipItem(
   // Check if something is already equipped in that slot
   const currentItemId = equipment[slotToUse];
   let swapMessage = "";
+  let oldItemConEffect = 0;
 
   if (currentItemId) {
-    // Get the currently equipped item's name
+    // Get the currently equipped item's name and CON effect
     const currentItem = db
       .select()
       .from(items)
@@ -195,8 +242,15 @@ export async function equipItem(
 
     if (currentItem) {
       swapMessage = ` (removing ${currentItem.name})`;
+      oldItemConEffect = currentItem.conEffect ?? 0;
     }
   }
+
+  // Calculate CON change for HP recalculation
+  const newItemConEffect = item.effects.con ?? 0;
+  const equipped = await getEquippedItems(playerId);
+  const oldConBonus = calculateEquipmentConBonus(equipped);
+  const newConBonus = oldConBonus - oldItemConEffect + newItemConEffect;
 
   // Update the player's equipment
   const dbColumn = SLOT_TO_DB_COLUMN[slotToUse];
@@ -205,10 +259,17 @@ export async function equipItem(
     .set({ [dbColumn]: item.id })
     .where(eq(players.id, playerId));
 
+  // Recalculate HP if CON changed
+  const hpMessage = await recalculateHpForConChange(
+    playerId,
+    oldConBonus,
+    newConBonus,
+  );
+
   return {
     success: true,
     item,
-    message: `You equip the ${item.name} on your ${slotToUse}${swapMessage}.`,
+    message: `You equip the ${item.name} on your ${slotToUse}${swapMessage}.${hpMessage}`,
   };
 }
 
@@ -239,9 +300,15 @@ export async function unequipItem(
       };
     }
 
-    // Get the item name for the message
+    // Get the item for the message and CON effect
     const item = db.select().from(items).where(eq(items.id, itemId)).get();
     const itemName = item?.name || "item";
+    const itemConEffect = item?.conEffect ?? 0;
+
+    // Calculate CON change for HP recalculation
+    const equipped = await getEquippedItems(playerId);
+    const oldConBonus = calculateEquipmentConBonus(equipped);
+    const newConBonus = oldConBonus - itemConEffect;
 
     // Clear the slot
     const dbColumn = SLOT_TO_DB_COLUMN[parsedSlot];
@@ -250,10 +317,17 @@ export async function unequipItem(
       .set({ [dbColumn]: null })
       .where(eq(players.id, playerId));
 
+    // Recalculate HP if CON changed
+    const hpMessage = await recalculateHpForConChange(
+      playerId,
+      oldConBonus,
+      newConBonus,
+    );
+
     return {
       success: true,
       item: item ? toItem(item) : undefined,
-      message: `You unequip the ${itemName} from your ${parsedSlot}.`,
+      message: `You unequip the ${itemName} from your ${parsedSlot}.${hpMessage}`,
     };
   }
 
@@ -266,6 +340,12 @@ export async function unequipItem(
 
     const matchResult = fuzzyMatch(itemNameOrSlot, item.name, item.pluralName);
     if (matchResult.matches) {
+      // Calculate CON change for HP recalculation
+      const itemConEffect = item.conEffect ?? 0;
+      const equipped = await getEquippedItems(playerId);
+      const oldConBonus = calculateEquipmentConBonus(equipped);
+      const newConBonus = oldConBonus - itemConEffect;
+
       // Found the item, unequip it
       const dbColumn = SLOT_TO_DB_COLUMN[slot as keyof PlayerEquipment];
       await db
@@ -273,10 +353,17 @@ export async function unequipItem(
         .set({ [dbColumn]: null })
         .where(eq(players.id, playerId));
 
+      // Recalculate HP if CON changed
+      const hpMessage = await recalculateHpForConChange(
+        playerId,
+        oldConBonus,
+        newConBonus,
+      );
+
       return {
         success: true,
         item: toItem(item),
-        message: `You unequip the ${item.name} from your ${slot}.`,
+        message: `You unequip the ${item.name} from your ${slot}.${hpMessage}`,
       };
     }
   }

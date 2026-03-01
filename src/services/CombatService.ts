@@ -23,6 +23,7 @@ import {
   calculateAttackInterval,
   calculateEquipmentConBonus,
   calculateFleeDC,
+  calculateMaxHp,
   calculateXpAfterDeath,
   calculateXpReward,
   checkLevelUp,
@@ -922,12 +923,26 @@ export async function handleMonsterDeath(
       const newUnspentPoints =
         (killer.unspentAttributePoints ?? 0) + levelUpResult.attributePoints;
 
+      // Get equipment CON bonus for max HP calculation
+      const equipped = await getEquippedItems(killerPlayerId);
+      const equipConBonus = calculateEquipmentConBonus(equipped);
+      const totalCon = killer.con + equipConBonus;
+
+      // Calculate new max HP based on new level
+      const newMaxHp = calculateMaxHp(levelUpResult.newLevel, totalCon);
+
+      // Heal the HP gained from leveling (difference between old and new max)
+      const hpGained = newMaxHp - killer.maxHp;
+      const newCurrentHp = killer.currentHp + hpGained;
+
       await db
         .update(players)
         .set({
           xp: levelUpResult.newXp,
           level: levelUpResult.newLevel,
           unspentAttributePoints: newUnspentPoints,
+          maxHp: newMaxHp,
+          currentHp: newCurrentHp,
         })
         .where(eq(players.id, killerPlayerId));
 
