@@ -1,0 +1,101 @@
+name,description
+Alignment,"As characters enter the larger cosmic struggles of morality and alignment, they are able to gain new tools to help them champion their philosophies.
+
+Alignment Feats: If you have at least 10 Hit Dice, you can take any alignment feat that matches your alignment. You cannot have more than one alignment feat at any time, but after changing alignment, when you reach a new character level, you can freely switch your alignment feat to your new alignment's feat. Most alignment feats have a Residual entry that allows you to benefit from some part of the feat even when you no longer meet the alignment prerequisite for the feat, usually aiding you in a small way to regain that alignment. Most alignment feats also allow you to store affirmations for later use. If you shift alignment and no longer have the ability to store affirmations, any affirmations stored by that feat are lost."
+Combat,"""Any feat designated as a combat feat can be selected as a fighter's bonus feat. This designation does not restrict characters of other classes from selecting these feats, assuming that they meet the prerequisites."
+Critical,Critical feats modify the effects of a critical hit by inflicting an additional condition on the victim of the critical hit. Characters without the Critical Mastery feat can only apply the effects of one critical feat to an individual critical hit. Characters with multiple critical feats can decide which feat to apply after the critical hit has been confirmed.
+Esoteric,"In a campaign that uses the esoteric material component system, characters have access to the following feats. Any time a character would gain a bonus metamagic feat, he can choose to take an esoteric feat instead."
+Grit,"Grit feats interact with the gunslinger's grit class ability or the grit granted by the Amateur Gunslinger feat, usually by adding to her set of deeds. Sometimes these feats increase the number of grit points a character has or how that character regains grit points. Gunslingers can take grit feats as bonus feats."
+Item Creation,"An item creation feat lets a character create a magic item of a certain type. Regardless of the type of item each involves, the various item creation feats all have certain features in common.
+
+Raw Materials Cost: The cost of creating a magic item equals half the base price of the item.
+
+Using an item creation feat also requires access to a laboratory or magical workshop, special tools, and so on. A character generally has access to what he needs unless unusual circumstances apply.
+
+Time: The time to create a magic item depends on the feat and the cost of the item.
+
+Item Cost: Brew Potion, Craft Staff, Craft Wand, and Scribe Scroll create items that directly reproduce spell effects, and the power of these items depends on their caster level—that is, a spell from such an item has the power it would have if cast by a spellcaster of that level. The price of these items (and thus the cost of the raw materials) also depends on the caster level. The caster level must be low enough that the spellcaster creating the item can cast the spell at that level. To find the final price in each case, multiply the caster level by the spell level, then multiply the result by a constant, as shown below:
+
+Scrolls: Base price = spell level × caster level × 25 gp.
+Potions: Base price = spell level × caster level × 50 gp.
+Wands: Base price = spell level × caster level × 750 gp.
+Staves: The price for staves is calculated using more complex formulas (see Magic Items).
+
+A 0-level spell is considered to have a spell level of 1/2 for the purpose of this calculation.
+
+Extra Costs: Any potion, scroll, or wand that stores a spell with a costly material component also carries a commensurate cost. For potions and scrolls, the creator must expend the material component cost when creating the item. For a wand, the creator must expend 50 units of the material component. Some magic items similarly incur extra costs in material components, as noted in their descriptions.
+
+Skill Check: Successfully creating a magic item requires a Spellcraft check with a DC equal to 5 + the item's caster level. Alternatively, you can use an associated Craft or Profession skill to attempt this check instead, depending upon the item being crafted. See Magic Item Creation for more details on which Craft and Profession checks may be substituted in this manner. The DC of this check can increase if the crafter is rushed or does not meet all of the prerequisites. A failed check ruins the materials used, while a check that fails by 5 or more results in a cursed item. See Magic Items for more details."
+Metamagic,"As a spellcaster's knowledge of magic grows, he can learn to cast spells in ways slightly different from the norm. Preparing and casting a spell in such a way is harder than normal but, thanks to metamagic feats, is at least possible. Spells modified by a metamagic feat use a spell slot higher than normal. This does not change the level of the spell, so the DC for saving throws against it does not go up. Metamagic feats do not affect spell-like abilities.
+
+Wizards and Divine Spellcasters: Wizards and divine spellcasters must prepare their spells in advance. During preparation, the character chooses which spells to prepare with metamagic feats (and thus which ones take up higher-level spell slots than normal).
+
+Sorcerers and Bards: Sorcerers and bards choose spells as they cast them. They can choose when they cast their spells whether to apply their metamagic feats to improve them. As with other spellcasters, the improved spell uses up a higher-level spell slot. Because the sorcerer or bard has not prepared the spell in a metamagic form in advance, he must apply the metamagic feat on the spot. Therefore, such a character must also take more time to cast a metamagic spell (one enhanced by a metamagic feat) than he does to cast a regular spell. If the spell's normal casting time is a standard action, casting a metamagic version is a full-round action for a sorcerer or bard. (This isn't the same as a 1-round casting time.) The only exception is for spells modified by the Quicken Spell metamagic feat, which can be cast as normal using the feat.
+
+For a spell with a longer casting time, it takes an extra full-round action to cast the spell.
+
+Spontaneous Casting and Metamagic Feats: A cleric spontaneously casting a cure or inflict spell, or a druid spontaneously casting a summon nature's ally spell, can cast a metamagic version of it instead. Extra time is also required in this case. Casting a standard action metamagic spell spontaneously is a full-round action, and a spell with a longer casting time takes an extra full-round action to cast. The only exception is for spells modified by the Quicken Spell feat, which can be cast as a swift action.
+
+Effects of Metamagic Feats on a Spell: In all ways, a metamagic spell operates at its original spell level, even though it is prepared and cast using a higher-level spell slot. Saving throw modifications are not changed unless stated otherwise in the feat description.
+
+The modifications made by these feats only apply to spells cast directly by the feat user. A spellcaster can't use a metamagic feat to alter a spell being cast from a wand, scroll, or other device.
+
+Metamagic feats that eliminate components of a spell don't eliminate the attack of opportunity provoked by casting a spell while threatened. Casting a spell modified by Quicken Spell does not provoke an attack of opportunity.
+
+Metamagic feats cannot be used with all spells. See the specific feat descriptions for the spells that a particular feat can't modify.
+
+Multiple Metamagic Feats on a Spell: A spellcaster can apply multiple metamagic feats to a single spell. Changes to its level are cumulative. You can't apply the same metamagic feat more than once to a single spell.
+
+Magic Items and Metamagic Spells: With the right item creation feat, you can store a metamagic version of a spell in a scroll, potion, or wand. Level limits for potions and wands apply to the spell's higher spell level (after the application of the metamagic feat). A character doesn't need the metamagic feat to activate an item storing a metamagic version of a spell.
+
+Counterspelling Metamagic Spells: Whether or not a spell has been enhanced by a metamagic feat does not affect its vulnerability to counterspelling or its ability to counterspell another spell (see Magic)."
+Mythic,"Mythic characters and monsters gain mythic feats as they gain tiers or ranks. These feats can be selected only as part of mythic advancement, not as part of a character's normal advancement or in place of any other bonus feat.
+
+Most mythic feats require a non-mythic feat as a prerequisite. These mythic feats enhance the benefits of their prerequisite feats, making them truly awe-inspiring. If a character doesn't possess any of the necessary prerequisite feats when she gains a mythic feat, she can wait to select a mythic feat until the next time she gains a tier or level.
+
+A value in a mythic feat based on a fraction of your tier (such as a +1 bonus for every 3 tiers you possess) always has a minimum of 1.
+
+This section includes some non-mythic feats. These grant a character who hasn't had a moment of ascension a measure of mythic might, and remain relevant if that character later becomes mythic.
+
+Only characters with mythic tiers or creatures with mythic ranks can take these feats. If a creature becomes non-mythic, it no longer gains the benefit of these feats, but it doesn't lose them permanently. If the creature becomes mythic again, it regains the use of all the mythic feats it once had.
+
+Many mythic feats enhance non-mythic feats with the same name. When a creature has a mythic version of a feat, that feat is denoted with a superscript ""M"" in the feat line of its stat block."
+Panache,Panache feats interact with the swashbuckler's panache class ability or the panache granted by the Amateur Swashbuckler feat. Swashbucklers can take panache feats as bonus feats.
+Performance,"Performance feats are used when you make a performance combat check, typically granting a special action that occurs when you make that check. Unless you have the Masterful Display feat, you can only apply the effect of one performance feat to each performance combat check you make."
+Stare,Stare feats allow a mesmerist to apply additional effects to his painful stare ability. Characters without the Compounded Pain feat can apply the effects of only one stare feat to an individual attack; a mesmerist with multiple stare feats must choose which to apply before the damage roll is made.
+Story,"A story feat reflects a goal—often an all-consuming one—that shapes your life. Each story feat incorporates a trigger event (which comes from either a campaign occurrence or your background), an immediate benefit, a goal, and a further benefit for achieving that goal.
+
+Story feats are marked with the story keyword. Each feat has at least two possible prerequisites, representing conditions most likely met during play or a background that fits the feat. You need to meet only one of these prerequisites. Anytime you gain a new feat, you may take a story feat, but you can have only one uncompleted story feat at a time. Story feats are designed for PCs, but can be taken by NPCs and monsters as well.
+
+Unlike typical feats, story feats have nebulous prerequisites, and you should chose one only after talking with the GM. The GM should weave a story feat into the greater story of the campaign and even adjust it as needed to fit the campaign's long-term goals and the specifics of your background. Story feats should work organically within the story of the campaign, rather than be chosen purely for their mechanical benefits.
+
+Like the prerequisites, the completion conditions for a story feat might require GM adjudication. If the events of the campaign are not likely to resolve the story implied by the story feat, the GM should consider shifting the goal to something you can achieve. Establishing a meaningful story arc is more important than adhering to the letter of the feat.
+
+Because a story feat represents both your motivation and character development, the GM should make an effort to incorporate elements related to the feat into the ongoing campaign. These can be direct elements, like the appearance of a villain or hated creature, or indirect elements, such as rumors of the fate of a lost relative or NPCs who are impressed by a PC's artistic endeavors. A good rule of thumb is to work in a reference to each PC's story feat once every three to five sessions.
+
+In most cases, allies can assist in completing a story feat. At the GM's discretion, if you do not take a leadership role in tasks or conflicts related to your own story feat, you might need to complete additional goals to resolve the story feat, or might even be denied completion altogether.
+
+Common Rules
+Many story feats share similar terminology in their prerequisites and completion conditions. The following terms have special meanings when used in story feats.
+
+Appropriate Number: These are either creatures whose individual CRs add up to 20, or creatures whose individual CRs add up to 5 times your character level, whichever is greater. For example, if you're at 6th level, an appropriate number of creatures have CRs that add up to 30. This calculation is based on your current character level, not the level at which you selected the story feat. Overly easy challenges (encounters with CRs of 3 or more below your character level) don't count unless circumstances make them much more difficult to handle.
+
+Challenging Foe: This is a foe or group of foes with a total CR of 10 or a CR of 3 plus your character level, whichever is higher. If this refers to a distinct individual, the foe's CR is set when the feat is taken, but the foe advances in power as you do. Otherwise, it refers to your current level. A typical recurring foe advances in CR by 1 for every 1—2 levels you gain.
+
+Character's Level: Normally, this is your actual character level. If you're a creature best represented by CR rather than character level (such as most monsters with more than 1 HD), use your calculated CR instead of your character level.
+
+Decisively Defeat: You overcome a foe in some way, such as by killing the creature, knocking it unconscious, or causing it to be taken prisoner. You must be a significant participant in the conflict to defeat the opponent, even if another strikes the final blow. Whether or not merely causing the enemy to flee qualifies is up to the GM. Generally, driving off an enemy while causing little actual harm does not qualify as a decisive defeat.
+
+Slay: Slaying a foe includes killing it, destroying it, turning it to stone, banishing it to the Abyss, or otherwise eliminating it in a fashion reversible only by powerful magic. Unless otherwise noted, you must deal the final blow yourself to slay a creature.
+
+Thwart: Distinct from defeating a foe, thwarting a foe involves disrupting its plans in a substantial and essentially permanent fashion. Deposing a lord, bringing down a priest's temple, or banishing a sorcerer to the depths of Hell all qualify as thwarting. You keep any benefits gained by thwarting a foe even if it survives defeat and returns more powerful than before. You must be a significant participant in the events that lead to your foe being thwarted for your actions to count toward fulfilling a story requirement.
+
+Story Feats and Stacking
+Most story feat bonuses are untyped, and stack with almost any other bonus. However, if you have multiple story feats, their untyped bonuses do not stack with each other. For example, if two story feats gave you a bonus on saving throws, you would add only the higher bonus."
+Style,"For centuries, great warriors have looked to nature and the multiverse to find inspiration in battle. Countless monastic and contemplative orders have crafted intricate unarmed fighting styles based on the deadliness and grace of natural and supernatural creatures. Although many such fighting techniques were created by secretive orders, they have since spread to practitioners the world over.
+
+As a swift action, you can enter the stance employed by the fighting style a style feat embodies. Although you cannot use a style feat before combat begins, the style you are in persists until you spend a swift action to switch to a different combat style. You can use a feat that has a style feat as a prerequisite only while in the stance of the associated style. For example, if you have feats associated with Mantis Style and Tiger Style, you can use a swift action to adopt Tiger Style at the start of one turn, and then can use other feats that have Tiger Style as a prerequisite. By using another swift action at the start of your next turn, you could adopt Mantis Style and use other feats that have Mantis Style as a prerequisite.
+
+The styles presented follow, along with specific feat paths—feats that complement each style."
+Teamwork,"Teamwork grant significant bonuses but only function under specific circumstances. In most cases, these feats require an ally with the same feat to have a specific position on the battlefield. Teamwork feats provide no bonus if the listed conditions are not met. Note that allies who are paralyzed, stunned, unconscious, or otherwise unable to act do not count for the purposes of these feats. Inquisitors and cavaliers have special class abilities that allow them to use teamwork feats even when their allies do not have the feats."
+Untyped,These feats have no specific type.
