@@ -95,6 +95,10 @@ export async function handleStats(
   const totalCon = freshPlayer.con + totals.con;
   const conHpBonus = calculateConHpBonus(freshPlayer.level, totalCon);
 
+  // Get active stance
+  const { getActiveStance } = await import("../../FeatService.js");
+  const activeStance = await getActiveStance(player.id);
+
   const strDisplay = formatStatWithBonus(freshPlayer.str, totals.str);
   const dexDisplay = formatStatWithBonus(freshPlayer.dex, totals.dex);
   const conDisplay = formatStatWithBonus(freshPlayer.con, totals.con);
@@ -114,6 +118,11 @@ export async function handleStats(
     `STR: ${strDisplay}  DEX: ${dexDisplay}  CON: ${conDisplay}`,
     `INT: ${intDisplay}  WIS: ${wisDisplay}  CHA: ${chaDisplay}`,
   ];
+
+  // Add active stance if any
+  if (activeStance) {
+    lines.push(`Stance: ${activeStance.name} (use "stance off" to deactivate)`);
+  }
 
   // Add equipment bonuses section if any exist
   const statBonuses = bonuses.filter((b) => b.stat !== "hp");

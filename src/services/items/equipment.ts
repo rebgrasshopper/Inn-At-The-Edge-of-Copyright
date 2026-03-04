@@ -11,6 +11,7 @@ import {
   type PlayerEquipment,
 } from "../../types/player.js";
 import { fuzzyMatch } from "../../utils/fuzzyMatch.js";
+import { canDualWield } from "../FeatEffectHandler.js";
 import { toItem } from "../ItemService.utils.js";
 import { calculateEquipmentConBonus, calculateMaxHp } from "../StatService.js";
 import { findItemInPlayerInventory } from "./finders.js";
@@ -128,7 +129,7 @@ async function recalculateHpForConChange(
 ): Promise<string> {
   if (oldConBonus === newConBonus) return "";
 
-  const player = db
+  const player = await db
     .select()
     .from(players)
     .where(eq(players.id, playerId))
@@ -139,8 +140,8 @@ async function recalculateHpForConChange(
   const oldTotalCon = player.con + oldConBonus;
   const newTotalCon = player.con + newConBonus;
 
-  const oldMaxHp = calculateMaxHp(player.level, oldTotalCon);
-  const newMaxHp = calculateMaxHp(player.level, newTotalCon);
+  const oldMaxHp = await calculateMaxHp(player.level, oldTotalCon, playerId);
+  const newMaxHp = await calculateMaxHp(player.level, newTotalCon, playerId);
 
   if (oldMaxHp === newMaxHp) return "";
 
@@ -224,6 +225,31 @@ export async function equipItem(
     } else {
       // All valid slots occupied, use the first one (will swap)
       slotToUse = EQUIPMENT_SLOT_TO_FIELD[item.equipSlots[0]];
+    }
+  }
+
+  // Check for dual wield restriction: equipping weapon to offHand requires Two-Weapon Fighting
+  if (slotToUse === "offHand" && item.weaponDamage) {
+    // Check if mainHand has a weapon
+    const mainHandItemId = equipment.mainHand;
+    if (mainHandItemId) {
+      const mainHandItem = db
+        .select()
+        .from(items)
+        .where(eq(items.id, mainHandItemId))
+        .get();
+
+      if (mainHandItem?.weaponDamage) {
+        // Both hands would have weapons - check for Two-Weapon Fighting feat
+        const canDual = await canDualWield(playerId);
+        if (!canDual) {
+          return {
+            success: false,
+            message:
+              "You need the Two-Weapon Fighting feat to dual wield weapons.",
+          };
+        }
+      }
     }
   }
 
@@ -434,6 +460,7 @@ export type EquippedItemData = {
   id: string;
   name: string;
   weaponDamage: string | null;
+  weaponRange: string | null;
   strEffect: number | null;
   dexEffect: number | null;
   conEffect: number | null;
@@ -466,6 +493,7 @@ export async function getEquippedItems(
         id: item.id,
         name: item.name,
         weaponDamage: item.weaponDamage,
+        weaponRange: item.weaponRange,
         strEffect: item.strEffect,
         dexEffect: item.dexEffect,
         conEffect: item.conEffect,

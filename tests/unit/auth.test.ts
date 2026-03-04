@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "../../src/db/index.js";
@@ -8,16 +8,31 @@ import { verifyToken } from "../../src/utils/jwt.js";
 import { verifyPassword } from "../../src/utils/password.js";
 
 describe("AuthService", () => {
+  const TEST_PREFIX = "authtest_";
+
   // Clean up test data before each test
   beforeEach(async () => {
-    // Delete all test users and players
-    await db.delete(players);
-    await db.delete(users);
+    // Delete only test users with our prefix (and their players)
+    // First get user IDs with our prefix
+    const testUsers = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(sql`username LIKE ${TEST_PREFIX + "%"}`);
+
+    if (testUsers.length > 0) {
+      const userIds = testUsers.map((u) => u.id);
+      // Delete players for these users
+      for (const userId of userIds) {
+        await db.delete(players).where(eq(players.userId, userId));
+      }
+      // Delete the users
+      await db.delete(users).where(sql`username LIKE ${TEST_PREFIX + "%"}`);
+    }
   });
 
   describe("register", () => {
     it("should create a new user with hashed password", async () => {
-      const username = `testuser_${uuidv4().slice(0, 8)}`;
+      const username = `authtest_${uuidv4().slice(0, 8)}`;
       const password = "testpassword123";
 
       const result = await AuthService.register(username, password);
@@ -43,7 +58,7 @@ describe("AuthService", () => {
     });
 
     it("should return a valid JWT token", async () => {
-      const username = `testuser_${uuidv4().slice(0, 8)}`;
+      const username = `authtest_${uuidv4().slice(0, 8)}`;
       const password = "testpassword123";
 
       const result = await AuthService.register(username, password);
@@ -58,7 +73,7 @@ describe("AuthService", () => {
     });
 
     it("should reject duplicate usernames", async () => {
-      const username = `testuser_${uuidv4().slice(0, 8)}`;
+      const username = `authtest_${uuidv4().slice(0, 8)}`;
       const password = "testpassword123";
 
       // First registration should succeed
@@ -74,7 +89,7 @@ describe("AuthService", () => {
 
   describe("login", () => {
     it("should login with valid credentials", async () => {
-      const username = `testuser_${uuidv4().slice(0, 8)}`;
+      const username = `authtest_${uuidv4().slice(0, 8)}`;
       const password = "testpassword123";
 
       // Register first
@@ -97,7 +112,7 @@ describe("AuthService", () => {
     });
 
     it("should reject invalid password", async () => {
-      const username = `testuser_${uuidv4().slice(0, 8)}`;
+      const username = `authtest_${uuidv4().slice(0, 8)}`;
       const password = "testpassword123";
 
       // Register first
@@ -112,7 +127,7 @@ describe("AuthService", () => {
     });
 
     it("should return player data if player exists", async () => {
-      const username = `testuser_${uuidv4().slice(0, 8)}`;
+      const username = `authtest_${uuidv4().slice(0, 8)}`;
       const password = "testpassword123";
 
       // Register user
@@ -155,7 +170,7 @@ describe("AuthService", () => {
 
   describe("validateToken", () => {
     it("should return player for valid token", async () => {
-      const username = `testuser_${uuidv4().slice(0, 8)}`;
+      const username = `authtest_${uuidv4().slice(0, 8)}`;
       const password = "testpassword123";
 
       // Register user
@@ -185,7 +200,7 @@ describe("AuthService", () => {
     });
 
     it("should return null for invalidated token", async () => {
-      const username = `testuser_${uuidv4().slice(0, 8)}`;
+      const username = `authtest_${uuidv4().slice(0, 8)}`;
       const password = "testpassword123";
 
       // Register user
@@ -212,7 +227,7 @@ describe("AuthService", () => {
 
   describe("logout", () => {
     it("should invalidate the token", async () => {
-      const username = `testuser_${uuidv4().slice(0, 8)}`;
+      const username = `authtest_${uuidv4().slice(0, 8)}`;
       const password = "testpassword123";
 
       // Register user
@@ -229,7 +244,7 @@ describe("AuthService", () => {
     });
 
     it("should set player offline", async () => {
-      const username = `testuser_${uuidv4().slice(0, 8)}`;
+      const username = `authtest_${uuidv4().slice(0, 8)}`;
       const password = "testpassword123";
 
       // Register user

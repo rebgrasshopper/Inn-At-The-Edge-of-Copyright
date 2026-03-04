@@ -1,8 +1,10 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { FEAT_TWO_WEAPON_FIGHTING } from "../../src/constants/featIds.js";
 import { db } from "../../src/db/index.js";
 import {
   items,
+  playerFeats,
   playerInventory,
   players,
   rooms,
@@ -15,11 +17,21 @@ const testPlayerId = "test-player-equipment";
 const testRoomId = "test-room-equipment";
 
 async function cleanupTestData() {
-  await db.delete(playerInventory);
-  await db.delete(players);
-  await db.delete(items);
-  await db.delete(rooms);
-  await db.delete(users);
+  // Only delete our specific test data, not all data
+  await db.delete(playerFeats).where(eq(playerFeats.playerId, testPlayerId));
+  await db
+    .delete(playerInventory)
+    .where(eq(playerInventory.playerId, testPlayerId));
+  await db.delete(players).where(eq(players.id, testPlayerId));
+  // Delete test items with our prefix
+  await db.delete(items).where(eq(items.id, "test-item-sword"));
+  await db.delete(items).where(eq(items.id, "test-item-dagger"));
+  await db.delete(items).where(eq(items.id, "test-item-shield"));
+  await db.delete(items).where(eq(items.id, "test-item-helmet"));
+  await db.delete(items).where(eq(items.id, "test-item-armor"));
+  await db.delete(items).where(eq(items.id, "test-item-ring"));
+  await db.delete(rooms).where(eq(rooms.id, testRoomId));
+  await db.delete(users).where(eq(users.id, testUserId));
 }
 
 beforeAll(async () => {
@@ -98,8 +110,12 @@ afterAll(async () => {
 
 describe("Equipment Operations", () => {
   beforeEach(async () => {
-    await db.delete(playerInventory);
-    await db.delete(players);
+    // Only delete our specific test data, not all data
+    await db.delete(playerFeats).where(eq(playerFeats.playerId, testPlayerId));
+    await db
+      .delete(playerInventory)
+      .where(eq(playerInventory.playerId, testPlayerId));
+    await db.delete(players).where(eq(players.id, testPlayerId));
 
     await db.insert(players).values({
       id: testPlayerId,
@@ -233,6 +249,14 @@ describe("Equipment Operations", () => {
     });
 
     it("should prefer empty slot when auto-selecting", async () => {
+      // Grant Two-Weapon Fighting feat for dual wield
+      await db.insert(playerFeats).values({
+        id: "pf-twf-test",
+        playerId: testPlayerId,
+        featId: FEAT_TWO_WEAPON_FIGHTING,
+        acquiredAt: new Date(),
+      });
+
       // Equip sword to mainhand first
       await db.insert(playerInventory).values({
         id: "pi-sword-4",

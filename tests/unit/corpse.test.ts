@@ -24,13 +24,21 @@ const testRoomId = "test-room-corpse";
 const testItemId = "test-item-corpse-sword";
 
 async function cleanupTestData() {
+  // Only delete our specific test data, not all data
   await db.delete(corpseInventory);
   await db.delete(corpses);
-  await db.delete(playerInventory);
-  await db.delete(players);
-  await db.delete(items);
-  await db.delete(rooms);
-  await db.delete(users);
+  await db
+    .delete(playerInventory)
+    .where(eq(playerInventory.playerId, testPlayerId));
+  await db
+    .delete(playerInventory)
+    .where(eq(playerInventory.playerId, testPlayerId2));
+  await db.delete(players).where(eq(players.id, testPlayerId));
+  await db.delete(players).where(eq(players.id, testPlayerId2));
+  await db.delete(items).where(eq(items.id, testItemId));
+  await db.delete(rooms).where(eq(rooms.id, testRoomId));
+  await db.delete(users).where(eq(users.id, testUserId));
+  await db.delete(users).where(eq(users.id, testUserId2));
 }
 
 beforeAll(async () => {
@@ -73,16 +81,32 @@ afterAll(async () => {
 
 describe("CorpseService", () => {
   beforeEach(async () => {
-    await db.delete(corpseInventory);
-    await db.delete(corpses);
-    await db.delete(playerInventory);
-    await db.delete(players);
+    // Only delete our specific test data, not all data
+    // First get all corpses for our test players
+    const testCorpses = await db
+      .select({ id: corpses.id })
+      .from(corpses)
+      .where(eq(corpses.roomId, testRoomId));
+    for (const corpse of testCorpses) {
+      await db
+        .delete(corpseInventory)
+        .where(eq(corpseInventory.corpseId, corpse.id));
+    }
+    await db.delete(corpses).where(eq(corpses.roomId, testRoomId));
+    await db
+      .delete(playerInventory)
+      .where(eq(playerInventory.playerId, testPlayerId));
+    await db
+      .delete(playerInventory)
+      .where(eq(playerInventory.playerId, testPlayerId2));
+    await db.delete(players).where(eq(players.id, testPlayerId));
+    await db.delete(players).where(eq(players.id, testPlayerId2));
 
     await db.insert(players).values([
       {
         id: testPlayerId,
         userId: testUserId,
-        name: "Djim",
+        name: "CorpseTestDjim",
         currentRoomId: testRoomId,
         isOnline: true,
         createdAt: new Date(),
@@ -90,7 +114,7 @@ describe("CorpseService", () => {
       {
         id: testPlayerId2,
         userId: testUserId2,
-        name: "Bob",
+        name: "CorpseTestBob",
         currentRoomId: testRoomId,
         isOnline: true,
         createdAt: new Date(),
@@ -119,7 +143,7 @@ describe("CorpseService", () => {
       expect(result.found).toBe(true);
       if (result.found) {
         expect(result.corpse.id).toBe(corpseId);
-        expect(result.corpse.playerName).toBe("Djim");
+        expect(result.corpse.playerName).toBe("CorpseTestDjim");
       }
     });
 
@@ -128,12 +152,12 @@ describe("CorpseService", () => {
 
       const result = await CorpseService.findCorpseInRoom(
         testRoomId,
-        "corpse of djim",
+        "corpse of corpsetestdjim",
       );
 
       expect(result.found).toBe(true);
       if (result.found) {
-        expect(result.corpse.playerName).toBe("Djim");
+        expect(result.corpse.playerName).toBe("CorpseTestDjim");
       }
     });
 
@@ -162,8 +186,8 @@ describe("CorpseService", () => {
       expect(result.found).toBe(false);
       if (!result.found) {
         expect(result.error).toContain("Which corpse?");
-        expect(result.error).toContain("Djim");
-        expect(result.error).toContain("Bob");
+        expect(result.error).toContain("CorpseTestDjim");
+        expect(result.error).toContain("CorpseTestBob");
       }
     });
 
@@ -176,13 +200,13 @@ describe("CorpseService", () => {
 
       const result = await CorpseService.findCorpseInRoom(
         testRoomId,
-        "corpse of bob",
+        "corpse of corpsetestbob",
       );
 
       expect(result.found).toBe(true);
       if (result.found) {
         expect(result.corpse.id).toBe(bobCorpseId);
-        expect(result.corpse.playerName).toBe("Bob");
+        expect(result.corpse.playerName).toBe("CorpseTestBob");
       }
     });
 
@@ -326,7 +350,7 @@ describe("CorpseService", () => {
 
       expect(result.success).toBe(true);
       expect(result.corpseDeleted).toBeDefined();
-      expect(result.corpseDeleted?.playerName).toBe("Djim");
+      expect(result.corpseDeleted?.playerName).toBe("CorpseTestDjim");
       expect(result.corpseDeleted?.roomId).toBe(testRoomId);
     });
 
@@ -487,7 +511,7 @@ describe("CorpseService", () => {
       const result = await CorpseService.cleanupExpiredCorpses();
 
       expect(result).toHaveLength(1);
-      expect(result[0].playerName).toBe("Djim");
+      expect(result[0].playerName).toBe("CorpseTestDjim");
       expect(result[0].roomId).toBe(testRoomId);
 
       // Verify corpse is deleted

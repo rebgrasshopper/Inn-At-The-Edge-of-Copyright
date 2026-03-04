@@ -18,6 +18,8 @@ import type {
 import type { Direction, Exit } from "../types/room.js";
 import * as CorpseService from "./CorpseService.js";
 import { roll, rollD20 } from "./DiceService.js";
+import { getAttackModifiers, getDamageModifiers } from "./FeatEffectHandler.js";
+import { grantFeatSlot } from "./FeatService.js";
 import {
   calculateAC,
   calculateAttackInterval,
@@ -160,7 +162,7 @@ async function buildPlayerParticipant(
   // Get equipped items for AC calculation and weapon
   const equipped = await getEquippedItems(playerId);
   const conBonus = calculateEquipmentConBonus(equipped);
-  const ac = calculateAC(player.dex, conBonus);
+  const ac = await calculateAC(player.dex, conBonus, playerId);
 
   // Find equipped weapon damage
   const weapon = equipped.find((item) => item.weaponDamage);
@@ -201,8 +203,8 @@ async function buildMonsterParticipant(
   const monster = record.monsters;
   const instance = record.monster_instances;
 
-  // Monster AC: 10 + DEX modifier (no equipment)
-  const ac = calculateAC(monster.dex, 0);
+  // Monster AC: 10 + DEX modifier (no equipment, no feats)
+  const ac = await calculateAC(monster.dex, 0);
 
   return {
     type: "monster",
@@ -287,19 +289,28 @@ function broadcast(
 // Attack Resolution
 // ============================================
 
+/** Optional feat modifiers for attack resolution */
+type FeatModifiers = {
+  attackBonus: number;
+  damageBonus: number;
+};
+
 /**
  * Process a single attack from attacker to defender
  * @param attacker - The attacking participant
  * @param defender - The defending participant
+ * @param featMods - Optional feat modifiers (attack and damage bonuses)
  * @returns Attack result with hit/miss, damage, and messages
  */
 export function processAttack(
   attacker: CombatParticipant,
   defender: CombatParticipant,
+  featMods?: FeatModifiers,
 ): AttackResult {
-  // Roll d20 + DEX modifier for attack
+  // Roll d20 + DEX modifier + feat attack bonus for attack
   const dexMod = getStatModifier(attacker.stats.dex);
-  const attackRoll = rollD20(dexMod);
+  const attackBonus = featMods?.attackBonus ?? 0;
+  const attackRoll = rollD20(dexMod + attackBonus);
 
   const hit = attackRoll >= defender.ac;
 
@@ -315,11 +326,12 @@ export function processAttack(
     };
   }
 
-  // Calculate damage: weapon dice + STR modifier, minimum 1
+  // Calculate damage: weapon dice + STR modifier + feat damage bonus, minimum 1
   const weaponNotation = attacker.weaponDamage || "1d4";
   const damageRoll = roll(weaponNotation);
   const strMod = getDamageModifier(attacker.stats.str);
-  const rawDamage = (damageRoll?.total || 1) + strMod;
+  const damageBonus = featMods?.damageBonus ?? 0;
+  const rawDamage = (damageRoll?.total || 1) + strMod + damageBonus;
   const damage = Math.max(1, rawDamage);
 
   const newHp = defender.currentHp - damage;
@@ -372,8 +384,27 @@ function scheduleAttack(
 
     if (!currentAttacker || !currentDefender) return;
 
-    // Process the attack
-    const result = processAttack(currentAttacker, currentDefender);
+    // Get feat modifiers for player attackers
+    let featMods: { attackBonus: number; damageBonus: number } | undefined;
+    if (currentAttacker.type === "player") {
+      const attackMods = await getAttackModifiers(attackerId);
+
+      // Get weapon range for damage modifiers
+      const equipped = await getEquippedItems(attackerId);
+      const weapon = equipped.find((item) => item.weaponDamage);
+      const weaponRange =
+        (weapon?.weaponRange as "melee" | "ranged") ?? "melee";
+
+      const damageMods = await getDamageModifiers(attackerId, weaponRange);
+
+      featMods = {
+        attackBonus: attackMods.stance,
+        damageBonus: damageMods.stance,
+      };
+    }
+
+    // Process the attack with feat modifiers
+    const result = processAttack(currentAttacker, currentDefender, featMods);
 
     // Update defender HP in combat state
     currentDefender.currentHp = result.defenderHp;
@@ -928,8 +959,12 @@ export async function handleMonsterDeath(
       const equipConBonus = calculateEquipmentConBonus(equipped);
       const totalCon = killer.con + equipConBonus;
 
-      // Calculate new max HP based on new level
-      const newMaxHp = calculateMaxHp(levelUpResult.newLevel, totalCon);
+      // Calculate new max HP based on new level (with feat bonuses)
+      const newMaxHp = await calculateMaxHp(
+        levelUpResult.newLevel,
+        totalCon,
+        killerPlayerId,
+      );
 
       // Heal the HP gained from leveling (difference between old and new max)
       const hpGained = newMaxHp - killer.maxHp;
@@ -945,6 +980,11 @@ export async function handleMonsterDeath(
           currentHp: newCurrentHp,
         })
         .where(eq(players.id, killerPlayerId));
+
+      // Grant feat slot on even levels (2, 4, 6, 8, ...)
+      if (levelUpResult.newLevel % 2 === 0) {
+        await grantFeatSlot(killerPlayerId);
+      }
 
       // Broadcast level up
       if (roomId) {

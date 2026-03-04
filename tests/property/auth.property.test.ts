@@ -1,5 +1,5 @@
 import { test } from "@fast-check/vitest";
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { afterAll, beforeAll, describe, expect } from "vitest";
 import { db } from "../../src/db/index.js";
@@ -13,15 +13,32 @@ import {
   wrongPasswordArb,
 } from "../generators/auth.generator.js";
 
-// Clean up before and after all tests
+// Test prefix for isolation - only clean up our own test data
+const TEST_PREFIX = "authprop_";
+
+// Clean up only test data with our prefix before and after all tests
 beforeAll(async () => {
-  await db.delete(players);
-  await db.delete(users);
+  // Delete players belonging to users with our prefix
+  const testUsers = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(like(users.username, `${TEST_PREFIX}%`));
+  for (const user of testUsers) {
+    await db.delete(players).where(eq(players.userId, user.id));
+  }
+  await db.delete(users).where(like(users.username, `${TEST_PREFIX}%`));
 });
 
 afterAll(async () => {
-  await db.delete(players);
-  await db.delete(users);
+  // Delete players belonging to users with our prefix
+  const testUsers = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(like(users.username, `${TEST_PREFIX}%`));
+  for (const user of testUsers) {
+    await db.delete(players).where(eq(players.userId, user.id));
+  }
+  await db.delete(users).where(like(users.username, `${TEST_PREFIX}%`));
 });
 
 describe("Auth Property Tests", () => {
@@ -37,7 +54,7 @@ describe("Auth Property Tests", () => {
     test.prop([passwordArb], { numRuns: 20 })(
       "password hash should never equal plaintext and should be verifiable with bcrypt",
       async (password: string) => {
-        const username = `prop1_${uuidv4().slice(0, 8)}`;
+        const username = `${TEST_PREFIX}p1_${uuidv4().slice(0, 8)}`;
         const result = await AuthService.register(username, password);
         expect(result.success).toBe(true);
 
@@ -71,7 +88,7 @@ describe("Auth Property Tests", () => {
     test.prop([usernameArb, passwordArb], { numRuns: 20 })(
       "valid credentials should return JWT token and matching player data",
       async (baseUsername: string, password: string) => {
-        const username = `prop2_${baseUsername}_${uuidv4().slice(0, 6)}`;
+        const username = `${TEST_PREFIX}p2_${uuidv4().slice(0, 6)}`;
         const registerResult = await AuthService.register(username, password);
         expect(registerResult.success).toBe(true);
 
@@ -140,7 +157,7 @@ describe("Auth Property Tests", () => {
         // Skip if passwords are the same
         if (correctPassword === wrongPassword) return;
 
-        const username = `prop3_${baseUsername}_${uuidv4().slice(0, 6)}`;
+        const username = `${TEST_PREFIX}p3_${uuidv4().slice(0, 6)}`;
         const registerResult = await AuthService.register(
           username,
           correctPassword,

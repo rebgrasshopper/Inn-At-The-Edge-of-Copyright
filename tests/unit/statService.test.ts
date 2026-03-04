@@ -33,23 +33,23 @@ describe("StatService", () => {
   });
 
   describe("calculateAC", () => {
-    it("should return base AC of 10 for DEX 10 with no equipment", () => {
-      expect(StatService.calculateAC(10, 0)).toBe(10);
+    it("should return base AC of 10 for DEX 10 with no equipment", async () => {
+      expect(await StatService.calculateAC(10, 0)).toBe(10);
     });
 
-    it("should add DEX modifier to AC", () => {
-      expect(StatService.calculateAC(14, 0)).toBe(12); // +2 DEX mod
-      expect(StatService.calculateAC(18, 0)).toBe(14); // +4 DEX mod
-      expect(StatService.calculateAC(8, 0)).toBe(9); // -1 DEX mod
+    it("should add DEX modifier to AC", async () => {
+      expect(await StatService.calculateAC(14, 0)).toBe(12); // +2 DEX mod
+      expect(await StatService.calculateAC(18, 0)).toBe(14); // +4 DEX mod
+      expect(await StatService.calculateAC(8, 0)).toBe(9); // -1 DEX mod
     });
 
-    it("should add equipment CON bonus to AC", () => {
-      expect(StatService.calculateAC(10, 2)).toBe(12);
-      expect(StatService.calculateAC(14, 3)).toBe(15); // 10 + 2 DEX + 3 CON
+    it("should add equipment CON bonus to AC", async () => {
+      expect(await StatService.calculateAC(10, 2)).toBe(12);
+      expect(await StatService.calculateAC(14, 3)).toBe(15); // 10 + 2 DEX + 3 CON
     });
 
-    it("should handle negative equipment bonus", () => {
-      expect(StatService.calculateAC(10, -2)).toBe(8);
+    it("should handle negative equipment bonus", async () => {
+      expect(await StatService.calculateAC(10, -2)).toBe(8);
     });
   });
 
@@ -152,36 +152,36 @@ describe("StatService", () => {
   });
 
   describe("calculateMaxHp", () => {
-    it("should return 18 HP for level 1 with CON 10", () => {
+    it("should return 18 HP for level 1 with CON 10", async () => {
       // BASE_HP (10) + level (1) × (HP_PER_LEVEL (8) + conMod (0) × CON_BONUS_PER_LEVEL (2))
       // = 10 + 1 × 8 = 18
-      expect(StatService.calculateMaxHp(1, 10)).toBe(18);
+      expect(await StatService.calculateMaxHp(1, 10)).toBe(18);
     });
 
-    it("should increase HP with level", () => {
+    it("should increase HP with level", async () => {
       // Level 5, CON 10: 10 + 5 × 8 = 50
-      expect(StatService.calculateMaxHp(5, 10)).toBe(50);
+      expect(await StatService.calculateMaxHp(5, 10)).toBe(50);
       // Level 10, CON 10: 10 + 10 × 8 = 90
-      expect(StatService.calculateMaxHp(10, 10)).toBe(90);
+      expect(await StatService.calculateMaxHp(10, 10)).toBe(90);
     });
 
-    it("should add CON bonus per level", () => {
+    it("should add CON bonus per level", async () => {
       // Level 1, CON 14 (+2 mod): 10 + 1 × (8 + 2×2) = 10 + 12 = 22
-      expect(StatService.calculateMaxHp(1, 14)).toBe(22);
+      expect(await StatService.calculateMaxHp(1, 14)).toBe(22);
       // Level 5, CON 14 (+2 mod): 10 + 5 × (8 + 2×2) = 10 + 60 = 70
-      expect(StatService.calculateMaxHp(5, 14)).toBe(70);
+      expect(await StatService.calculateMaxHp(5, 14)).toBe(70);
     });
 
-    it("should reduce HP with low CON", () => {
+    it("should reduce HP with low CON", async () => {
       // Level 1, CON 8 (-1 mod): 10 + 1 × (8 + (-1)×2) = 10 + 6 = 16
-      expect(StatService.calculateMaxHp(1, 8)).toBe(16);
+      expect(await StatService.calculateMaxHp(1, 8)).toBe(16);
       // Level 5, CON 8 (-1 mod): 10 + 5 × (8 + (-1)×2) = 10 + 30 = 40
-      expect(StatService.calculateMaxHp(5, 8)).toBe(40);
+      expect(await StatService.calculateMaxHp(5, 8)).toBe(40);
     });
 
-    it("should handle high CON", () => {
+    it("should handle high CON", async () => {
       // Level 10, CON 18 (+4 mod): 10 + 10 × (8 + 4×2) = 10 + 160 = 170
-      expect(StatService.calculateMaxHp(10, 18)).toBe(170);
+      expect(await StatService.calculateMaxHp(10, 18)).toBe(170);
     });
   });
 

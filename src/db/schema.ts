@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 
 // Direction type for exits
 export type Direction = "north" | "south" | "east" | "west" | "up" | "down";
@@ -92,6 +92,10 @@ export const players = sqliteTable("players", {
   wornRing1: text("worn_ring1"),
   wornRing2: text("worn_ring2"),
   wornBack: text("worn_back"),
+
+  // Feat system
+  unspentFeatSlots: integer("unspent_feat_slots").notNull().default(0),
+  activeStance: text("active_stance"), // Currently active stance feat, or null
 });
 
 // Rooms table
@@ -147,6 +151,9 @@ export const items = sqliteTable("items", {
 
   // Magic/special properties (JSON array of effects)
   magicProperties: text("magic_properties", { mode: "json" }).$type<string[]>(),
+
+  // Weapon range for feat effects (Power Attack = melee, Deadly Aim = ranged)
+  weaponRange: text("weapon_range"), // "melee" or "ranged" for weapons
 
   // Stat effects when used/equipped
   strEffect: integer("str_effect").default(0),
@@ -350,3 +357,47 @@ export const corpseInventory = sqliteTable("corpse_inventory", {
     .references(() => items.id),
   quantity: integer("quantity").notNull().default(1),
 });
+
+// Feats table (feat definitions)
+export const feats = sqliteTable("feats", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  prerequisitesText: text("prerequisites_text"), // Original text for display
+  shortDescription: text("short_description").notNull(),
+  longDescription: text("long_description"),
+  sourceBook: text("source_book"),
+  category: text("category").notNull().default("Untyped"),
+  effectType: text("effect_type"), // hp_bonus, ac_bonus, combat_stance, equipment_unlock
+  supportabilityStatus: text("supportability_status")
+    .notNull()
+    .default("unsupported"),
+});
+
+// Feat prerequisites table (normalized prerequisite data)
+export const featPrerequisites = sqliteTable("feat_prerequisites", {
+  id: text("id").primaryKey(),
+  featId: text("feat_id")
+    .notNull()
+    .references(() => feats.id, { onDelete: "cascade" }),
+  prerequisiteType: text("prerequisite_type").notNull(), // stat, level, bab, feat, unsupported
+  prerequisiteKey: text("prerequisite_key"), // stat name, feat name, or original text
+  prerequisiteValue: integer("prerequisite_value"), // minimum value for stat/level
+});
+
+// Player feats table (many-to-many relationship)
+export const playerFeats = sqliteTable(
+  "player_feats",
+  {
+    id: text("id").primaryKey(),
+    playerId: text("player_id")
+      .notNull()
+      .references(() => players.id),
+    featId: text("feat_id")
+      .notNull()
+      .references(() => feats.id, { onDelete: "cascade" }),
+    acquiredAt: integer("acquired_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => ({
+    uniquePlayerFeat: unique().on(table.playerId, table.featId),
+  }),
+);

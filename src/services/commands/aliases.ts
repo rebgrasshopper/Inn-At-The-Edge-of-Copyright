@@ -89,6 +89,9 @@ export const COMMAND_ALIASES: Record<string, Command> = {
   // Character
   train: Command.Train,
   spend: Command.Train,
+  feats: Command.Feats,
+  feat: Command.Feats,
+  stance: Command.Stance,
 
   // Multi-word aliases
   "pick up": Command.Get,

@@ -1,4 +1,5 @@
 import { test } from "@fast-check/vitest";
+import { eq, like } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { afterAll, beforeAll, describe, expect } from "vitest";
 import { db } from "../../src/db/index.js";
@@ -13,25 +14,42 @@ import {
   validNameArb,
 } from "../generators/character.generator.js";
 
+// Test prefix for isolation - only clean up our own test data
+const TEST_PREFIX = "charprop_";
+
 let testUserId: string;
 
-// Setup test user
+// Setup test user - only clean up our own test data
 beforeAll(async () => {
-  await db.delete(players);
-  await db.delete(users);
+  // Delete players belonging to users with our prefix
+  const testUsers = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(like(users.username, `${TEST_PREFIX}%`));
+  for (const user of testUsers) {
+    await db.delete(players).where(eq(players.userId, user.id));
+  }
+  await db.delete(users).where(like(users.username, `${TEST_PREFIX}%`));
 
   testUserId = uuidv4();
   await db.insert(users).values({
     id: testUserId,
-    username: `proptest_${uuidv4().slice(0, 8)}`,
+    username: `${TEST_PREFIX}${uuidv4().slice(0, 8)}`,
     passwordHash: "hashedpassword",
     createdAt: new Date(),
   });
 });
 
 afterAll(async () => {
-  await db.delete(players);
-  await db.delete(users);
+  // Delete players belonging to users with our prefix
+  const testUsers = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(like(users.username, `${TEST_PREFIX}%`));
+  for (const user of testUsers) {
+    await db.delete(players).where(eq(players.userId, user.id));
+  }
+  await db.delete(users).where(like(users.username, `${TEST_PREFIX}%`));
 });
 
 describe("Character Property Tests", () => {

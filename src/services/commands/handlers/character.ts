@@ -1,8 +1,19 @@
 /**
  * Character command handlers - commands that modify player character state.
- * Includes training stats, and future commands like feats.
+ * Includes training stats, feats, and stances.
  */
 
+import {
+  acquireFeat,
+  checkPrerequisites,
+  getActiveStance,
+  getAvailableFeats,
+  getCategories,
+  getFeatByName,
+  getFeatsByCategory,
+  getPlayerFeats,
+  setActiveStance,
+} from "@/services/FeatService.js";
 import { getEquippedItems } from "@/services/items/equipment.js";
 import {
   calculateEquipmentConBonus,
@@ -124,7 +135,11 @@ export async function handleTrain(
     const equipped = await getEquippedItems(context.player.id);
     const equipConBonus = calculateEquipmentConBonus(equipped);
     const totalCon = newValue + equipConBonus;
-    const newMaxHp = calculateMaxHp(player.level, totalCon);
+    const newMaxHp = await calculateMaxHp(
+      player.level,
+      totalCon,
+      context.player.id,
+    );
     const hpGained = newMaxHp - player.maxHp;
     const newCurrentHp = player.currentHp + hpGained;
 
@@ -147,5 +162,264 @@ export async function handleTrain(
   return {
     success: true,
     message: `You increase your ${STAT_NAMES[stat]} to ${newValue}.${hpMessage} ${remainingMsg}`,
+  };
+}
+
+/**
+ * Handle the feats command - view, acquire, and manage feats.
+ * @param args - Command arguments (subcommand and optional feat name)
+ * @param context - Command context with player info
+ * @returns Command result with success/failure message
+ */
+export async function handleFeats(
+  args: string[],
+  context: CommandContext,
+): Promise<CommandResult> {
+  const playerId = context.player.id;
+
+  // Get player's unspent feat slots
+  const player = db
+    .select()
+    .from(players)
+    .where(eq(players.id, playerId))
+    .get();
+
+  if (!player) {
+    return { success: false, message: "Player not found." };
+  }
+
+  const unspentSlots = player.unspentFeatSlots;
+
+  // No args - list owned feats
+  if (args.length === 0) {
+    const ownedFeats = await getPlayerFeats(playerId);
+    const slotWord = unspentSlots === 1 ? "slot" : "slots";
+    const slotMsg =
+      unspentSlots > 0
+        ? `You have ${unspentSlots} unspent feat ${slotWord}.`
+        : "You have no unspent feat slots.";
+
+    if (ownedFeats.length === 0) {
+      return {
+        success: true,
+        message: `${slotMsg}\nYou have no feats yet. Use "feats available" to see what you can acquire.`,
+      };
+    }
+
+    const featList = ownedFeats.map((f) => `  ${f.name}`).join("\n");
+    return {
+      success: true,
+      message: `${slotMsg}\nYour feats:\n${featList}`,
+    };
+  }
+
+  const subcommand = args[0].toLowerCase();
+
+  // feats available - list acquirable feats
+  if (subcommand === "available") {
+    const available = await getAvailableFeats(playerId);
+
+    if (available.length === 0) {
+      return {
+        success: true,
+        message:
+          "No feats are currently available to acquire. You may need to meet more prerequisites or level up.",
+      };
+    }
+
+    const featList = available.map((f) => `  ${f.name}`).join("\n");
+    return {
+      success: true,
+      message: `Available feats:\n${featList}\nUse "feats info <name>" for details or "feats acquire <name>" to learn one.`,
+    };
+  }
+
+  // feats info <name> - show feat details
+  if (subcommand === "info") {
+    if (args.length < 2) {
+      return {
+        success: false,
+        message: "Usage: feats info <feat name>",
+      };
+    }
+
+    const featName = args.slice(1).join(" ");
+    const feat = await getFeatByName(featName);
+
+    if (!feat) {
+      return {
+        success: false,
+        message: `No feat found matching "${featName}".`,
+      };
+    }
+
+    // Check if player has this feat
+    const ownedFeats = await getPlayerFeats(playerId);
+    const hasFeat = ownedFeats.some((f) => f.id === feat.id);
+
+    // Check prerequisites
+    const prereqResult = await checkPrerequisites(playerId, feat.id);
+    const prereqStatus =
+      prereqResult.unmetRequirements.length === 0
+        ? "✓ Prerequisites met"
+        : `✗ Unmet: ${prereqResult.unmetRequirements.join(", ")}`;
+
+    const lines = [
+      feat.name,
+      `Category: ${feat.category}`,
+      feat.prerequisitesText
+        ? `Prerequisites: ${feat.prerequisitesText}`
+        : "Prerequisites: None",
+      prereqStatus,
+      hasFeat ? "Status: You have this feat" : "Status: Not acquired",
+      "",
+      feat.shortDescription,
+    ];
+
+    if (feat.longDescription) {
+      lines.push("", feat.longDescription);
+    }
+
+    return {
+      success: true,
+      message: lines.join("\n"),
+    };
+  }
+
+  // feats acquire <name> - attempt to acquire feat
+  if (subcommand === "acquire" || subcommand === "learn") {
+    if (args.length < 2) {
+      return {
+        success: false,
+        message: "Usage: feats acquire <feat name>",
+      };
+    }
+
+    const featName = args.slice(1).join(" ");
+    const feat = await getFeatByName(featName);
+
+    if (!feat) {
+      return {
+        success: false,
+        message: `No feat found matching "${featName}".`,
+      };
+    }
+
+    const result = await acquireFeat(playerId, feat.id);
+
+    return {
+      success: result.success,
+      message: result.message,
+    };
+  }
+
+  // feats category <name> - list feats in category
+  if (subcommand === "category" || subcommand === "categories") {
+    if (args.length < 2) {
+      // Show available categories
+      const categories = await getCategories();
+      const catList = categories
+        .map((c) => `  ${c.name} (${c.count} feats)`)
+        .join("\n");
+      return {
+        success: true,
+        message: `Feat categories:\n${catList}\nUse "feats category <name>" to list feats in a category.`,
+      };
+    }
+
+    const categoryName = args.slice(1).join(" ");
+    const featsInCategory = await getFeatsByCategory(categoryName, true);
+
+    if (featsInCategory.length === 0) {
+      return {
+        success: false,
+        message: `No supported feats found in category "${categoryName}".`,
+      };
+    }
+
+    const featList = featsInCategory.map((f) => `  ${f.name}`).join("\n");
+    return {
+      success: true,
+      message: `Feats in ${categoryName}:\n${featList}`,
+    };
+  }
+
+  // Unknown subcommand - treat as feat name for info
+  const featName = args.join(" ");
+  const feat = await getFeatByName(featName);
+
+  if (feat) {
+    // Redirect to info
+    return handleFeats(["info", ...args], context);
+  }
+
+  return {
+    success: false,
+    message: `Unknown feats subcommand "${subcommand}". Try: feats, feats available, feats info <name>, feats acquire <name>, feats category <name>`,
+  };
+}
+
+/**
+ * Handle the stance command - activate or deactivate combat stances.
+ * @param args - Command arguments (stance name or "off")
+ * @param context - Command context with player info
+ * @returns Command result with success/failure message
+ */
+export async function handleStance(
+  args: string[],
+  context: CommandContext,
+): Promise<CommandResult> {
+  const playerId = context.player.id;
+
+  // No args - show current stance
+  if (args.length === 0) {
+    const activeStance = await getActiveStance(playerId);
+
+    if (!activeStance) {
+      return {
+        success: true,
+        message:
+          'You are not in any combat stance. Use "stance <name>" to activate one.',
+      };
+    }
+
+    return {
+      success: true,
+      message: `You are in ${activeStance.name} stance. Use "stance off" to deactivate.`,
+    };
+  }
+
+  const stanceArg = args.join(" ").toLowerCase();
+
+  // stance off - deactivate
+  if (stanceArg === "off" || stanceArg === "none" || stanceArg === "clear") {
+    const result = await setActiveStance(playerId, null);
+
+    if (!result.success) {
+      return { success: false, message: result.message };
+    }
+
+    return {
+      success: true,
+      message: "You relax your combat stance.",
+    };
+  }
+
+  // stance <name> - activate
+  const stanceName = args.join(" ");
+  const feat = await getFeatByName(stanceName);
+
+  if (!feat) {
+    return {
+      success: false,
+      message: `No stance found matching "${stanceName}".`,
+    };
+  }
+
+  const result = await setActiveStance(playerId, feat.id);
+
+  return {
+    success: result.success,
+    message: result.message,
   };
 }

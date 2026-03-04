@@ -2,6 +2,7 @@
 export * from "./auth.js";
 export * from "./command.js";
 export * from "./container.js";
+export * from "./feat.js";
 export * from "./feature.js";
 export * from "./item.js";
 export * from "./monster.js";

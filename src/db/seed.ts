@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import * as dotenv from "dotenv";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
+import { seedFeats } from "./seeders/featSeeder.js";
 
 dotenv.config();
 
@@ -880,6 +881,11 @@ async function seed() {
     await db.insert(schema.features).values(feature).onConflictDoNothing();
   }
   console.log(`  ✓ Created ${featuresData.length} interactive features\n`);
+
+  // ============================================
+  // FEATS - Character abilities from Pathfinder
+  // ============================================
+  await seedFeats(db);
 
   console.log("✅ Database seeding complete!");
   console.log("\nStarting room: Town Square (room-town-square)");

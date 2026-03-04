@@ -19,13 +19,18 @@ const testContainerId = "test-container-chest";
 const testItemId = "test-item-potion";
 
 async function cleanupTestData() {
-  await db.delete(containerInventory);
-  await db.delete(playerInventory);
-  await db.delete(containers);
-  await db.delete(players);
-  await db.delete(items);
-  await db.delete(rooms);
-  await db.delete(users);
+  // Only delete our specific test data, not all data
+  await db
+    .delete(containerInventory)
+    .where(eq(containerInventory.containerId, testContainerId));
+  await db
+    .delete(playerInventory)
+    .where(eq(playerInventory.playerId, testPlayerId));
+  await db.delete(containers).where(eq(containers.id, testContainerId));
+  await db.delete(players).where(eq(players.id, testPlayerId));
+  await db.delete(items).where(eq(items.id, testItemId));
+  await db.delete(rooms).where(eq(rooms.id, testRoomId));
+  await db.delete(users).where(eq(users.id, testUserId));
 }
 
 beforeAll(async () => {

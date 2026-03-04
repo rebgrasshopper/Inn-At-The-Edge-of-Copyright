@@ -3,6 +3,8 @@
  * Handles D&D-style stat modifiers, AC calculation, and attack intervals.
  */
 
+import { getACModifiers, getToughnessBonus } from "./FeatEffectHandler.js";
+
 /** Minimum attack interval in milliseconds */
 const MIN_ATTACK_INTERVAL = 1500;
 
@@ -41,17 +43,27 @@ export function getStatModifier(stat: number): number {
 
 /**
  * Calculate Armor Class for a combatant
- * AC = 10 + DEX modifier + equipment CON bonus
+ * AC = 10 + DEX modifier + equipment CON bonus + feat bonuses
  * @param dex - DEX stat value
  * @param equipmentConBonus - Total CON bonus from equipped items (default 0)
+ * @param playerId - Optional player ID for feat bonus calculation
  * @returns Calculated AC value
  */
-export function calculateAC(
+export async function calculateAC(
   dex: number,
   equipmentConBonus: number = 0,
-): number {
+  playerId?: string,
+): Promise<number> {
   const dexMod = getStatModifier(dex);
-  return BASE_AC + dexMod + equipmentConBonus;
+  let baseAC = BASE_AC + dexMod + equipmentConBonus;
+
+  // Add feat bonuses if playerId provided
+  if (playerId) {
+    const acMods = await getACModifiers(playerId);
+    baseAC += acMods.dodge + acMods.stance;
+  }
+
+  return baseAC;
 }
 
 /**
@@ -95,17 +107,30 @@ export function calculateEquipmentConBonus(
 
 /**
  * Calculate max HP based on level and CON.
- * Formula: BASE_HP + level × (HP_PER_LEVEL + conMod × CON_BONUS_PER_LEVEL)
+ * Formula: BASE_HP + level × (HP_PER_LEVEL + conMod × CON_BONUS_PER_LEVEL) + feat bonuses
  * @param level - Player's level
  * @param con - Player's total CON (base + equipment)
+ * @param playerId - Optional player ID for feat bonus calculation
  * @returns Calculated max HP
  * @example calculateMaxHp(1, 10) // 18 (10 + 1×8)
  * @example calculateMaxHp(5, 14) // 80 (10 + 5×(8 + 2×2) = 10 + 5×12)
  */
-export function calculateMaxHp(level: number, con: number): number {
+export async function calculateMaxHp(
+  level: number,
+  con: number,
+  playerId?: string,
+): Promise<number> {
   const conMod = getStatModifier(con);
   const hpPerLevel = HP_PER_LEVEL + conMod * CON_BONUS_PER_LEVEL;
-  return BASE_HP + level * hpPerLevel;
+  let baseHp = BASE_HP + level * hpPerLevel;
+
+  // Add feat bonuses if playerId provided
+  if (playerId) {
+    const toughnessBonus = await getToughnessBonus(playerId, level);
+    baseHp += toughnessBonus;
+  }
+
+  return baseHp;
 }
 
 /**

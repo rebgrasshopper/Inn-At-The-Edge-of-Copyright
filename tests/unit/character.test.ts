@@ -1,3 +1,4 @@
+import { eq, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "../../src/db/index.js";
@@ -9,6 +10,8 @@ import {
   validateCharacterName,
 } from "../../src/utils/characterValidation.js";
 import { DEFAULT_HP, DEFAULT_STATS } from "../../src/utils/stats.js";
+
+const TEST_PREFIX = "chartest_";
 
 describe("Character Validation", () => {
   describe("validateCharacterName", () => {
@@ -65,15 +68,25 @@ describe("CharacterService", () => {
   let testUserId: string;
 
   beforeEach(async () => {
-    // Clean up
-    await db.delete(players);
-    await db.delete(users);
+    // Clean up only our test data
+    const testUsers = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(sql`username LIKE ${TEST_PREFIX + "%"}`);
+
+    if (testUsers.length > 0) {
+      const userIds = testUsers.map((u) => u.id);
+      for (const userId of userIds) {
+        await db.delete(players).where(eq(players.userId, userId));
+      }
+      await db.delete(users).where(sql`username LIKE ${TEST_PREFIX + "%"}`);
+    }
 
     // Create a test user
     testUserId = uuidv4();
     await db.insert(users).values({
       id: testUserId,
-      username: `testuser_${uuidv4().slice(0, 8)}`,
+      username: `${TEST_PREFIX}${uuidv4().slice(0, 8)}`,
       passwordHash: "hashedpassword",
       createdAt: new Date(),
     });

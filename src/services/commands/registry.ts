@@ -7,7 +7,11 @@ import { getAliasesForCommand } from "./aliases.js";
 import { Command, type CommandDefinition } from "./types.js";
 
 // Import handlers
-import { handleTrain } from "./handlers/character.js";
+import {
+  handleFeats,
+  handleStance,
+  handleTrain,
+} from "./handlers/character.js";
 import {
   handleEmote,
   handleSay,
@@ -242,6 +246,38 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
       usage: ["train", "train <stat>"],
       aliases: getAliasesForCommand(Command.Train),
       examples: ["train", "train str", "spend dex"],
+    },
+  },
+
+  [Command.Feats]: {
+    handler: handleFeats,
+    help: {
+      summary: "View and manage your feats",
+      usage: [
+        "feats",
+        "feats available",
+        "feats info <name>",
+        "feats acquire <name>",
+        "feats category <name>",
+      ],
+      aliases: getAliasesForCommand(Command.Feats),
+      examples: [
+        "feats",
+        "feats available",
+        "feats info Toughness",
+        "feats acquire Dodge",
+        "feats category Combat",
+      ],
+    },
+  },
+
+  [Command.Stance]: {
+    handler: handleStance,
+    help: {
+      summary: "Activate or deactivate combat stances",
+      usage: ["stance", "stance <name>", "stance off"],
+      aliases: getAliasesForCommand(Command.Stance),
+      examples: ["stance", "stance Power Attack", "stance off"],
     },
   },
 };

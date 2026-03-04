@@ -43,6 +43,8 @@ export enum Command {
 
   // Character
   Train = "train",
+  Feats = "feats",
+  Stance = "stance",
 }
 
 /** Command category for legacy type compatibility */
@@ -71,6 +73,8 @@ export const COMMAND_CATEGORIES: Record<Command, CommandCategory> = {
   [Command.Attack]: "combat",
   [Command.Flee]: "combat",
   [Command.Train]: "info",
+  [Command.Feats]: "info",
+  [Command.Stance]: "info",
 };
 
 /** Maps commands to their legacy action names (for backward compatibility) */
