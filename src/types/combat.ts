@@ -19,6 +19,8 @@ export type CombatParticipant = {
   };
   /** Weapon damage dice notation (e.g., "1d6"), null = unarmed (1d4) */
   weaponDamage: string | null;
+  /** Weapon range for attack stat selection ("melee" uses STR, "ranged" uses DEX) */
+  weaponRange: "melee" | "ranged";
   ac: number;
   level: number;
 };

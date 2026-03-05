@@ -190,7 +190,7 @@ export async function handleFeats(
 
   const unspentSlots = player.unspentFeatSlots;
 
-  // No args - list owned feats
+  // No args - list owned feats and available commands
   if (args.length === 0) {
     const ownedFeats = await getPlayerFeats(playerId);
     const slotWord = unspentSlots === 1 ? "slot" : "slots";
@@ -199,17 +199,26 @@ export async function handleFeats(
         ? `You have ${unspentSlots} unspent feat ${slotWord}.`
         : "You have no unspent feat slots.";
 
+    const commandsHelp = [
+      "",
+      "Commands:",
+      "  feats available - see feats you can acquire",
+      "  feats info <name> - details about a feat",
+      "  feats acquire <name> - learn a new feat",
+      "  feats category [name] - browse feats by category",
+    ].join("\n");
+
     if (ownedFeats.length === 0) {
       return {
         success: true,
-        message: `${slotMsg}\nYou have no feats yet. Use "feats available" to see what you can acquire.`,
+        message: `${slotMsg}\nYou have no feats yet.${commandsHelp}`,
       };
     }
 
     const featList = ownedFeats.map((f) => `  ${f.name}`).join("\n");
     return {
       success: true,
-      message: `${slotMsg}\nYour feats:\n${featList}`,
+      message: `${slotMsg}\nYour feats:\n${featList}${commandsHelp}`,
     };
   }
 
@@ -244,12 +253,12 @@ export async function handleFeats(
     }
 
     const featName = args.slice(1).join(" ");
-    const feat = await getFeatByName(featName);
+    const feat = await getFeatByName(featName, true);
 
     if (!feat) {
       return {
         success: false,
-        message: `No feat found matching "${featName}".`,
+        message: `No supported feat found matching "${featName}".`,
       };
     }
 
@@ -296,12 +305,12 @@ export async function handleFeats(
     }
 
     const featName = args.slice(1).join(" ");
-    const feat = await getFeatByName(featName);
+    const feat = await getFeatByName(featName, true);
 
     if (!feat) {
       return {
         success: false,
-        message: `No feat found matching "${featName}".`,
+        message: `No supported feat found matching "${featName}".`,
       };
     }
 
@@ -346,7 +355,7 @@ export async function handleFeats(
 
   // Unknown subcommand - treat as feat name for info
   const featName = args.join(" ");
-  const feat = await getFeatByName(featName);
+  const feat = await getFeatByName(featName, true);
 
   if (feat) {
     // Redirect to info
@@ -407,12 +416,12 @@ export async function handleStance(
 
   // stance <name> - activate
   const stanceName = args.join(" ");
-  const feat = await getFeatByName(stanceName);
+  const feat = await getFeatByName(stanceName, true);
 
   if (!feat) {
     return {
       success: false,
-      message: `No stance found matching "${stanceName}".`,
+      message: `No supported stance found matching "${stanceName}".`,
     };
   }
 

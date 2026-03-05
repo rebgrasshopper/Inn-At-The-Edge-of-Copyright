@@ -6,6 +6,11 @@
   white-space: pre-wrap;
 }
 
+.msg-preformatted {
+  font-family: "Courier New", Courier, monospace;
+  white-space: pre;
+}
+
 .msg-chat {
   color: #e5e5e5;
 }
@@ -30,4 +35,13 @@
 .msg-emote {
   color: #4ade80;
   font-style: italic;
+}
+
+/* Special styling for ASCII art logo only */
+.msg-logo {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 12px;
+  line-height: 1.1;
+  color: #4ade80;
+  white-space: pre;
 }

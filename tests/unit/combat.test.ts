@@ -14,6 +14,7 @@ describe("CombatService", () => {
       maxHp: 20,
       stats: { str: 14, dex: 12, con: 10 },
       weaponDamage: "1d6",
+      weaponRange: "melee",
       ac: 12,
       level: 1,
       ...overrides,
@@ -29,16 +30,17 @@ describe("CombatService", () => {
       maxHp: 8,
       stats: { str: 10, dex: 10, con: 10 },
       weaponDamage: "1d4",
+      weaponRange: "melee",
       ac: 10,
       level: 1,
       ...overrides,
     });
 
     it("should return hit=false when attack roll is below AC", () => {
-      const attacker = createPlayer({ stats: { str: 10, dex: 1, con: 10 } }); // Very low DEX
+      const attacker = createPlayer({ stats: { str: 1, dex: 10, con: 10 } }); // Very low STR for melee
       const defender = createMonster({ ac: 25 }); // Very high AC
 
-      // With DEX 1 (modifier -5), even rolling 20 gives 15, below AC 25
+      // With STR 1 (modifier -5), even rolling 20 gives 15, below AC 25
       // Run multiple times to ensure we get a miss
       let gotMiss = false;
       for (let i = 0; i < 100; i++) {
@@ -56,7 +58,7 @@ describe("CombatService", () => {
     });
 
     it("should deal damage when attack hits", () => {
-      const attacker = createPlayer({ stats: { str: 14, dex: 30, con: 10 } }); // Very high DEX to guarantee hit
+      const attacker = createPlayer({ stats: { str: 30, dex: 14, con: 10 } }); // Very high STR to guarantee hit
       const defender = createMonster({ ac: 5, currentHp: 100, maxHp: 100 }); // Very low AC, high HP to avoid death
 
       const result = processAttack(attacker, defender);
@@ -70,7 +72,7 @@ describe("CombatService", () => {
 
     it("should include STR modifier in damage", () => {
       const attacker = createPlayer({
-        stats: { str: 18, dex: 30, con: 10 }, // +4 STR mod
+        stats: { str: 18, dex: 14, con: 10 }, // +4 STR mod
         weaponDamage: "1d1", // Always rolls 1
       });
       const defender = createMonster({ ac: 1 });
@@ -84,7 +86,7 @@ describe("CombatService", () => {
 
     it("should deal minimum 1 damage even with negative STR", () => {
       const attacker = createPlayer({
-        stats: { str: 1, dex: 30, con: 10 }, // -5 STR mod
+        stats: { str: 1, dex: 30, con: 10 }, // -5 STR mod, high DEX won't help melee attack
         weaponDamage: "1d1", // Always rolls 1
       });
       const defender = createMonster({ ac: 1 });
@@ -124,11 +126,11 @@ describe("CombatService", () => {
     });
 
     it("should include attacker and defender names in message", () => {
-      const attacker = createPlayer({ name: "Hero" });
+      const attacker = createPlayer({
+        name: "Hero",
+        stats: { str: 30, dex: 12, con: 10 },
+      });
       const defender = createMonster({ name: "dragon", ac: 1 });
-
-      // Force a hit
-      attacker.stats.dex = 30;
 
       const result = processAttack(attacker, defender);
 
@@ -137,7 +139,7 @@ describe("CombatService", () => {
     });
 
     it("should show remaining HP in hit message", () => {
-      const attacker = createPlayer({ stats: { str: 10, dex: 30, con: 10 } });
+      const attacker = createPlayer({ stats: { str: 30, dex: 10, con: 10 } });
       const defender = createMonster({ currentHp: 100, maxHp: 100, ac: 1 });
 
       const result = processAttack(attacker, defender);
@@ -149,7 +151,7 @@ describe("CombatService", () => {
 
     it("should use default weapon damage of 1d4 when none specified", () => {
       const attacker = createPlayer({
-        stats: { str: 10, dex: 30, con: 10 },
+        stats: { str: 10, dex: 10, con: 10 },
         weaponDamage: null,
       });
       const defender = createMonster({ ac: 1 });

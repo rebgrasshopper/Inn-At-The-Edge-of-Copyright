@@ -230,7 +230,7 @@ describe("handleFeats", () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain("No feat found");
+      expect(result.message).toContain("No supported feat found");
     });
 
     it("should require feat name argument", async () => {
@@ -302,7 +302,7 @@ describe("handleFeats", () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain("No feat found");
+      expect(result.message).toContain("No supported feat found");
     });
   });
 
@@ -415,7 +415,7 @@ describe("handleStance", () => {
       const result = await handleStance(["NonexistentStance"], testContext);
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain("No stance found");
+      expect(result.message).toContain("No supported stance found");
     });
   });
 

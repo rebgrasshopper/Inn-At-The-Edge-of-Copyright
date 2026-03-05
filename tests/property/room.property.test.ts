@@ -12,6 +12,7 @@ import {
   monsterSpawns,
   monsters,
   npcs,
+  playerFeats,
   playerInventory,
   players as playersTable,
   roomInventory,
@@ -24,6 +25,9 @@ import {
   directionArb,
   exitsWithBlockedArb,
 } from "../generators/room.generator.js";
+
+// Dummy usage to prevent auto-removal of playerFeats import
+const _playerFeatsTable = playerFeats;
 
 const DIRECTIONS: Direction[] = [
   "north",
@@ -45,6 +49,7 @@ async function cleanupTestData() {
   await db.delete(features);
   await db.delete(containers);
   await db.delete(npcs);
+  await db.delete(playerFeats);
   await db.delete(playersTable);
   await db.delete(monsters);
   await db.delete(items);

@@ -11,6 +11,7 @@ import {
   monsterSpawns,
   monsters,
   npcs,
+  playerFeats,
   playerInventory,
   players as playersTable,
   roomInventory,
@@ -18,6 +19,9 @@ import {
   users,
 } from "../../src/db/schema.js";
 import * as RoomService from "../../src/services/RoomService.js";
+
+// Dummy usage to prevent auto-removal of playerFeats import
+const _playerFeatsTable = playerFeats;
 
 // Test data IDs
 const testUserId = "test-user-room";
@@ -41,6 +45,7 @@ async function cleanupTestData() {
   await db.delete(features);
   await db.delete(containers);
   await db.delete(npcs);
+  await db.delete(playerFeats);
   await db.delete(playersTable);
   await db.delete(monsters);
   await db.delete(items);
@@ -181,6 +186,7 @@ describe("RoomService", () => {
   describe("getPlayersInRoom", () => {
     beforeEach(async () => {
       await db.delete(playerInventory);
+      await db.delete(playerFeats);
       await db.delete(playersTable);
     });
 
@@ -238,6 +244,7 @@ describe("RoomService", () => {
       await db.delete(monsterInstances);
       await db.delete(roomInventory);
       await db.delete(playerInventory);
+      await db.delete(playerFeats);
       await db.delete(playersTable);
     });
 
@@ -339,6 +346,7 @@ describe("RoomService", () => {
   describe("movePlayer", () => {
     beforeEach(async () => {
       await db.delete(playerInventory);
+      await db.delete(playerFeats);
       await db.delete(playersTable);
 
       // Create test player in room 1

@@ -10,6 +10,7 @@ import {
   monsterSpawns,
   monsters,
   npcs,
+  playerFeats,
   playerInventory,
   players as playersTable,
   roomInventory,
@@ -17,6 +18,9 @@ import {
   users,
 } from "../../src/db/schema.js";
 import * as ChatService from "../../src/services/ChatService.js";
+
+// Dummy usage to prevent auto-removal of playerFeats import
+const _playerFeatsTable = playerFeats;
 
 const testUserId = "test-user-chat";
 const testPlayer1Id = "test-player-chat-1";
@@ -33,6 +37,7 @@ async function cleanupTestData() {
   await db.delete(features);
   await db.delete(containers);
   await db.delete(npcs);
+  await db.delete(playerFeats);
   await db.delete(playersTable);
   await db.delete(monsters);
   await db.delete(items);
@@ -77,6 +82,7 @@ afterAll(async () => {
 describe("ChatService", () => {
   beforeEach(async () => {
     await db.delete(playerInventory);
+    await db.delete(playerFeats);
     await db.delete(playersTable);
 
     // Create two test players in room 1

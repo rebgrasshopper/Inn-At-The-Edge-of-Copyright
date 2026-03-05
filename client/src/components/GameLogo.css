@@ -1,0 +1,16 @@
+.game-logo-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.game-logo-prompt {
+  color: #6b7280;
+}
+
+.game-logo-text {
+  color: #4ade80;
+}

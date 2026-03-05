@@ -56,13 +56,32 @@ export async function getPlayerFeats(playerId: string): Promise<Feat[]> {
 }
 
 /**
+ * Normalize a string for feat name matching by removing articles.
+ * This handles cases where the command parser strips "the", "a", "an" from input.
+ * @param str - The string to normalize
+ * @returns Normalized string with articles removed and whitespace collapsed
+ */
+function normalizeForSearch(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/\b(the|a|an)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
  * Get feat details by name (case-insensitive fuzzy match).
- * Tries exact match first, then partial match if no exact match found.
+ * Tries exact match first, then normalized match (ignoring articles),
+ * then partial match if no exact match found.
  * @param featName - The feat name to search
  * @returns Feat record or null if not found
  */
-export async function getFeatByName(featName: string): Promise<Feat | null> {
+export async function getFeatByName(
+  featName: string,
+  supportedOnly = false,
+): Promise<Feat | null> {
   const searchTerm = featName.toLowerCase();
+  const normalizedSearch = normalizeForSearch(featName);
 
   // Try exact match first (case-insensitive)
   const exactMatch = await db
@@ -72,7 +91,25 @@ export async function getFeatByName(featName: string): Promise<Feat | null> {
     .limit(1);
 
   if (exactMatch.length > 0) {
-    return exactMatch[0] as Feat;
+    const feat = exactMatch[0] as Feat;
+    if (supportedOnly && feat.supportabilityStatus !== "supported") {
+      return null;
+    }
+    return feat;
+  }
+
+  // Try normalized match (ignoring articles like "the", "a", "an")
+  // This handles cases where command parser stripped articles from input
+  const allFeats = await db.select().from(feats);
+  const normalizedMatch = allFeats.find(
+    (f) => normalizeForSearch(f.name) === normalizedSearch,
+  );
+
+  if (normalizedMatch) {
+    if (supportedOnly && normalizedMatch.supportabilityStatus !== "supported") {
+      return null;
+    }
+    return normalizedMatch as Feat;
   }
 
   // Try partial match (case-insensitive fuzzy match using LIKE)
@@ -83,7 +120,26 @@ export async function getFeatByName(featName: string): Promise<Feat | null> {
     .limit(1);
 
   if (partialMatch.length > 0) {
-    return partialMatch[0] as Feat;
+    const feat = partialMatch[0] as Feat;
+    if (supportedOnly && feat.supportabilityStatus !== "supported") {
+      return null;
+    }
+    return feat;
+  }
+
+  // Try partial match with normalized search term
+  const normalizedPartialMatch = allFeats.find((f) =>
+    normalizeForSearch(f.name).includes(normalizedSearch),
+  );
+
+  if (normalizedPartialMatch) {
+    if (
+      supportedOnly &&
+      normalizedPartialMatch.supportabilityStatus !== "supported"
+    ) {
+      return null;
+    }
+    return normalizedPartialMatch as Feat;
   }
 
   return null;

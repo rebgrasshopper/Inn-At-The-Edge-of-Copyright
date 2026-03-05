@@ -12,6 +12,7 @@ import {
   monsterSpawns,
   monsters,
   npcs,
+  playerFeats,
   playerInventory,
   players,
   roomInventory,
@@ -20,6 +21,9 @@ import {
 } from "../../src/db/schema.js";
 import * as ItemService from "../../src/services/items/index.js";
 import { quantityArb } from "../generators/item.generator.js";
+
+// Dummy usage to prevent auto-removal of playerFeats import
+const _playerFeatsTable = playerFeats;
 
 const testUserId = "test-user-item-prop";
 
@@ -32,6 +36,7 @@ async function cleanupTestData() {
   await db.delete(features);
   await db.delete(containers);
   await db.delete(npcs);
+  await db.delete(playerFeats);
   await db.delete(players);
   await db.delete(monsters);
   await db.delete(items);

@@ -19,7 +19,7 @@ import type { Direction, Exit } from "../types/room.js";
 import * as CorpseService from "./CorpseService.js";
 import { roll, rollD20 } from "./DiceService.js";
 import { getAttackModifiers, getDamageModifiers } from "./FeatEffectHandler.js";
-import { grantFeatSlot } from "./FeatService.js";
+import { calculateBAB, grantFeatSlot } from "./FeatService.js";
 import {
   calculateAC,
   calculateAttackInterval,
@@ -164,9 +164,10 @@ async function buildPlayerParticipant(
   const conBonus = calculateEquipmentConBonus(equipped);
   const ac = await calculateAC(player.dex, conBonus, playerId);
 
-  // Find equipped weapon damage
+  // Find equipped weapon damage and range
   const weapon = equipped.find((item) => item.weaponDamage);
   const weaponDamage = weapon?.weaponDamage || null;
+  const weaponRange = (weapon?.weaponRange as "melee" | "ranged") ?? "melee";
 
   return {
     type: "player",
@@ -180,6 +181,7 @@ async function buildPlayerParticipant(
       con: player.con,
     },
     weaponDamage,
+    weaponRange,
     ac,
     level: player.level,
   };
@@ -218,6 +220,7 @@ async function buildMonsterParticipant(
       con: monster.con,
     },
     weaponDamage: monster.weaponDamage || "1d4",
+    weaponRange: "melee", // Monsters default to melee attacks
     ac,
     level: monster.level,
   };
@@ -307,10 +310,17 @@ export function processAttack(
   defender: CombatParticipant,
   featMods?: FeatModifiers,
 ): AttackResult {
-  // Roll d20 + DEX modifier + feat attack bonus for attack
-  const dexMod = getStatModifier(attacker.stats.dex);
+  // Calculate BAB from level
+  const bab = calculateBAB(attacker.level);
+
+  // Use STR for melee, DEX for ranged
+  const attackStat =
+    attacker.weaponRange === "ranged" ? attacker.stats.dex : attacker.stats.str;
+  const attackStatMod = getStatModifier(attackStat);
+
+  // Roll d20 + BAB + STR/DEX modifier + feat attack bonus
   const attackBonus = featMods?.attackBonus ?? 0;
-  const attackRoll = rollD20(dexMod + attackBonus);
+  const attackRoll = rollD20(bab + attackStatMod + attackBonus);
 
   const hit = attackRoll >= defender.ac;
 

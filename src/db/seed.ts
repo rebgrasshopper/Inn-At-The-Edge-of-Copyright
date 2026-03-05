@@ -248,10 +248,10 @@ async function seed() {
       int: 10,
       wis: 10,
       cha: 12,
-      currentHp: 18,
-      maxHp: 18,
-      xp: 0,
-      level: 1,
+      currentHp: 10000,
+      maxHp: 10000,
+      xp: 900,
+      level: 3,
       unspentAttributePoints: 0,
       isOnline: false,
       createdAt: new Date(),
@@ -886,6 +886,17 @@ async function seed() {
   // FEATS - Character abilities from Pathfinder
   // ============================================
   await seedFeats(db);
+
+  // Give Djim the Dodge feat (must be after feats are seeded)
+  await db
+    .insert(schema.playerFeats)
+    .values({
+      id: randomUUID(),
+      playerId: testPlayerId,
+      featId: "feat-dodge",
+      acquiredAt: new Date(),
+    })
+    .onConflictDoNothing();
 
   console.log("✅ Database seeding complete!");
   console.log("\nStarting room: Town Square (room-town-square)");

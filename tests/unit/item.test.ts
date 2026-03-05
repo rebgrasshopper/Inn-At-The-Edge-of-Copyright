@@ -10,6 +10,7 @@ import {
   monsterSpawns,
   monsters,
   npcs,
+  playerFeats,
   playerInventory,
   players,
   roomInventory,
@@ -17,6 +18,9 @@ import {
   users,
 } from "../../src/db/schema.js";
 import * as ItemService from "../../src/services/items/index.js";
+
+// Dummy usage to prevent auto-removal of playerFeats import
+const _playerFeatsTable = playerFeats;
 
 const testUserId = "test-user-item";
 const testPlayerId = "test-player-item";
@@ -32,6 +36,7 @@ async function cleanupTestData() {
   await db.delete(features);
   await db.delete(containers);
   await db.delete(npcs);
+  await db.delete(playerFeats);
   await db.delete(players);
   await db.delete(monsters);
   await db.delete(items);
@@ -149,6 +154,7 @@ describe("ItemService", () => {
     await db.delete(containerInventory);
     await db.delete(roomInventory);
     await db.delete(playerInventory);
+    await db.delete(playerFeats);
     await db.delete(players);
 
     // Create test players

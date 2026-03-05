@@ -8,7 +8,8 @@ export type MessageType =
   | "combat"
   | "error"
   | "whisper"
-  | "emote";
+  | "emote"
+  | "logo";
 
 export type ChatMessage = {
   id: string;

@@ -5,6 +5,7 @@ import {
   containerInventory,
   containers,
   items,
+  playerFeats,
   playerInventory,
   players,
   rooms,
@@ -17,6 +18,9 @@ const testPlayerId = "test-player-container";
 const testRoomId = "test-room-container";
 const testContainerId = "test-container-chest";
 const testItemId = "test-item-potion";
+
+// Dummy usage to prevent auto-removal of playerFeats import
+const _playerFeatsTable = playerFeats;
 
 async function cleanupTestData() {
   // Only delete our specific test data, not all data
@@ -70,6 +74,7 @@ describe("Container Operations", () => {
     await db.delete(containerInventory);
     await db.delete(playerInventory);
     await db.delete(containers);
+    await db.delete(playerFeats);
     await db.delete(players);
 
     await db.insert(players).values({

@@ -12,6 +12,7 @@ import { useAuthCommands } from "../hooks/useAuthCommands";
 import { ChatPanel } from "./ChatPanel";
 import { InputPanel } from "./InputPanel";
 import { ConnectionStatus } from "./ConnectionStatus";
+import { GameLogo } from "./GameLogo";
 import "./Console.css";
 
 /**
@@ -101,7 +102,7 @@ export function Console() {
   return (
     <div className="console">
       <header className="console-header">
-        <h1 className="console-title">MUD Game</h1>
+        <GameLogo />
         {showConnectionStatus && <ConnectionStatus status={connectionStatus} />}
       </header>
       <ChatPanel messages={state.messages} />

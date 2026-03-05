@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import * as api from "../api";
+import { GAME_LOGO_ASCII, GAME_SUBTITLE } from "../components/GameLogo";
 import { useAuth } from "../context/AuthContext";
 import { useGame } from "../context/GameContext";
 import type { ChatMessage } from "../types";
@@ -78,9 +79,9 @@ export function useAuthCommands(): UseAuthCommandsReturn {
   }, [isLoading, authState, flowState.type, addMessage]);
 
   const showWelcome = useCallback(() => {
-    addMessage("system", "═══════════════════════════════════════════");
-    addMessage("system", "         Welcome to the MUD Game!");
-    addMessage("system", "═══════════════════════════════════════════");
+    // Show ASCII art logo with special logo styling
+    addMessage("logo", GAME_LOGO_ASCII);
+    addMessage("logo", GAME_SUBTITLE);
     addMessage("system", "");
     addMessage("system", "To get started:");
     addMessage("system", "  • New player? Type: register");
