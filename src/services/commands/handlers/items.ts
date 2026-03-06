@@ -234,11 +234,20 @@ export async function handleExamine(
       return { success: false, message: "Player not found." };
     }
 
+    // Calculate AC
+    const { calculateAC, calculateEquipmentConBonus } =
+      await import("../../StatService.js");
+    const { getEquippedItems } = await import("../../items/equipment.js");
+
+    const equipped = await getEquippedItems(player.id);
+    const equipConBonus = calculateEquipmentConBonus(equipped);
+    const ac = await calculateAC(freshPlayer.dex, equipConBonus, player.id);
+
     // Show character info with equipment
     const equipResult = await ItemService.getEquipmentList(player.id);
     const lines = [
       `${freshPlayer.name} - Level ${freshPlayer.level}`,
-      `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}  XP: ${freshPlayer.xp}`,
+      `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}  AC: ${ac}  XP: ${freshPlayer.xp}`,
       `STR: ${freshPlayer.str}  DEX: ${freshPlayer.dex}  CON: ${freshPlayer.con}`,
       `INT: ${freshPlayer.int}  WIS: ${freshPlayer.wis}  CHA: ${freshPlayer.cha}`,
       "",

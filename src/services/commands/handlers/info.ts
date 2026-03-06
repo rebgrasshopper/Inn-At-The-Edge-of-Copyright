@@ -112,9 +112,39 @@ export async function handleStats(
       ? `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp} (${conHpBonus > 0 ? "+" : ""}${conHpBonus} from CON)`
       : `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}`;
 
+  // Calculate AC with breakdown
+  const { calculateAC, getStatModifier, calculateEquipmentConBonus } =
+    await import("../../StatService.js");
+  const { getEquippedItems } = await import("../../items/equipment.js");
+  const { getACModifiers } = await import("../../FeatEffectHandler.js");
+
+  const equipped = await getEquippedItems(player.id);
+  const equipConBonus = calculateEquipmentConBonus(equipped);
+  const ac = await calculateAC(freshPlayer.dex, equipConBonus, player.id);
+  const acMods = await getACModifiers(player.id);
+  const dexMod = getStatModifier(freshPlayer.dex);
+
+  // Build AC breakdown parts
+  const acParts: string[] = [];
+  if (dexMod !== 0) {
+    acParts.push(`${dexMod > 0 ? "+" : ""}${dexMod} DEX`);
+  }
+  if (equipConBonus !== 0) {
+    acParts.push(`${equipConBonus > 0 ? "+" : ""}${equipConBonus} CON`);
+  }
+  if (acMods.dodge !== 0) {
+    acParts.push(`${acMods.dodge > 0 ? "+" : ""}${acMods.dodge} dodge`);
+  }
+  if (acMods.stance !== 0) {
+    acParts.push(`${acMods.stance > 0 ? "+" : ""}${acMods.stance} stance`);
+  }
+
+  const acDisplay =
+    acParts.length > 0 ? `AC: ${ac} (${acParts.join(", ")})` : `AC: ${ac}`;
+
   const lines = [
     `${freshPlayer.name} - Level ${freshPlayer.level}`,
-    `${hpDisplay}  XP: ${freshPlayer.xp}`,
+    `${hpDisplay}  ${acDisplay}  XP: ${freshPlayer.xp}`,
     `STR: ${strDisplay}  DEX: ${dexDisplay}  CON: ${conDisplay}`,
     `INT: ${intDisplay}  WIS: ${wisDisplay}  CHA: ${chaDisplay}`,
   ];
