@@ -3,7 +3,11 @@
  * Handles D&D-style stat modifiers, AC calculation, and attack intervals.
  */
 
+import { eq } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { players } from "../db/schema.js";
 import { getACModifiers, getToughnessBonus } from "./FeatEffectHandler.js";
+import { getEquippedItems } from "./items/equipment.js";
 
 /** Minimum attack interval in milliseconds */
 const MIN_ATTACK_INTERVAL = 1500;
@@ -237,5 +241,95 @@ export function checkLevelUp(
     newLevel: currentLevel + 1,
     newXp: currentXp - XP_PER_LEVEL,
     attributePoints: 2,
+  };
+}
+
+// ============================================
+// Max HP Recalculation Utility
+// ============================================
+
+/**
+ * Result of recalculating and updating max HP
+ */
+export type RecalculateMaxHpResult = {
+  /** Previous max HP value */
+  oldMaxHp: number;
+  /** New max HP value */
+  newMaxHp: number;
+  /** New current HP value */
+  newCurrentHp: number;
+  /** Difference in max HP (positive = gained, negative = lost) */
+  hpDiff: number;
+};
+
+/**
+ * Recalculate a player's max HP based on current stats, equipment, and feats,
+ * then update the database.
+ *
+ * @param playerId - The player's ID
+ * @param mode - How to handle current HP:
+ *   - "heal_gained": Add HP gained to current HP (for level up, training CON, gaining feats)
+ *   - "preserve_damage": Keep damage taken the same (for equip/unequip)
+ * @returns Result with old/new values and diff, or null if player not found
+ */
+export async function recalculateAndUpdateMaxHp(
+  playerId: string,
+  mode: "heal_gained" | "preserve_damage",
+): Promise<RecalculateMaxHpResult | null> {
+  // Get player's current state
+  const player = db
+    .select({
+      level: players.level,
+      con: players.con,
+      currentHp: players.currentHp,
+      maxHp: players.maxHp,
+      wornHead: players.wornHead,
+      wornBody: players.wornBody,
+      wornMainHand: players.wornMainHand,
+      wornOffHand: players.wornOffHand,
+      wornBack: players.wornBack,
+    })
+    .from(players)
+    .where(eq(players.id, playerId))
+    .get();
+
+  if (!player) {
+    return null;
+  }
+
+  // Get equipped items for CON bonus calculation
+  const equipped = await getEquippedItems(playerId);
+  const equipConBonus = calculateEquipmentConBonus(equipped);
+  const totalCon = player.con + equipConBonus;
+
+  // Calculate new max HP (includes feat bonuses like Toughness)
+  const newMaxHp = await calculateMaxHp(player.level, totalCon, playerId);
+  const oldMaxHp = player.maxHp;
+  const hpDiff = newMaxHp - oldMaxHp;
+
+  // Calculate new current HP based on mode
+  let newCurrentHp: number;
+  if (mode === "heal_gained") {
+    // Add the HP gained to current HP
+    newCurrentHp = player.currentHp + hpDiff;
+  } else {
+    // Preserve damage taken
+    const damageTaken = oldMaxHp - player.currentHp;
+    newCurrentHp = Math.max(1, newMaxHp - damageTaken);
+  }
+
+  // Update database if changed
+  if (newMaxHp !== oldMaxHp || newCurrentHp !== player.currentHp) {
+    db.update(players)
+      .set({ maxHp: newMaxHp, currentHp: newCurrentHp })
+      .where(eq(players.id, playerId))
+      .run();
+  }
+
+  return {
+    oldMaxHp,
+    newMaxHp,
+    newCurrentHp,
+    hpDiff,
   };
 }

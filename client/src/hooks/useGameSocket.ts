@@ -141,6 +141,7 @@ export function useGameSocket(socket: Socket | null): void {
       content: string;
       sender?: string;
       timestamp: string;
+      rollInfo?: string;
     }) => {
       dispatch({
         type: "ADD_MESSAGE",
@@ -150,6 +151,7 @@ export function useGameSocket(socket: Socket | null): void {
           content: data.content,
           sender: data.sender,
           timestamp: new Date(data.timestamp),
+          rollInfo: data.rollInfo,
         },
       });
     };

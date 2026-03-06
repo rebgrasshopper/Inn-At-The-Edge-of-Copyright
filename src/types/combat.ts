@@ -53,6 +53,8 @@ export type AttackResult = {
   defenderDead: boolean;
   /** Formatted combat message for display */
   message: string;
+  /** Roll info for display (e.g., "Attack: d20+5 = 18  |  Damage: 1d6+2 = 7") */
+  rollInfo?: string;
 };
 
 /**
@@ -92,7 +94,12 @@ export type CombatBroadcaster = (
  */
 export type CombatEvent =
   | { type: "combat_start"; attackerName: string; defenderName: string }
-  | { type: "attack"; message: string }
+  | {
+      type: "attack";
+      message: string;
+      attackerId?: string;
+      rollInfo?: string;
+    }
   | { type: "flee_success"; playerName: string; direction: string }
   | { type: "flee_fail"; playerName: string }
   | { type: "player_death"; playerName: string; killerName: string }
@@ -108,5 +115,6 @@ export type CombatEvent =
       playerName: string;
       newLevel: number;
       attributePoints: number;
+      gainedFeatSlot: boolean;
     }
   | { type: "combat_end"; reason: string };

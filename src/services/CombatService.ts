@@ -17,7 +17,11 @@ import type {
 } from "../types/combat.js";
 import type { Direction, Exit } from "../types/room.js";
 import * as CorpseService from "./CorpseService.js";
-import { roll, rollD20 } from "./DiceService.js";
+import {
+  rollD20,
+  rollD20WithDetails,
+  rollDamageWithDetails,
+} from "./DiceService.js";
 import { getAttackModifiers, getDamageModifiers } from "./FeatEffectHandler.js";
 import { calculateBAB, grantFeatSlot } from "./FeatService.js";
 import {
@@ -320,29 +324,42 @@ export function processAttack(
 
   // Roll d20 + BAB + STR/DEX modifier + feat attack bonus
   const attackBonus = featMods?.attackBonus ?? 0;
-  const attackRoll = rollD20(bab + attackStatMod + attackBonus);
+  const totalAttackMod = bab + attackStatMod + attackBonus;
+  const attackResult = rollD20WithDetails(totalAttackMod);
 
-  const hit = attackRoll >= defender.ac;
+  const hit = attackResult.total >= defender.ac;
 
   if (!hit) {
     return {
       hit: false,
-      attackRoll,
+      attackRoll: attackResult.total,
       targetAC: defender.ac,
       damage: null,
       defenderHp: defender.currentHp,
       defenderDead: false,
       message: `${attacker.name} swings at ${defender.name} but misses!`,
+      rollInfo: `Attack: ${attackResult.formula}`,
     };
   }
 
   // Calculate damage: weapon dice + STR modifier + feat damage bonus, minimum 1
   const weaponNotation = attacker.weaponDamage || "1d4";
-  const damageRoll = roll(weaponNotation);
+  const damageResult = rollDamageWithDetails(weaponNotation);
   const strMod = getDamageModifier(attacker.stats.str);
   const damageBonus = featMods?.damageBonus ?? 0;
-  const rawDamage = (damageRoll?.total || 1) + strMod + damageBonus;
+  const rawDamage = (damageResult?.total || 1) + strMod + damageBonus;
   const damage = Math.max(1, rawDamage);
+
+  // Build damage formula string with modifiers
+  const totalDamageMod = strMod + damageBonus;
+  let damageFormula: string;
+  if (totalDamageMod === 0) {
+    damageFormula = `${weaponNotation} = ${damage}`;
+  } else {
+    const modStr =
+      totalDamageMod >= 0 ? `+${totalDamageMod}` : `${totalDamageMod}`;
+    damageFormula = `${weaponNotation}${modStr} = ${damage}`;
+  }
 
   const newHp = defender.currentHp - damage;
   const defenderDead = newHp <= 0;
@@ -356,12 +373,13 @@ export function processAttack(
 
   return {
     hit: true,
-    attackRoll,
+    attackRoll: attackResult.total,
     targetAC: defender.ac,
     damage,
     defenderHp: Math.max(0, newHp),
     defenderDead,
     message,
+    rollInfo: `Attack: ${attackResult.formula}  |  Damage: ${damageFormula}`,
   };
 }
 
@@ -419,10 +437,12 @@ function scheduleAttack(
     // Update defender HP in combat state
     currentDefender.currentHp = result.defenderHp;
 
-    // Broadcast attack result
+    // Broadcast attack result (include attacker ID for roll info delivery)
     broadcast(currentCombat.roomId, {
       type: "attack",
       message: result.message,
+      attackerId: currentAttacker.type === "player" ? attackerId : undefined,
+      rollInfo: result.rollInfo,
     });
 
     if (result.defenderDead) {
@@ -782,7 +802,7 @@ export async function attemptFlee(playerId: string): Promise<FleeResult> {
 
     return {
       success: false,
-      message: `You try to flee but can't escape! (rolled ${fleeRoll} vs DC ${fleeDC})`,
+      message: `You try to flee but can't escape!`,
       destination: null,
     };
   }
@@ -992,7 +1012,8 @@ export async function handleMonsterDeath(
         .where(eq(players.id, killerPlayerId));
 
       // Grant feat slot on even levels (2, 4, 6, 8, ...)
-      if (levelUpResult.newLevel % 2 === 0) {
+      const gainedFeatSlot = levelUpResult.newLevel % 2 === 0;
+      if (gainedFeatSlot) {
         await grantFeatSlot(killerPlayerId);
       }
 
@@ -1004,6 +1025,7 @@ export async function handleMonsterDeath(
           playerName: killer.name,
           newLevel: levelUpResult.newLevel,
           attributePoints: levelUpResult.attributePoints,
+          gainedFeatSlot,
         });
       }
     } else {

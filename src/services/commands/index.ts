@@ -233,45 +233,56 @@ export async function execute(
   const verb = firstToken;
   const target = tokens.slice(1).join(" ");
 
-  if (target) {
-    const feature = await FeatureService.findFeatureByCommand(
-      context.room.id,
-      verb,
-      target,
+  // Check for feature interaction (with or without target)
+  const feature = await FeatureService.findFeatureByCommand(
+    context.room.id,
+    verb,
+    target,
+    context.player.id,
+  );
+
+  if (feature) {
+    const result = await FeatureService.interactWithFeature(
+      context.player.id,
+      feature,
     );
 
-    if (feature) {
-      const result = await FeatureService.interactWithFeature(
-        context.player.id,
-        feature,
-      );
+    const messages = [result.message];
+    let roomChanged = false;
 
-      const messages = [result.message];
-      for (const effect of result.effectsApplied) {
-        if (effect.message) {
-          messages.push(effect.message);
+    for (const effect of result.effectsApplied) {
+      // Skip teleport effect messages (the feature's successMessage already describes what happens)
+      if (effect.type === "teleport") {
+        if (effect.success) {
+          roomChanged = true;
         }
+        continue;
       }
-      if (result.revealedFeature) {
-        messages.push(`You discover: ${result.revealedFeature.name}`);
+      if (effect.message) {
+        messages.push(effect.message);
       }
-      if (result.revealedContainer) {
-        messages.push(`You find: ${result.revealedContainer.name}`);
-      }
-
-      // Check for monster aggro if a monster was spawned
-      const spawnedMonster = result.effectsApplied.some(
-        (e) => e.type === "spawn_monster" && e.success,
-      );
-      if (spawnedMonster) {
-        await CombatService.checkMonsterAggro(
-          context.player.id,
-          context.room.id,
-        );
-      }
-
-      return { success: result.success, message: messages.join("\n") };
     }
+    if (result.revealedFeature) {
+      messages.push(`You discover: ${result.revealedFeature.name}`);
+    }
+    if (result.revealedContainer) {
+      messages.push(`You find: ${result.revealedContainer.name}`);
+    }
+
+    // Check for monster aggro if a monster was spawned
+    const spawnedMonster = result.effectsApplied.some(
+      (e) => e.type === "spawn_monster" && e.success,
+    );
+    if (spawnedMonster) {
+      await CombatService.checkMonsterAggro(context.player.id, context.room.id);
+    }
+
+    return {
+      success: result.success,
+      message: messages.join("\n"),
+      rollInfo: result.rollInfo,
+      roomChanged,
+    };
   }
 
   // Unknown command with suggestion

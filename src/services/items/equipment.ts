@@ -33,6 +33,22 @@ const SLOT_TO_DB_COLUMN: Record<keyof PlayerEquipment, string> = {
   back: "wornBack",
 };
 
+/** Human-readable display names for equipment slots */
+const SLOT_DISPLAY_NAMES: Record<keyof PlayerEquipment, string> = {
+  head: "head",
+  torso: "torso",
+  body: "body",
+  legs: "legs",
+  hands: "hands",
+  feet: "feet",
+  mainHand: "main hand",
+  offHand: "off hand",
+  neck: "neck",
+  ring1: "ring",
+  ring2: "ring",
+  back: "back",
+};
+
 /** Slot aliases for user input */
 const SLOT_ALIASES: Record<string, EquipmentSlot | "ring1" | "ring2"> = {
   head: "head",
@@ -295,7 +311,7 @@ export async function equipItem(
   return {
     success: true,
     item,
-    message: `You equip the ${item.name} on your ${slotToUse}${swapMessage}.${hpMessage}`,
+    message: `You equip the ${item.name} on your ${SLOT_DISPLAY_NAMES[slotToUse]}${swapMessage}.${hpMessage}`,
   };
 }
 
@@ -353,7 +369,7 @@ export async function unequipItem(
     return {
       success: true,
       item: item ? toItem(item) : undefined,
-      message: `You unequip the ${itemName} from your ${parsedSlot}.${hpMessage}`,
+      message: `You unequip the ${itemName} from your ${SLOT_DISPLAY_NAMES[parsedSlot as keyof PlayerEquipment]}.${hpMessage}`,
     };
   }
 
@@ -389,7 +405,7 @@ export async function unequipItem(
       return {
         success: true,
         item: toItem(item),
-        message: `You unequip the ${item.name} from your ${slot}.${hpMessage}`,
+        message: `You unequip the ${item.name} from your ${SLOT_DISPLAY_NAMES[slot as keyof PlayerEquipment]}.${hpMessage}`,
       };
     }
   }

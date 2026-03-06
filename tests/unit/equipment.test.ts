@@ -165,7 +165,7 @@ describe("Equipment Operations", () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain("offHand");
+      expect(result.message).toContain("off hand");
 
       const player = await db
         .select()
@@ -270,7 +270,7 @@ describe("Equipment Operations", () => {
       const result = await ItemService.equipItem(testPlayerId, "iron sword");
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain("offHand");
+      expect(result.message).toContain("off hand");
 
       const player = await db
         .select()

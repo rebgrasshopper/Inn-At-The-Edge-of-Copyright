@@ -13,6 +13,7 @@ import {
 } from "../db/schema.js";
 import type { Feat } from "../types/feat.js";
 import { babToLevel } from "./feats/prerequisiteParser.js";
+import { recalculateAndUpdateMaxHp } from "./StatService.js";
 
 /** Prerequisite check result */
 export type PrerequisiteResult = {
@@ -458,10 +459,19 @@ export async function acquireFeat(
     acquiredAt: new Date(),
   });
 
-  // 8. Return success message
+  // 8. If feat affects HP (like Toughness), recalculate max HP
+  let hpMessage = "";
+  if (feat.effectType === "hp_bonus") {
+    const hpResult = await recalculateAndUpdateMaxHp(playerId, "heal_gained");
+    if (hpResult && hpResult.hpDiff > 0) {
+      hpMessage = ` (+${hpResult.hpDiff} max HP)`;
+    }
+  }
+
+  // 9. Return success message
   return {
     success: true,
-    message: `You have acquired the ${feat.name} feat!`,
+    message: `You have acquired the ${feat.name} feat!${hpMessage}`,
   };
 }
 

@@ -45,6 +45,12 @@ export enum Command {
   Train = "train",
   Feats = "feats",
   Stance = "stance",
+
+  // Settings
+  Toggle = "toggle",
+
+  // Activities
+  Swim = "swim",
 }
 
 /** Command category for legacy type compatibility */
@@ -75,6 +81,8 @@ export const COMMAND_CATEGORIES: Record<Command, CommandCategory> = {
   [Command.Train]: "info",
   [Command.Feats]: "info",
   [Command.Stance]: "info",
+  [Command.Toggle]: "info",
+  [Command.Swim]: "movement",
 };
 
 /** Maps commands to their legacy action names (for backward compatibility) */

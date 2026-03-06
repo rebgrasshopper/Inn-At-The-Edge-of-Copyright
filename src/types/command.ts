@@ -36,4 +36,8 @@ export type CommandResult = {
   success: boolean;
   message?: string;
   broadcast?: BroadcastMessage[];
+  /** Optional roll details to display (e.g., "d20+2 = 15") */
+  rollInfo?: string;
+  /** Set to true when a teleport effect moved the player to a new room */
+  roomChanged?: boolean;
 };

@@ -29,5 +29,12 @@ export function ChatMessage({ message }: ChatMessageProps) {
     return <pre className={className}>{content}</pre>;
   }
 
-  return <p className={className}>{content}</p>;
+  return (
+    <div className={className}>
+      <p className="chat-message-content">{content}</p>
+      {message.rollInfo && (
+        <p className="chat-message-roll-info">{message.rollInfo}</p>
+      )}
+    </div>
+  );
 }

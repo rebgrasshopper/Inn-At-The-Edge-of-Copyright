@@ -4,7 +4,7 @@ import type { Player, PlayerEquipment } from "../types/player.js";
 /**
  * Convert a database player record to a Player type.
  * @param record - Database row from players table
- * @returns Player object with equipment
+ * @returns Player object with equipment and personal discoveries
  */
 export function toPlayer(record: typeof players.$inferSelect): Player {
   return {
@@ -40,6 +40,8 @@ export function toPlayer(record: typeof players.$inferSelect): Player {
       ring2: record.wornRing2,
       back: record.wornBack,
     },
+    discoveredFeatureIds: record.discoveredFeatureIds || [],
+    discoveredContainerIds: record.discoveredContainerIds || [],
   };
 }
 

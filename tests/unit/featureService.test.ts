@@ -140,7 +140,11 @@ describe("FeatureService", () => {
         isHidden: true,
       });
 
-      const result = await FeatureService.getFeaturesInRoom(testRoomId, true);
+      const result = await FeatureService.getFeaturesInRoom(
+        testRoomId,
+        undefined,
+        true,
+      );
 
       expect(result).toHaveLength(1);
     });
@@ -257,7 +261,7 @@ describe("FeatureService", () => {
       expect(result.message).toBe("The lever clicks into place.");
     });
 
-    it("should pass stat check when stat is high enough", async () => {
+    it("should pass stat check when roll succeeds (DC 1 guarantees success)", async () => {
       const featureId = uuidv4();
       await db.insert(features).values({
         id: featureId,
@@ -267,7 +271,7 @@ describe("FeatureService", () => {
         triggerVerbs: ["push", "open"],
         triggerTarget: "door",
         isHidden: false,
-        condition: { type: "stat_check", stat: "str", dc: 12 },
+        condition: { type: "stat_check", stat: "str", dc: 1 }, // DC 1 always passes
         successMessage: "You push the door open!",
         failureMessage: "The door won't budge.",
       });
@@ -282,12 +286,12 @@ describe("FeatureService", () => {
         feature!,
       );
 
-      // Player has STR 15, DC is 12
+      // DC 1 with any positive modifier always passes (d20 min is 1, +2 STR mod = 3)
       expect(result.success).toBe(true);
       expect(result.message).toBe("You push the door open!");
     });
 
-    it("should fail stat check when stat is too low", async () => {
+    it("should fail stat check when roll fails (DC 30 guarantees failure)", async () => {
       const featureId = uuidv4();
       await db.insert(features).values({
         id: featureId,
@@ -297,7 +301,7 @@ describe("FeatureService", () => {
         triggerVerbs: ["push"],
         triggerTarget: "door",
         isHidden: false,
-        condition: { type: "stat_check", stat: "str", dc: 20 },
+        condition: { type: "stat_check", stat: "str", dc: 30 }, // DC 30 always fails
         successMessage: "You push the door open!",
         failureMessage: "The door won't budge.",
       });
@@ -312,7 +316,7 @@ describe("FeatureService", () => {
         feature!,
       );
 
-      // Player has STR 15, DC is 20
+      // DC 30 with STR 15 (+2 mod) always fails (d20 max is 20, +2 = 22 < 30)
       expect(result.success).toBe(false);
       expect(result.message).toBe("The door won't budge.");
     });
@@ -536,7 +540,7 @@ describe("FeatureService", () => {
         triggerVerbs: ["open"],
         triggerTarget: "chest",
         isHidden: false,
-        condition: { type: "stat_check", stat: "dex", dc: 20 },
+        condition: { type: "stat_check", stat: "dex", dc: 30 }, // DC 30 guarantees failure
         successMessage: "You carefully open the chest.",
         failureMessage: "A dart shoots out!",
         failureEffects: [{ type: "damage", amount: 5 }],
@@ -618,6 +622,202 @@ describe("FeatureService", () => {
       const result = await FeatureService.getContainersInRoom(testRoomId);
 
       expect(result).toHaveLength(0);
+    });
+  });
+
+  describe("personal discoveries", () => {
+    it("should include personal discovery features for the discovering player", async () => {
+      const featureId = uuidv4();
+      await db.insert(features).values({
+        id: featureId,
+        roomId: testRoomId,
+        name: "Hidden Nook",
+        description: "A secret nook",
+        triggerVerbs: ["search"],
+        triggerTarget: "nook",
+        isHidden: true,
+        discoveryScope: "personal",
+      });
+
+      // Add feature to player's discovered list
+      await db
+        .update(players)
+        .set({ discoveredFeatureIds: [featureId] })
+        .where(eq(players.id, testPlayerId));
+
+      const result = await FeatureService.getFeaturesInRoom(
+        testRoomId,
+        testPlayerId,
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe("Hidden Nook");
+    });
+
+    it("should exclude personal discovery features for other players", async () => {
+      const featureId = uuidv4();
+      await db.insert(features).values({
+        id: featureId,
+        roomId: testRoomId,
+        name: "Hidden Nook",
+        description: "A secret nook",
+        triggerVerbs: ["search"],
+        triggerTarget: "nook",
+        isHidden: true,
+        discoveryScope: "personal",
+      });
+
+      // Create another player who hasn't discovered it
+      const otherPlayerId = uuidv4();
+      await db.insert(players).values({
+        id: otherPlayerId,
+        userId: testUserId,
+        name: `OtherPlayer_${Date.now()}`,
+        currentRoomId: testRoomId,
+        currentHp: 20,
+        maxHp: 20,
+        xp: 0,
+        createdAt: new Date(),
+      });
+
+      const result = await FeatureService.getFeaturesInRoom(
+        testRoomId,
+        otherPlayerId,
+      );
+
+      expect(result).toHaveLength(0);
+
+      // Clean up
+      await db.delete(players).where(eq(players.id, otherPlayerId));
+    });
+
+    it("should add personal discovery to player record when revealing", async () => {
+      const featureId = uuidv4();
+      await db.insert(features).values({
+        id: featureId,
+        roomId: testRoomId,
+        name: "Hidden Nook",
+        description: "A secret nook",
+        triggerVerbs: ["search"],
+        triggerTarget: "nook",
+        isHidden: true,
+        discoveryScope: "personal",
+      });
+
+      await FeatureService.revealFeature(featureId, testPlayerId);
+
+      // Check player's discovered list
+      const player = await db
+        .select()
+        .from(players)
+        .where(eq(players.id, testPlayerId))
+        .get();
+
+      expect(player?.discoveredFeatureIds).toContain(featureId);
+
+      // Feature should still be hidden globally
+      const feature = await db
+        .select()
+        .from(features)
+        .where(eq(features.id, featureId))
+        .get();
+
+      expect(feature?.isHidden).toBe(true);
+    });
+
+    it("should include personal discovery containers for the discovering player", async () => {
+      const containerId = uuidv4();
+      await db.insert(containers).values({
+        id: containerId,
+        roomId: testRoomId,
+        name: "Hidden Cache",
+        description: "A secret cache",
+        isHidden: true,
+        isOpen: false,
+        discoveryScope: "personal",
+      });
+
+      // Add container to player's discovered list
+      await db
+        .update(players)
+        .set({ discoveredContainerIds: [containerId] })
+        .where(eq(players.id, testPlayerId));
+
+      const result = await FeatureService.getContainersInRoom(
+        testRoomId,
+        testPlayerId,
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe("Hidden Cache");
+    });
+
+    it("should add personal container discovery to player record when revealing", async () => {
+      const containerId = uuidv4();
+      await db.insert(containers).values({
+        id: containerId,
+        roomId: testRoomId,
+        name: "Hidden Cache",
+        description: "A secret cache",
+        isHidden: true,
+        isOpen: false,
+        discoveryScope: "personal",
+      });
+
+      await FeatureService.revealContainer(containerId, testPlayerId);
+
+      // Check player's discovered list
+      const player = await db
+        .select()
+        .from(players)
+        .where(eq(players.id, testPlayerId))
+        .get();
+
+      expect(player?.discoveredContainerIds).toContain(containerId);
+
+      // Container should still be hidden globally
+      const container = await db
+        .select()
+        .from(containers)
+        .where(eq(containers.id, containerId))
+        .get();
+
+      expect(container?.isHidden).toBe(true);
+    });
+
+    it("should reveal globally for non-personal scope features", async () => {
+      const featureId = uuidv4();
+      await db.insert(features).values({
+        id: featureId,
+        roomId: testRoomId,
+        name: "Trapdoor",
+        description: "A hidden trapdoor",
+        triggerVerbs: ["open"],
+        triggerTarget: "trapdoor",
+        isHidden: true,
+        discoveryScope: null, // Global scope
+      });
+
+      await FeatureService.revealFeature(featureId, testPlayerId);
+
+      // Feature should be visible globally
+      const feature = await db
+        .select()
+        .from(features)
+        .where(eq(features.id, featureId))
+        .get();
+
+      expect(feature?.isHidden).toBe(false);
+      expect(feature?.revealedAt).toBeDefined();
+
+      // Player's discovered list should NOT contain this feature
+      const player = await db
+        .select()
+        .from(players)
+        .where(eq(players.id, testPlayerId))
+        .get();
+
+      expect(player?.discoveredFeatureIds || []).not.toContain(featureId);
     });
   });
 });

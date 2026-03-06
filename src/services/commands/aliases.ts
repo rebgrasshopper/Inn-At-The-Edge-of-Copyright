@@ -93,6 +93,13 @@ export const COMMAND_ALIASES: Record<string, Command> = {
   feat: Command.Feats,
   stance: Command.Stance,
 
+  // Settings
+  toggle: Command.Toggle,
+
+  // Activities
+  swim: Command.Swim,
+  stop: Command.Swim,
+
   // Multi-word aliases
   "pick up": Command.Get,
   "put down": Command.Drop,

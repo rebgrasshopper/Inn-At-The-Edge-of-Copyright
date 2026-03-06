@@ -33,8 +33,8 @@ export async function handleLook(
     }
   }
 
-  // Get fresh room data
-  const roomData = await RoomService.getRoomWithContents(room.id);
+  // Get fresh room data (include player's personal discoveries)
+  const roomData = await RoomService.getRoomWithContents(room.id, player.id);
   if (!roomData) {
     return { success: false, message: "You are nowhere." };
   }

@@ -39,11 +39,15 @@ export type Feature = {
   failureEffects?: PlayerEffect[];
   revealsFeatureId?: string;
   revealsContainerId?: string;
+  // Text shown in room description when feature is revealed (for hidden features)
+  revealedText?: string;
   // null = never hidden (always visible), true = currently hidden, false = currently visible
   isHidden: boolean | null;
   // When the feature was last revealed (for time-based re-hiding)
   revealedAt?: Date;
   isDiscovered: boolean;
+  // Discovery scope: null or "global" = revealed for everyone, "personal" = only for discoverer
+  discoveryScope?: string | null;
   // Custom refusal messages for invalid actions
   refuseGetMessage?: string;
   refuseDropMessage?: string;

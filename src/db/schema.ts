@@ -40,12 +40,19 @@ export type PlayerEffect =
   | { type: "unblock_exit"; direction: Direction }
   | { type: "spawn_monster"; monsterId: string; roomId?: string };
 
+// User preferences type
+export type UserPreferences = {
+  showRolls?: boolean;
+  colors?: Record<string, string>;
+};
+
 // Users table (authentication)
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  preferences: text("preferences", { mode: "json" }).$type<UserPreferences>(),
 });
 
 // Players table (game characters)
@@ -96,6 +103,15 @@ export const players = sqliteTable("players", {
   // Feat system
   unspentFeatSlots: integer("unspent_feat_slots").notNull().default(0),
   activeStance: text("active_stance"), // Currently active stance feat, or null
+
+  // Personal discoveries (features/containers only this player can see)
+  // These are permanently discovered and don't re-hide
+  discoveredFeatureIds: text("discovered_feature_ids", {
+    mode: "json",
+  }).$type<string[]>(),
+  discoveredContainerIds: text("discovered_container_ids", {
+    mode: "json",
+  }).$type<string[]>(),
 });
 
 // Rooms table
@@ -125,9 +141,6 @@ export type EquipmentSlot =
   | "neck"
   | "ring"
   | "back";
-
-// Item size type (0=tiny, 1=small, 2=medium, 3=large, 4=huge)
-export type ItemSize = 0 | 1 | 2 | 3 | 4;
 
 // Items table (item definitions)
 export const items = sqliteTable("items", {
@@ -211,6 +224,9 @@ export const containers = sqliteTable("containers", {
   // Size: 0=tiny, 1=small, 2=medium, 3=large, 4=huge
   // Items can only be placed if item.size < container.size
   size: integer("size").$type<ItemSize>().notNull().default(3),
+  // Discovery scope: null or "global" = revealed for everyone (with time-based re-hiding)
+  // "personal" = only visible to the player who discovered it (stored on player record)
+  discoveryScope: text("discovery_scope"),
 });
 
 // Container inventory
@@ -324,6 +340,13 @@ export const features = sqliteTable("features", {
   // null = never revealed or permanently visible
   revealedAt: integer("revealed_at", { mode: "timestamp" }),
   isDiscovered: integer("is_discovered", { mode: "boolean" }).default(false),
+
+  // Discovery scope: null or "global" = revealed for everyone (with time-based re-hiding)
+  // "personal" = only visible to the player who discovered it (stored on player record)
+  discoveryScope: text("discovery_scope"),
+
+  // Text shown in room description when feature is revealed (for hidden features)
+  revealedText: text("revealed_text"),
 
   // Custom refusal messages for invalid actions (optional, fallback to generic)
   refuseGetMessage: text("refuse_get_message"),

@@ -6,6 +6,7 @@ import type { CommandContext, CommandResult } from "../../../types/command.js";
 import type { Direction } from "../../../types/room.js";
 import * as CombatService from "../../CombatService.js";
 import * as RoomService from "../../RoomService.js";
+import * as SwimmingService from "../../SwimmingService.js";
 
 /** Direction aliases */
 const DIRECTION_MAP: Record<string, Direction> = {
@@ -36,6 +37,14 @@ export async function handleMove(
   rawInput: string,
 ): Promise<CommandResult> {
   const { player, room } = context;
+
+  // Check if player is swimming - must stop swimming first
+  if (SwimmingService.isPlayerSwimming(player.id)) {
+    return {
+      success: false,
+      message: 'You can\'t walk while swimming! Try "stop swimming" first.',
+    };
+  }
 
   // Check if player is in combat - must flee instead of walking away
   const combat = CombatService.getCombatForPlayer(player.id);

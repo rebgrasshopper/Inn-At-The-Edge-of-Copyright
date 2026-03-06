@@ -1,4 +1,4 @@
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   containers,
@@ -14,13 +14,17 @@ import type {
   FeatureCondition,
 } from "../types/feature.js";
 import { stripFillerWords } from "../utils/text.js";
+import { rollD20WithDetails } from "./DiceService.js";
 import * as EffectHandler from "./EffectHandler.js";
+import { getStatModifier } from "./StatService.js";
 
 /** Time in milliseconds for hidden features to re-hide (2 hours) */
 const REHIDE_TIMEOUT_MS = EffectHandler.REHIDE_TIMEOUT_MS;
 
 /**
  * Convert a database feature row to a Feature type
+ * @param row - Database row from features table
+ * @returns Feature object
  */
 function toFeature(row: typeof features.$inferSelect): Feature {
   return {
@@ -37,9 +41,11 @@ function toFeature(row: typeof features.$inferSelect): Feature {
     failureEffects: row.failureEffects ?? undefined,
     revealsFeatureId: row.revealsFeatureId ?? undefined,
     revealsContainerId: row.revealsContainerId ?? undefined,
+    revealedText: row.revealedText ?? undefined,
     isHidden: row.isHidden,
     revealedAt: row.revealedAt ?? undefined,
     isDiscovered: row.isDiscovered ?? false,
+    discoveryScope: row.discoveryScope ?? undefined,
     refuseGetMessage: row.refuseGetMessage ?? undefined,
     refuseDropMessage: row.refuseDropMessage ?? undefined,
   };
@@ -47,6 +53,8 @@ function toFeature(row: typeof features.$inferSelect): Feature {
 
 /**
  * Convert a database container row to a Container type
+ * @param row - Database row from containers table
+ * @returns Container object
  */
 function toContainer(row: typeof containers.$inferSelect): Container {
   return {
@@ -54,10 +62,14 @@ function toContainer(row: typeof containers.$inferSelect): Container {
     roomId: row.roomId,
     name: row.name,
     description: row.description,
+    aliases: (row.aliases as string[]) ?? undefined,
+    revealedText: row.revealedText ?? undefined,
     isHidden: row.isHidden,
     revealedAt: row.revealedAt ?? undefined,
     isOpen: row.isOpen ?? false,
     revealCommand: row.revealCommand ?? undefined,
+    size: row.size,
+    discoveryScope: row.discoveryScope ?? undefined,
   };
 }
 
@@ -73,19 +85,32 @@ function shouldRehide(revealedAt: Date | undefined): boolean {
 }
 
 /**
- * Get all visible features in a room
+ * Get all visible features in a room for a specific player
  * @param roomId - The room to get features from
+ * @param playerId - Optional player ID to include their personal discoveries
  * @param includeHidden - If true, include hidden features (for admin/debug)
  * @returns Array of visible features
  */
 export async function getFeaturesInRoom(
   roomId: string,
+  playerId?: string,
   includeHidden: boolean = false,
 ): Promise<Feature[]> {
   const rows = await db
     .select()
     .from(features)
     .where(eq(features.roomId, roomId));
+
+  // Get player's personal discoveries if playerId provided
+  let playerDiscoveredFeatureIds: string[] = [];
+  if (playerId) {
+    const player = await db
+      .select({ discoveredFeatureIds: players.discoveredFeatureIds })
+      .from(players)
+      .where(eq(players.id, playerId))
+      .get();
+    playerDiscoveredFeatureIds = player?.discoveredFeatureIds || [];
+  }
 
   const result: Feature[] = [];
 
@@ -95,9 +120,20 @@ export async function getFeaturesInRoom(
     // Skip if hidden and not including hidden
     if (!includeHidden) {
       // isHidden = null means never hidden (always visible)
-      // isHidden = false means currently visible
+      // isHidden = false means currently visible (globally revealed)
       // isHidden = true means currently hidden
       if (feature.isHidden === true) {
+        // Check if this is a personal discovery the player has found
+        const isPersonalScope = feature.discoveryScope === "personal";
+        const playerHasDiscovered = playerDiscoveredFeatureIds.includes(
+          feature.id,
+        );
+
+        if (isPersonalScope && playerHasDiscovered) {
+          // Player has personally discovered this feature
+          result.push(feature);
+        }
+        // Otherwise skip - it's hidden and player hasn't discovered it
         continue;
       }
     }
@@ -112,13 +148,15 @@ export async function getFeaturesInRoom(
  * Find a feature by name (for examine/look commands)
  * @param roomId - The room to search in
  * @param name - The name to match against feature names
+ * @param playerId - Optional player ID to include their personal discoveries
  * @returns The matching feature or null
  */
 export async function findFeatureByName(
   roomId: string,
   name: string,
+  playerId?: string,
 ): Promise<Feature | null> {
-  const roomFeatures = await getFeaturesInRoom(roomId, false);
+  const roomFeatures = await getFeaturesInRoom(roomId, playerId, false);
   const nameLower = name.toLowerCase();
 
   for (const feature of roomFeatures) {
@@ -141,14 +179,16 @@ export async function findFeatureByName(
  * @param roomId - The room to search in
  * @param verb - The action verb (e.g., "pull", "move", "search")
  * @param target - The target noun (e.g., "lever", "leaves", "painting")
+ * @param playerId - Optional player ID to include their personal discoveries
  * @returns The matching feature or null
  */
 export async function findFeatureByCommand(
   roomId: string,
   verb: string,
   target: string,
+  playerId?: string,
 ): Promise<Feature | null> {
-  const roomFeatures = await getFeaturesInRoom(roomId, false);
+  const roomFeatures = await getFeaturesInRoom(roomId, playerId, false);
 
   const verbLower = verb.toLowerCase();
   const targetLower = stripFillerWords(target);
@@ -163,6 +203,14 @@ export async function findFeatureByCommand(
 
     // Check if target matches (exact or prefix)
     const featureTarget = feature.triggerTarget.toLowerCase();
+
+    // Support standalone commands (empty target matches empty triggerTarget)
+    if (targetLower === "" && featureTarget === "") {
+      return feature;
+    }
+
+    // Skip empty targets for non-standalone features
+    if (targetLower === "") continue;
 
     if (
       featureTarget === targetLower ||
@@ -188,15 +236,20 @@ export type FeatureInteractionResult = {
   /** If true, the feature is waiting for a riddle answer */
   awaitingRiddleAnswer?: boolean;
   riddleQuestion?: string;
+  /** Roll details for display (e.g., "d20+2 = 15 vs DC 12") */
+  rollInfo?: string;
 };
 
 /**
- * Check a stat-based condition
+ * Check a stat-based condition using d20 + stat modifier vs DC
+ * @param playerId - The player attempting the check
+ * @param condition - The stat check condition with stat and DC
+ * @returns Whether the check passed and the roll formula for display
  */
 async function checkStatCondition(
   playerId: string,
   condition: Extract<FeatureCondition, { type: "stat_check" }>,
-): Promise<{ passed: boolean; roll?: number }> {
+): Promise<{ passed: boolean; rollFormula?: string }> {
   const player = await db
     .select()
     .from(players)
@@ -207,12 +260,13 @@ async function checkStatCondition(
     return { passed: false };
   }
 
-  // Simple check: stat value >= DC
-  // TODO: Add d20 roll + modifier when combat system is implemented
+  // Roll d20 + stat modifier vs DC
   const statValue = player[condition.stat];
-  const passed = statValue >= condition.dc;
+  const modifier = getStatModifier(statValue);
+  const result = rollD20WithDetails(modifier);
+  const passed = result.total >= condition.dc;
 
-  return { passed, roll: statValue };
+  return { passed, rollFormula: result.formula };
 }
 
 /**
@@ -282,12 +336,62 @@ function checkRiddleCondition(
 }
 
 /**
- * Reveal a hidden feature (set isHidden to false and record revealedAt)
+ * Add a feature to a player's personal discoveries
+ * @param playerId - The player who discovered the feature
+ * @param featureId - The feature that was discovered
+ */
+async function addPersonalFeatureDiscovery(
+  playerId: string,
+  featureId: string,
+): Promise<void> {
+  const player = await db
+    .select({ discoveredFeatureIds: players.discoveredFeatureIds })
+    .from(players)
+    .where(eq(players.id, playerId))
+    .get();
+
+  const currentIds = player?.discoveredFeatureIds || [];
+  if (!currentIds.includes(featureId)) {
+    await db
+      .update(players)
+      .set({ discoveredFeatureIds: [...currentIds, featureId] })
+      .where(eq(players.id, playerId));
+  }
+}
+
+/**
+ * Add a container to a player's personal discoveries
+ * @param playerId - The player who discovered the container
+ * @param containerId - The container that was discovered
+ */
+async function addPersonalContainerDiscovery(
+  playerId: string,
+  containerId: string,
+): Promise<void> {
+  const player = await db
+    .select({ discoveredContainerIds: players.discoveredContainerIds })
+    .from(players)
+    .where(eq(players.id, playerId))
+    .get();
+
+  const currentIds = player?.discoveredContainerIds || [];
+  if (!currentIds.includes(containerId)) {
+    await db
+      .update(players)
+      .set({ discoveredContainerIds: [...currentIds, containerId] })
+      .where(eq(players.id, playerId));
+  }
+}
+
+/**
+ * Reveal a hidden feature (global or personal based on discoveryScope)
  * @param featureId - The feature to reveal
+ * @param playerId - The player revealing the feature (required for personal scope)
  * @returns The revealed feature
  */
 export async function revealFeature(
   featureId: string,
+  playerId?: string,
 ): Promise<Feature | null> {
   const feature = await db
     .select()
@@ -299,21 +403,32 @@ export async function revealFeature(
     return null;
   }
 
-  await db
-    .update(features)
-    .set({ isHidden: false, revealedAt: new Date() })
-    .where(eq(features.id, featureId));
+  const isPersonalScope = feature.discoveryScope === "personal";
 
-  return toFeature({ ...feature, isHidden: false, revealedAt: new Date() });
+  if (isPersonalScope && playerId) {
+    // Personal discovery: add to player's discovered list, don't change global state
+    await addPersonalFeatureDiscovery(playerId, featureId);
+    return toFeature(feature);
+  } else {
+    // Global discovery: update the feature's global visibility
+    await db
+      .update(features)
+      .set({ isHidden: false, revealedAt: new Date() })
+      .where(eq(features.id, featureId));
+
+    return toFeature({ ...feature, isHidden: false, revealedAt: new Date() });
+  }
 }
 
 /**
- * Reveal a hidden container (set isHidden to false and record revealedAt)
+ * Reveal a hidden container (global or personal based on discoveryScope)
  * @param containerId - The container to reveal
+ * @param playerId - The player revealing the container (required for personal scope)
  * @returns The revealed container
  */
 export async function revealContainer(
   containerId: string,
+  playerId?: string,
 ): Promise<Container | null> {
   const container = await db
     .select()
@@ -325,16 +440,25 @@ export async function revealContainer(
     return null;
   }
 
-  await db
-    .update(containers)
-    .set({ isHidden: false, revealedAt: new Date() })
-    .where(eq(containers.id, containerId));
+  const isPersonalScope = container.discoveryScope === "personal";
 
-  return toContainer({
-    ...container,
-    isHidden: false,
-    revealedAt: new Date(),
-  });
+  if (isPersonalScope && playerId) {
+    // Personal discovery: add to player's discovered list, don't change global state
+    await addPersonalContainerDiscovery(playerId, containerId);
+    return toContainer(container);
+  } else {
+    // Global discovery: update the container's global visibility
+    await db
+      .update(containers)
+      .set({ isHidden: false, revealedAt: new Date() })
+      .where(eq(containers.id, containerId));
+
+    return toContainer({
+      ...container,
+      isHidden: false,
+      revealedAt: new Date(),
+    });
+  }
 }
 
 /**
@@ -352,6 +476,7 @@ export async function interactWithFeature(
   const effectsApplied: EffectResult[] = [];
   let revealedFeature: Feature | undefined;
   let revealedContainer: Container | undefined;
+  let rollInfo: string | undefined;
 
   // Check condition if present
   if (feature.condition) {
@@ -362,6 +487,7 @@ export async function interactWithFeature(
       case "stat_check": {
         const result = await checkStatCondition(playerId, feature.condition);
         passed = result.passed;
+        rollInfo = result.rollFormula;
         if (!passed) {
           failMessage =
             feature.failureMessage ||
@@ -414,6 +540,7 @@ export async function interactWithFeature(
         success: false,
         message: failMessage,
         effectsApplied,
+        rollInfo,
       };
     }
   }
@@ -430,12 +557,13 @@ export async function interactWithFeature(
   // Reveal any hidden features/containers
   if (feature.revealsFeatureId) {
     revealedFeature =
-      (await revealFeature(feature.revealsFeatureId)) ?? undefined;
+      (await revealFeature(feature.revealsFeatureId, playerId)) ?? undefined;
   }
 
   if (feature.revealsContainerId) {
     revealedContainer =
-      (await revealContainer(feature.revealsContainerId)) ?? undefined;
+      (await revealContainer(feature.revealsContainerId, playerId)) ??
+      undefined;
   }
 
   // Mark feature as discovered
@@ -452,6 +580,7 @@ export async function interactWithFeature(
     effectsApplied,
     revealedFeature,
     revealedContainer,
+    rollInfo,
   };
 }
 
@@ -514,22 +643,56 @@ export async function checkRehideOnRoomEntry(
 }
 
 /**
- * Get visible containers in a room
+ * Get visible containers in a room for a specific player
  * @param roomId - The room to get containers from
+ * @param playerId - Optional player ID to include their personal discoveries
  * @returns Array of visible containers
  */
 export async function getContainersInRoom(
   roomId: string,
+  playerId?: string,
 ): Promise<Container[]> {
   const rows = await db
     .select()
     .from(containers)
-    .where(
-      and(
-        eq(containers.roomId, roomId),
-        or(eq(containers.isHidden, false), isNull(containers.isHidden)),
-      ),
-    );
+    .where(eq(containers.roomId, roomId));
 
-  return rows.map(toContainer);
+  // Get player's personal discoveries if playerId provided
+  let playerDiscoveredContainerIds: string[] = [];
+  if (playerId) {
+    const player = await db
+      .select({ discoveredContainerIds: players.discoveredContainerIds })
+      .from(players)
+      .where(eq(players.id, playerId))
+      .get();
+    playerDiscoveredContainerIds = player?.discoveredContainerIds || [];
+  }
+
+  const result: Container[] = [];
+
+  for (const row of rows) {
+    const container = toContainer(row);
+
+    // isHidden = null means never hidden (always visible)
+    // isHidden = false means currently visible (globally revealed)
+    // isHidden = true means currently hidden
+    if (container.isHidden === true) {
+      // Check if this is a personal discovery the player has found
+      const isPersonalScope = container.discoveryScope === "personal";
+      const playerHasDiscovered = playerDiscoveredContainerIds.includes(
+        container.id,
+      );
+
+      if (isPersonalScope && playerHasDiscovered) {
+        // Player has personally discovered this container
+        result.push(container);
+      }
+      // Otherwise skip - it's hidden and player hasn't discovered it
+      continue;
+    }
+
+    result.push(container);
+  }
+
+  return result;
 }

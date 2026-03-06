@@ -45,6 +45,9 @@ async function seed() {
   const marketId = "room-market";
   const forestPathId = "room-forest-path";
   const forestClearingId = "room-forest-clearing";
+  const sparklingStreamId = "room-sparkling-stream";
+  const hiddenCavernId = "room-hidden-cavern";
+  const cavePassageId = "room-cave-passage";
 
   const roomsData = [
     {
@@ -97,9 +100,42 @@ async function seed() {
       name: "Forest Clearing",
       description:
         "You emerge into a small clearing carpeted with soft moss. Shafts of golden light pierce the canopy, illuminating a ring of mushrooms at the clearing's center. A gnarled tree with a twisted trunk dominates one edge. The forest feels ancient here, watchful. Strange sounds echo from deeper in the woods.",
-      navDescription: "The path back to the village lies to the north.",
+      navDescription:
+        "The path back to the village lies to the north. To the east, you hear the gentle sound of running water.",
       region: "darkwood",
-      exits: { north: { roomId: forestPathId } },
+      exits: {
+        north: { roomId: forestPathId },
+        east: { roomId: sparklingStreamId },
+      },
+    },
+    {
+      id: sparklingStreamId,
+      name: "Sparkling Stream",
+      description:
+        "A clear stream cuts through the forest here, its waters sparkling as light dances across the surface. The stream is deeper than it first appears, its bed lost in shadow beneath the glittering ripples. Smooth stones line the banks, worn by countless years of flowing water. The gentle burbling creates a peaceful melody that seems to quiet the forest sounds.",
+      navDescription: "The forest clearing lies to the west.",
+      region: "darkwood",
+      exits: { west: { roomId: forestClearingId } },
+    },
+    {
+      id: hiddenCavernId,
+      name: "Hidden Cavern",
+      description:
+        "You float in a still underground pool, its dark waters reflecting faint light from above. The cavern ceiling rises high overhead, punctured by narrow holes through which pale light filters down. Trailing vines hang through these openings, their tendrils brushing the water's surface. A rocky ledge offers a place to climb out of the pool onto the cave floor. The air is cool and damp, carrying the earthy scent of stone and moss.",
+      navDescription:
+        "You can climb up to a passage in the cavern wall, or swim back through the underwater passage you came from.",
+      region: "underground",
+      exits: { up: { roomId: cavePassageId } },
+    },
+    {
+      id: cavePassageId,
+      name: "Cave Passage",
+      description:
+        "A narrow passage winds through the rock, its walls rough and uneven. Faint light filters up from below where the hidden cavern lies. The passage continues into darkness ahead, hinting at deeper caves yet unexplored. Water drips somewhere in the distance, echoing off the stone.",
+      navDescription:
+        "You can climb down to the hidden cavern below. The passage ahead is blocked by rubble... for now.",
+      region: "underground",
+      exits: { down: { roomId: hiddenCavernId } },
     },
   ];
 
@@ -506,6 +542,7 @@ async function seed() {
         "A dusty wooden chest sits in the corner, half-hidden behind some barrels.",
       isHidden: false,
       size: 4 as const, // huge - can hold large items
+      discoveryScope: "personal",
     },
     {
       id: "container-hidden-cache",
@@ -513,11 +550,12 @@ async function seed() {
       name: "hidden cache",
       description:
         "A small hollow beneath a gnarled tree root contains a leather pouch.",
-      aliases: ["pouch", "hollow"],
+      aliases: ["pouch", "hollow", "leather pouch"],
       revealedText: "Under the root of a nearby tree you see a leather pouch.",
       isHidden: true,
       revealCommand: "search mushrooms",
       size: 2 as const, // medium - can hold small items only
+      discoveryScope: "personal",
     },
     {
       id: "container-market-stash",
@@ -529,6 +567,7 @@ async function seed() {
       revealedText: "A hidden compartment lies open beneath the loose board.",
       isHidden: true,
       size: 3 as const, // large - can hold medium items
+      discoveryScope: "personal",
     },
   ];
 
@@ -702,6 +741,7 @@ async function seed() {
       revealsContainerId: "container-market-stash",
       isHidden: true,
       isDiscovered: false,
+      discoveryScope: "personal",
     },
     {
       id: "feature-spice-barrels",
@@ -872,6 +912,300 @@ async function seed() {
       successEffects: [
         { type: "spawn_monster" as const, monsterId: "monster-wolf" },
       ],
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // Personal discovery feature - only visible to the player who finds it
+    {
+      id: "feature-hidden-nook",
+      roomId: forestClearingId,
+      name: "hidden nook",
+      description:
+        "A small nook in the gnarled tree's trunk, concealed by hanging moss. It looks like something might be hidden inside.",
+      triggerVerbs: ["search", "reach"],
+      triggerTarget: "nook",
+      aliases: ["hidden nook"],
+      condition: {
+        type: "stat_check" as const,
+        stat: "wis" as const,
+        dc: 12,
+      },
+      successMessage:
+        "Your keen perception reveals a hidden nook behind the moss. Inside, you find a forgotten trinket!",
+      failureMessage:
+        "You search the area but find nothing of interest. Perhaps someone with sharper senses might notice something you missed.",
+      successEffects: [
+        {
+          type: "give_item" as const,
+          itemId: "item-copper-coin",
+          quantity: 3,
+        },
+      ],
+      revealedText:
+        "Behind the hanging moss on the gnarled tree, you notice a hidden nook.",
+      isHidden: true,
+      isDiscovered: false,
+      discoveryScope: "personal", // Only visible to the player who discovers it
+    },
+    // Feature that reveals the hidden nook (personal discovery)
+    {
+      id: "feature-search-tree",
+      roomId: forestClearingId,
+      name: "search the gnarled tree",
+      description:
+        "The gnarled tree's twisted bark seems to hide many secrets.",
+      triggerVerbs: ["search", "examine"],
+      triggerTarget: "gnarled tree",
+      condition: {
+        type: "stat_check" as const,
+        stat: "wis" as const,
+        dc: 12,
+      },
+      successMessage:
+        "Your keen eyes spot something others might miss - a hidden nook concealed behind hanging moss!",
+      failureMessage:
+        "You examine the tree carefully but notice nothing unusual. The bark is rough and ancient, but reveals no secrets to you.",
+      revealsFeatureId: "feature-hidden-nook",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // ============================================
+    // Sparkling Stream features
+    // ============================================
+    {
+      id: "feature-stream-water",
+      roomId: sparklingStreamId,
+      name: "sparkling water",
+      description:
+        "The water sparkles hypnotically as light plays across its surface. The stream is deeper than it looks - you can't see the bottom through the glittering ripples. Something about the way the light bends suggests hidden depths below, secrets waiting to be discovered. The water looks inviting, if a bit cold.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-stream-stones",
+      roomId: sparklingStreamId,
+      name: "smooth stones",
+      description:
+        "Countless smooth stones line the stream banks, polished by ages of flowing water. Some are flat and perfect for skipping, others rounded like eggs. A few glint with flecks of mica.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-stream-banks",
+      roomId: sparklingStreamId,
+      name: "banks",
+      description:
+        "The banks slope gently down to the water's edge, carpeted with soft grass and small wildflowers. Faint animal tracks in the mud suggest this is a popular drinking spot for forest creatures.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // Hidden crevice - discovered by searching underwater
+    {
+      id: "feature-search-underwater",
+      roomId: sparklingStreamId,
+      name: "search underwater",
+      description:
+        "The water sparkles hypnotically as light plays across its surface. The stream is deeper than it looks - you can't see the bottom through the glittering ripples. Something about the way the light bends suggests hidden depths below, secrets waiting to be discovered. The water looks inviting, if a bit cold.",
+      triggerVerbs: ["search", "dive"],
+      triggerTarget: "water",
+      successMessage:
+        "You peer beneath the glittering surface, letting your eyes adjust to the depths. There - deep below, you spot a dark crevice in the streambed, barely visible in the shadows.",
+      revealsFeatureId: "feature-dark-crevice",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // Alternative trigger: search/dive stream
+    {
+      id: "feature-search-stream",
+      roomId: sparklingStreamId,
+      name: "search stream",
+      description:
+        "The water sparkles hypnotically as light plays across its surface. The stream is deeper than it looks - you can't see the bottom through the glittering ripples. Something about the way the light bends suggests hidden depths below, secrets waiting to be discovered. The water looks inviting, if a bit cold.",
+      triggerVerbs: ["search", "dive"],
+      triggerTarget: "stream",
+      successMessage:
+        "You peer beneath the glittering surface, letting your eyes adjust to the depths. There - deep below, you spot a dark crevice in the streambed, barely visible in the shadows.",
+      revealsFeatureId: "feature-dark-crevice",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // Alternative trigger: search/dive depths
+    {
+      id: "feature-search-depths",
+      roomId: sparklingStreamId,
+      name: "search depths",
+      description:
+        "The water sparkles hypnotically as light plays across its surface. The stream is deeper than it looks - you can't see the bottom through the glittering ripples. Something about the way the light bends suggests hidden depths below, secrets waiting to be discovered. The water looks inviting, if a bit cold.",
+      triggerVerbs: ["search", "dive"],
+      triggerTarget: "depths",
+      successMessage:
+        "You peer beneath the glittering surface, letting your eyes adjust to the depths. There - deep below, you spot a dark crevice in the streambed, barely visible in the shadows.",
+      revealsFeatureId: "feature-dark-crevice",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // Standalone dive command (no target needed - matches "dive" alone)
+    {
+      id: "feature-dive-standalone",
+      roomId: sparklingStreamId,
+      name: "dive",
+      description: "You could dive beneath the surface to explore.",
+      triggerVerbs: ["dive"],
+      triggerTarget: "",
+      successMessage:
+        "You take a breath and dive beneath the sparkling surface. As your eyes adjust to the underwater world, you spot something - a dark crevice in the streambed, barely visible in the shadows.",
+      revealsFeatureId: "feature-dark-crevice",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-dark-crevice",
+      roomId: sparklingStreamId,
+      name: "dark crevice",
+      description:
+        "A dark opening in the streambed, just wide enough for a person to squeeze through. The water above it seems to swirl slightly, hinting at a passage below. It would take a strong swimmer to reach it and push through.",
+      triggerVerbs: ["explore", "swim", "dive", "enter"],
+      triggerTarget: "crevice",
+      condition: {
+        type: "stat_check" as const,
+        stat: "str" as const,
+        dc: 16,
+      },
+      successMessage:
+        "You take a deep breath and dive down into the crevice. The passage is tight and dark, water pressing in from all sides. Your lungs burn as you push through the narrow gap. Just when you think you can't hold your breath any longer, you emerge into an underground pool, gasping for air!",
+      failureMessage:
+        "You dive into the crevice but run out of breath partway through. Panic sets in as the walls close around you. You barely make it back to the surface, coughing and sputtering.",
+      successEffects: [
+        { type: "teleport" as const, roomId: "room-hidden-cavern" },
+      ],
+      failureEffects: [{ type: "damage" as const, amount: 2 }],
+      revealedText:
+        "Deep below the surface, you notice a dark crevice in the streambed.",
+      isHidden: true,
+      isDiscovered: false,
+      discoveryScope: "personal",
+    },
+    // ============================================
+    // Hidden Cavern features
+    // ============================================
+    {
+      id: "feature-cavern-pool",
+      roomId: hiddenCavernId,
+      name: "underground pool",
+      description:
+        "The pool's dark waters are still and mirror-like, reflecting the faint light from above. It's impossible to tell how deep it goes. The water is surprisingly warm, heated perhaps by some geothermal source far below.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-cavern-ceiling",
+      roomId: hiddenCavernId,
+      name: "cavern ceiling",
+      description:
+        "The ceiling rises high above, lost in shadow except where narrow holes let in pale shafts of light. The holes are too small and too high to climb through, but they provide just enough illumination to see by. You can hear faint forest sounds drifting down from above.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-trailing-vines",
+      roomId: hiddenCavernId,
+      name: "trailing vines",
+      description:
+        "Long vines hang through the ceiling holes, their tendrils reaching down to brush the water's surface. They sway gently in some unfelt breeze. The vines look sturdy but are too high up and slippery with moisture to be useful for climbing.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-rocky-ledge",
+      roomId: hiddenCavernId,
+      name: "rocky ledge",
+      description:
+        "A natural stone ledge juts out from the cavern wall, offering a place to climb out of the pool. The rock is worn smooth in places, as if others have used this spot before. From here, you can see a passage leading up into the rock.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // Return passage to the stream
+    {
+      id: "feature-underwater-passage",
+      roomId: hiddenCavernId,
+      name: "underwater passage",
+      description:
+        "Beneath the pool's surface, you can see the dark opening of the passage you swam through to get here. The way back looks just as tight and treacherous as the way in.",
+      triggerVerbs: ["swim", "dive", "enter", "explore"],
+      triggerTarget: "passage",
+      condition: {
+        type: "stat_check" as const,
+        stat: "str" as const,
+        dc: 10,
+      },
+      successMessage:
+        "You dive into the pool and swim through the underwater passage. The way back feels shorter now that you know the route. You emerge in the sparkling stream, gasping for air but triumphant!",
+      failureMessage:
+        "You attempt the swim but the current fights against you. Lungs burning, you're forced to turn back, surfacing in the cavern pool with a gasp.",
+      successEffects: [
+        { type: "teleport" as const, roomId: "room-sparkling-stream" },
+      ],
+      failureEffects: [{ type: "damage" as const, amount: 1 }],
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // Alias for "crevice" to match the entry side terminology
+    {
+      id: "feature-underwater-passage-crevice",
+      roomId: hiddenCavernId,
+      name: "underwater passage",
+      description:
+        "Beneath the pool's surface, you can see the dark opening of the passage you swam through to get here. The way back looks just as tight and treacherous as the way in.",
+      triggerVerbs: ["swim", "dive", "enter", "explore"],
+      triggerTarget: "crevice",
+      condition: {
+        type: "stat_check" as const,
+        stat: "str" as const,
+        dc: 10,
+      },
+      successMessage:
+        "You dive into the pool and swim through the underwater passage. The way back feels shorter now that you know the route. You emerge in the sparkling stream, gasping for air but triumphant!",
+      failureMessage:
+        "You attempt the swim but the current fights against you. Lungs burning, you're forced to turn back, surfacing in the cavern pool with a gasp.",
+      successEffects: [
+        { type: "teleport" as const, roomId: "room-sparkling-stream" },
+      ],
+      failureEffects: [{ type: "damage" as const, amount: 1 }],
+      isHidden: false,
+      isDiscovered: false,
+    },
+    // ============================================
+    // Cave Passage features
+    // ============================================
+    {
+      id: "feature-passage-walls",
+      roomId: cavePassageId,
+      name: "rough walls",
+      description:
+        "The passage walls are rough and uneven, carved by water over countless ages. Strange mineral deposits glitter faintly in the dim light - perhaps quartz or something more valuable. The rock is cool and slightly damp to the touch.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-passage-rubble",
+      roomId: cavePassageId,
+      name: "rubble",
+      description:
+        "A pile of fallen rocks blocks the passage ahead. The collapse looks old, but some of the stones seem loose. With enough effort - or the right tools - it might be possible to clear a path. For now, the way forward is impassable.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-dripping-water",
+      roomId: cavePassageId,
+      name: "dripping water",
+      description:
+        "Water drips steadily from somewhere in the darkness ahead, each drop echoing off the stone walls. A small puddle has formed where the passage floor dips slightly. The sound is oddly soothing in the quiet of the caves.",
+      triggerVerbs: ["drink", "taste"],
+      triggerTarget: "water",
+      successMessage:
+        "You cup your hands and catch some of the dripping water. It's cold and pure, filtered through countless layers of rock. Refreshing!",
+      successEffects: [{ type: "heal" as const, amount: 1 }],
       isHidden: false,
       isDiscovered: false,
     },

@@ -1,13 +1,15 @@
 import { eq } from "drizzle-orm";
 import type { Server, Socket } from "socket.io";
 import { db } from "../db/index.js";
-import { players } from "../db/schema.js";
+import { players, users } from "../db/schema.js";
 import * as CombatService from "../services/CombatService.js";
 import * as CommandParser from "../services/CommandParser.js";
 import * as FeatureService from "../services/FeatureService.js";
 import * as RoomService from "../services/RoomService.js";
+import * as SwimmingService from "../services/SwimmingService.js";
 import type { CombatEvent } from "../types/combat.js";
 import type { Player } from "../types/player.js";
+import type { SwimmingEvent } from "../types/swimming.js";
 
 /** Data sent when a player enters a room */
 type RoomEnterData = {
@@ -28,6 +30,8 @@ type ChatMessageData = {
   content: string;
   sender?: string;
   timestamp: string;
+  /** Optional roll details to display (e.g., "d20+2 = 15") */
+  rollInfo?: string;
 };
 
 /** Data sent for player updates */
@@ -79,9 +83,45 @@ function broadcastCombatEvent(
     case "combat_start":
       message = `${event.attackerName} attacks ${event.defenderName}!`;
       break;
-    case "attack":
+    case "attack": {
       message = event.message;
+
+      // For attack events, we need to handle roll info specially
+      // Send to everyone without roll info, then send roll info privately to attacker
+      if (event.attackerId && event.rollInfo) {
+        // First, broadcast the message to everyone
+        const publicMessage: ChatMessageData = {
+          id: crypto.randomUUID(),
+          type: "system",
+          content: message,
+          timestamp: new Date().toISOString(),
+        };
+        ioInstance.to(socketRoom).emit("chat:message", publicMessage);
+
+        // Then send roll info privately to the attacker (if they have preference enabled)
+        const attackerSocket = playerSockets.get(event.attackerId);
+        if (attackerSocket && attackerSocket.player) {
+          // Check user preference
+          const user = db
+            .select({ preferences: users.preferences })
+            .from(users)
+            .where(eq(users.id, attackerSocket.player.userId))
+            .get();
+          if (user?.preferences?.showRolls) {
+            const rollMessage: ChatMessageData = {
+              id: crypto.randomUUID(),
+              type: "system",
+              content: "",
+              timestamp: new Date().toISOString(),
+              rollInfo: event.rollInfo,
+            };
+            attackerSocket.emit("chat:message", rollMessage);
+          }
+        }
+        return; // Already handled
+      }
       break;
+    }
     case "flee_success":
       message = `${event.playerName} flees ${event.direction}!`;
       break;
@@ -114,6 +154,17 @@ function broadcastCombatEvent(
           timestamp: new Date().toISOString(),
         };
         playerSocket.emit("chat:message", privateMessage);
+
+        // Feat slot message if they gained one
+        if (event.gainedFeatSlot) {
+          const featMessage: ChatMessageData = {
+            id: crypto.randomUUID(),
+            type: "system",
+            content: `You gained a feat slot! Use "feats" to see your options.`,
+            timestamp: new Date().toISOString(),
+          };
+          playerSocket.emit("chat:message", featMessage);
+        }
       }
       return; // Already handled, don't fall through to default broadcast
     }
@@ -129,6 +180,92 @@ function broadcastCombatEvent(
     type: "system",
     content: message,
     timestamp: new Date().toISOString(),
+  };
+
+  // If excluding a player, use their socket to broadcast to others
+  if (excludePlayerId) {
+    const excludeSocket = playerSockets.get(excludePlayerId);
+    if (excludeSocket) {
+      excludeSocket.to(socketRoom).emit("chat:message", chatMessage);
+      return;
+    }
+  }
+
+  // No exclusion, broadcast to everyone
+  ioInstance.to(socketRoom).emit("chat:message", chatMessage);
+}
+
+/**
+ * Broadcast a swimming event to a room
+ * @param roomId - The game room ID
+ * @param event - The swimming event to broadcast
+ * @param excludePlayerId - Optional player ID to exclude from broadcast
+ */
+function broadcastSwimmingEvent(
+  roomId: string,
+  event: SwimmingEvent,
+  excludePlayerId?: string,
+): void {
+  if (!ioInstance) return;
+
+  const socketRoom = getSocketRoomName(roomId);
+  let message: string;
+
+  switch (event.type) {
+    case "swim_start":
+      message = `${event.playerName} wades into the water and begins swimming.`;
+      break;
+    case "swim_stop":
+      message = `${event.playerName} climbs out of the water.`;
+      break;
+    case "swim_check": {
+      // For swim checks, send personal message to the player
+      // Only broadcast to others if they failed (to reduce noise)
+      const playerSocket = excludePlayerId
+        ? playerSockets.get(excludePlayerId)
+        : null;
+
+      // Always send personal message to the swimming player
+      if (playerSocket && event.personalMessage) {
+        const personalChatMessage: ChatMessageData = {
+          id: crypto.randomUUID(),
+          type: "system",
+          content: event.personalMessage,
+          timestamp: new Date().toISOString(),
+          rollInfo: event.rollInfo,
+        };
+        playerSocket.emit("chat:message", personalChatMessage);
+      }
+
+      // Only broadcast to others if the check failed (dramatic moment)
+      if (!event.passed) {
+        const thirdPersonMessage: ChatMessageData = {
+          id: crypto.randomUUID(),
+          type: "system",
+          content: event.message,
+          timestamp: new Date().toISOString(),
+        };
+        if (playerSocket) {
+          playerSocket.to(socketRoom).emit("chat:message", thirdPersonMessage);
+        } else {
+          ioInstance.to(socketRoom).emit("chat:message", thirdPersonMessage);
+        }
+      }
+      return;
+    }
+    case "swim_drown":
+      message = `${event.playerName} slips beneath the surface and doesn't come back up...`;
+      break;
+    default:
+      return;
+  }
+
+  const chatMessage: ChatMessageData = {
+    id: crypto.randomUUID(),
+    type: "system",
+    content: message,
+    timestamp: new Date().toISOString(),
+    rollInfo: event.type === "swim_check" ? event.rollInfo : undefined,
   };
 
   // If excluding a player, use their socket to broadcast to others
@@ -181,8 +318,11 @@ async function handlePlayerDeathRespawn(
     xp: updatedPlayer.xp,
   };
 
-  // Get respawn room data
-  const respawnRoom = await RoomService.getRoomWithContents(respawnRoomId);
+  // Get respawn room data (include player's personal discoveries)
+  const respawnRoom = await RoomService.getRoomWithContents(
+    respawnRoomId,
+    socket.player.id,
+  );
   if (!respawnRoom) return;
 
   // Send respawn message and new room data to the player
@@ -259,8 +399,11 @@ export async function handleConnection(
     playersInRoom.length - 1,
   );
 
-  // Get room data to send to the player
-  const roomData = await RoomService.getRoomWithContents(player.currentRoomId);
+  // Get room data to send to the player (include player's personal discoveries)
+  const roomData = await RoomService.getRoomWithContents(
+    player.currentRoomId,
+    player.id,
+  );
   if (!roomData) {
     socket.emit("error", { message: "Room not found" });
     return;
@@ -303,6 +446,9 @@ export async function handleDisconnect(
     await CombatService.handleDisconnect(player.id);
   }
 
+  // Clean up swimming state
+  SwimmingService.cleanupPlayer(player.id);
+
   // Update online status
   await updateOnlineStatus(player.id, false);
 
@@ -333,8 +479,11 @@ export async function handleCommand(
     return;
   }
 
-  // Get current room
-  const room = await RoomService.getRoomWithContents(player.currentRoomId);
+  // Get current room (include player's personal discoveries)
+  const room = await RoomService.getRoomWithContents(
+    player.currentRoomId,
+    player.id,
+  );
   if (!room) {
     socket.emit("error", { message: "Room not found" });
     return;
@@ -352,11 +501,25 @@ export async function handleCommand(
 
   // Send result message to the player
   if (result.message) {
+    // Check if user wants to see roll info
+    let rollInfo: string | undefined;
+    if (result.rollInfo) {
+      const user = await db
+        .select({ preferences: users.preferences })
+        .from(users)
+        .where(eq(users.id, player.userId))
+        .get();
+      if (user?.preferences?.showRolls) {
+        rollInfo = result.rollInfo;
+      }
+    }
+
     const messageData: ChatMessageData = {
       id: crypto.randomUUID(),
       type: result.success ? "system" : "error",
       content: result.message,
       timestamp: new Date().toISOString(),
+      rollInfo,
     };
     socket.emit("chat:message", messageData);
   }
@@ -390,6 +553,9 @@ export async function handleCommand(
     await handleRoomChange(io, socket, player);
   } else if (parsed.action === "flee" && result.success) {
     // Flee also causes room change
+    await handleRoomChange(io, socket, player);
+  } else if (result.roomChanged) {
+    // Teleport effect from feature interaction
     await handleRoomChange(io, socket, player);
   }
 }
@@ -448,8 +614,11 @@ async function handleRoomChange(
     playersInNewRoom.length - 1,
   );
 
-  // Get new room data
-  const newRoomData = await RoomService.getRoomWithContents(newRoomId);
+  // Get new room data (include player's personal discoveries)
+  const newRoomData = await RoomService.getRoomWithContents(
+    newRoomId,
+    player.id,
+  );
   if (newRoomData) {
     // Send full room data to the moving player
     const enterData: RoomEnterData = {
@@ -527,6 +696,7 @@ export function registerHandlers(io: Server, socket: Socket): void {
     ioInstance = io;
     CombatService.setBroadcaster(broadcastCombatEvent);
     CombatService.setDeathCallback(handlePlayerDeathRespawn);
+    SwimmingService.setBroadcaster(broadcastSwimmingEvent);
   }
 
   // Handle connection setup

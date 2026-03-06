@@ -75,6 +75,7 @@ export async function getItem(
         const feature = await FeatureService.findFeatureByName(
           roomId,
           itemName,
+          playerId,
         );
         if (feature?.refuseGetMessage) {
           return { success: false, message: feature.refuseGetMessage };
@@ -283,6 +284,7 @@ export async function getItemFromContainer(
         const feature = await FeatureService.findFeatureByName(
           roomId,
           containerName,
+          playerId,
         );
         if (feature?.refuseGetMessage) {
           return { success: false, message: feature.refuseGetMessage };
@@ -591,6 +593,7 @@ export async function putItemInContainer(
         const feature = await FeatureService.findFeatureByName(
           roomId,
           containerName,
+          playerId,
         );
         if (feature?.refuseDropMessage) {
           return { success: false, message: feature.refuseDropMessage };

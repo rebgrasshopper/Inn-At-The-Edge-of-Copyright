@@ -111,6 +111,64 @@ export function rollD20(modifier: number = 0): number {
 }
 
 /**
+ * Result of a d20 roll with details for display
+ */
+export type D20RollResult = {
+  total: number; // Final result (roll + modifier)
+  roll: number; // Raw die roll (1-20)
+  modifier: number; // Modifier applied
+  formula: string; // Human-readable: "d20+3 = 17"
+};
+
+/**
+ * Roll a d20 and return detailed result for display
+ * @param modifier - Modifier to add to the roll
+ * @returns D20RollResult with total, raw roll, modifier, and formatted string
+ */
+export function rollD20WithDetails(modifier: number = 0): D20RollResult {
+  const roll = Math.floor(Math.random() * 20) + 1;
+  const total = roll + modifier;
+  const modStr = modifier >= 0 ? `+${modifier}` : `${modifier}`;
+  const formula = `d20${modStr} = ${total}`;
+
+  return { total, roll, modifier, formula };
+}
+
+/**
+ * Result of a damage roll with details for display
+ */
+export type DamageRollResult = {
+  total: number; // Final damage
+  rolls: number[]; // Individual die results
+  modifier: number; // Modifier applied
+  formula: string; // Human-readable: "d6+2 = 7"
+};
+
+/**
+ * Roll damage dice and return detailed result for display
+ * @param notation - Dice notation string (e.g., "1d6", "2d4+1")
+ * @returns DamageRollResult with details, or null if invalid notation
+ */
+export function rollDamageWithDetails(
+  notation: string,
+): DamageRollResult | null {
+  const parsed = parseDiceNotation(notation);
+  if (!parsed) {
+    return null;
+  }
+
+  const result = rollDice(parsed);
+  const formula = `${notation} = ${result.total}`;
+
+  return {
+    total: result.total,
+    rolls: result.rolls,
+    modifier: result.modifier,
+    formula,
+  };
+}
+
+/**
  * Format a roll result for display
  * @param result - The roll result to format
  * @param notation - Original notation for context

@@ -1,9 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
-  containers,
   corpses,
-  features,
   items,
   monsterInstances,
   monsters,
@@ -91,13 +89,19 @@ export async function getRoomsByRegion(region: string): Promise<Room[]> {
 /**
  * Get a room with all its contents (players, items, monsters, NPCs, containers, features)
  * @param roomId - The room's unique identifier
+ * @param playerId - Optional player ID to include their personal discoveries
  * @returns The room with all contents or null if room not found
  */
 export async function getRoomWithContents(
   roomId: string,
+  playerId?: string,
 ): Promise<RoomWithContents | null> {
   const room = await getRoom(roomId);
   if (!room) return null;
+
+  // Import FeatureService functions for personal discovery support
+  const { getFeaturesInRoom, getContainersInRoom } =
+    await import("./FeatureService.js");
 
   // Fetch all contents in parallel
   const [
@@ -105,8 +109,8 @@ export async function getRoomWithContents(
     roomItemRecords,
     roomMonsterRecords,
     roomNpcs,
-    roomContainers,
-    roomFeatures,
+    roomContainersFiltered,
+    roomFeaturesFiltered,
     roomCorpses,
   ] = await Promise.all([
     getPlayersInRoom(roomId),
@@ -121,8 +125,8 @@ export async function getRoomWithContents(
       .innerJoin(monsters, eq(monsterInstances.monsterId, monsters.id))
       .where(eq(monsterInstances.roomId, roomId)),
     db.select().from(npcs).where(eq(npcs.roomId, roomId)),
-    db.select().from(containers).where(eq(containers.roomId, roomId)),
-    db.select().from(features).where(eq(features.roomId, roomId)),
+    getContainersInRoom(roomId, playerId),
+    getFeaturesInRoom(roomId, playerId),
     db
       .select()
       .from(corpses)
@@ -139,6 +143,7 @@ export async function getRoomWithContents(
       description: record.items.description,
       category: record.items.category || undefined,
       isBulk: record.items.isBulk || undefined,
+      size: record.items.size,
       effects: {
         str: record.items.strEffect || undefined,
         dex: record.items.dexEffect || undefined,
@@ -185,41 +190,9 @@ export async function getRoomWithContents(
     roomId: record.roomId,
   }));
 
-  // Transform containers (only non-hidden ones, or discovered hidden ones)
-  const transformedContainers: Container[] = roomContainers
-    .filter((c) => !c.isHidden)
-    .map((record) => ({
-      id: record.id,
-      roomId: record.roomId,
-      name: record.name,
-      description: record.description,
-      aliases: (record.aliases as string[]) || undefined,
-      revealedText: record.revealedText || undefined,
-      isHidden: record.isHidden || false,
-      isOpen: record.isOpen || false,
-      revealCommand: record.revealCommand || undefined,
-    }));
-
-  // Transform features (only non-hidden ones)
-  const transformedFeatures: Feature[] = roomFeatures
-    .filter((f) => !f.isHidden)
-    .map((record) => ({
-      id: record.id,
-      roomId: record.roomId,
-      name: record.name,
-      description: record.description,
-      triggerVerbs: (record.triggerVerbs as string[]) || [],
-      triggerTarget: record.triggerTarget || "",
-      condition: record.condition,
-      successMessage: record.successMessage || undefined,
-      failureMessage: record.failureMessage || undefined,
-      successEffects: record.successEffects || undefined,
-      failureEffects: record.failureEffects || undefined,
-      revealsFeatureId: record.revealsFeatureId || undefined,
-      revealsContainerId: record.revealsContainerId || undefined,
-      isHidden: record.isHidden || false,
-      isDiscovered: record.isDiscovered || false,
-    }));
+  // Containers and features are already filtered by FeatureService (includes personal discoveries)
+  const transformedContainers: Container[] = roomContainersFiltered;
+  const transformedFeatures: Feature[] = roomFeaturesFiltered;
 
   // Transform corpses
   const transformedCorpses: RoomCorpse[] = roomCorpses.map((record) => ({
@@ -229,10 +202,16 @@ export async function getRoomWithContents(
     roomId: record.corpses.roomId,
   }));
 
-  // Compose full description: description + revealed container texts + navDescription
-  const revealedTexts = transformedContainers
+  // Compose full description: description + revealed container/feature texts + navDescription
+  const containerRevealedTexts = transformedContainers
     .filter((c): c is Container & { revealedText: string } => !!c.revealedText)
     .map((c) => c.revealedText);
+
+  const featureRevealedTexts = transformedFeatures
+    .filter((f): f is Feature & { revealedText: string } => !!f.revealedText)
+    .map((f) => f.revealedText);
+
+  const revealedTexts = [...containerRevealedTexts, ...featureRevealedTexts];
 
   const descriptionParts = [room.description];
   if (revealedTexts.length > 0) {
@@ -307,8 +286,8 @@ export async function movePlayer(
     .set({ currentRoomId: exit.roomId })
     .where(eq(players.id, playerId));
 
-  // Get the new room with contents
-  const newRoom = await getRoomWithContents(exit.roomId);
+  // Get the new room with contents (include player's personal discoveries)
+  const newRoom = await getRoomWithContents(exit.roomId, playerId);
   if (!newRoom) {
     return { success: false, error: "Destination room not found" };
   }

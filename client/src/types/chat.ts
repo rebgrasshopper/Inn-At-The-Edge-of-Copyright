@@ -17,4 +17,6 @@ export type ChatMessage = {
   content: string;
   sender?: string;
   timestamp: Date;
+  /** Optional roll details to display (e.g., "d20+2 = 15 vs DC 12") */
+  rollInfo?: string;
 };

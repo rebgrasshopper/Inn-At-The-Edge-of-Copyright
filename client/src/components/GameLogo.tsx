@@ -20,7 +20,7 @@ export const GAME_LOGO_ASCII = `
 /**
  * Subtitle showing the expanded name with terminal-style path.
  */
-export const GAME_SUBTITLE = "> pwd\n/Pixelless/World/Dungeon";
+export const GAME_SUBTITLE = "> pwd\n/Pixelless/Word/Dungeon";
 
 /**
  * Compact header logo component for the page header.

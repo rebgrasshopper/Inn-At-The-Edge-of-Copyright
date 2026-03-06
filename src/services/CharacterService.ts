@@ -99,6 +99,8 @@ export async function createCharacter(
       unspentAttributePoints: 0,
       isOnline: false,
       equipment: emptyEquipment(),
+      discoveredFeatureIds: [],
+      discoveredContainerIds: [],
     };
 
     return { success: true, player };

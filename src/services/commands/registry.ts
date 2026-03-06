@@ -33,6 +33,8 @@ import {
   handleUnequip,
 } from "./handlers/items.js";
 import { handleMove } from "./handlers/movement.js";
+import { handleToggle } from "./handlers/settings.js";
+import { handleSwim } from "./handlers/swimming.js";
 
 /**
  * Command registry. TypeScript will error if any Command enum
@@ -278,6 +280,26 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
       usage: ["stance", "stance <name>", "stance off"],
       aliases: getAliasesForCommand(Command.Stance),
       examples: ["stance", "stance Power Attack", "stance off"],
+    },
+  },
+
+  [Command.Toggle]: {
+    handler: handleToggle,
+    help: {
+      summary: "Toggle display settings on or off",
+      usage: ["toggle <setting>"],
+      aliases: getAliasesForCommand(Command.Toggle),
+      examples: ["toggle rolls"],
+    },
+  },
+
+  [Command.Swim]: {
+    handler: handleSwim,
+    help: {
+      summary: "Start or stop swimming in water",
+      usage: ["swim", "stop swimming", "stop"],
+      aliases: getAliasesForCommand(Command.Swim),
+      examples: ["swim", "stop swimming", "stop"],
     },
   },
 };

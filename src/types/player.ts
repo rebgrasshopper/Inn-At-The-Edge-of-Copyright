@@ -57,4 +57,7 @@ export type Player = {
   unspentAttributePoints: number;
   isOnline: boolean;
   equipment: PlayerEquipment;
+  // Personal discoveries (features/containers only this player can see)
+  discoveredFeatureIds: string[];
+  discoveredContainerIds: string[];
 };

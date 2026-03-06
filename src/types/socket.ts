@@ -22,6 +22,8 @@ export type ChatMessageData = {
   content: string;
   sender?: string;
   timestamp: string;
+  /** Optional roll details to display (e.g., "d20+2 = 15") */
+  rollInfo?: string;
 };
 
 export type CombatActionData = {

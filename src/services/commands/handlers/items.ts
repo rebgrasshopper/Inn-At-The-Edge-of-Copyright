@@ -298,7 +298,11 @@ export async function handleExamine(
 
   // If item not found, check for a feature by name (just show description)
   if (!result.success) {
-    const feature = await FeatureService.findFeatureByName(room.id, target);
+    const feature = await FeatureService.findFeatureByName(
+      room.id,
+      target,
+      player.id,
+    );
     if (feature) {
       return { success: true, message: feature.description };
     }
