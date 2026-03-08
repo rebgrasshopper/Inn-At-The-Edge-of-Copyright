@@ -442,6 +442,9 @@ function scheduleAttack(
       type: "attack",
       message: result.message,
       attackerId: currentAttacker.type === "player" ? attackerId : undefined,
+      defenderId: currentDefender.type === "player" ? defenderId : undefined,
+      defenderType: currentDefender.type,
+      hit: result.hit,
       rollInfo: result.rollInfo,
     });
 
@@ -1042,6 +1045,7 @@ export async function handleMonsterDeath(
         type: "monster_death",
         monsterName: monster.name,
         killerName: killer.name,
+        killerId: killerPlayerId,
         xpAwarded: xpReward,
       });
     }

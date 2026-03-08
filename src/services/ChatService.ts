@@ -101,7 +101,7 @@ export async function speak(
 
   const chatMessage: ChatMessageData = {
     id: uuidv4(),
-    type: "chat",
+    type: "speech",
     content: message.trim(),
     sender: playerInfo.name,
     timestamp: new Date().toISOString(),
@@ -135,7 +135,7 @@ export async function shout(
 
   const chatMessage: ChatMessageData = {
     id: uuidv4(),
-    type: "chat",
+    type: "speech",
     content: message.trim().toUpperCase(), // Shouting is loud!
     sender: playerInfo.name,
     timestamp: new Date().toISOString(),

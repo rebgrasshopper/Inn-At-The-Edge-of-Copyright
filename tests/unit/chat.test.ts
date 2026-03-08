@@ -112,7 +112,7 @@ describe("ChatService", () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toBeDefined();
-      expect(result.message!.type).toBe("chat");
+      expect(result.message!.type).toBe("speech");
       expect(result.message!.content).toBe("Hello everyone!");
       expect(result.message!.sender).toBe("ChatPlayer1");
       expect(result.scope).toEqual({ type: "room", roomId: testRoom1Id });
@@ -146,7 +146,7 @@ describe("ChatService", () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toBeDefined();
-      expect(result.message!.type).toBe("chat");
+      expect(result.message!.type).toBe("speech");
       expect(result.message!.content).toBe("HELP!"); // Uppercase for shouting
       expect(result.message!.sender).toBe("ChatPlayer1");
       expect(result.scope).toEqual({ type: "region", region: "chatregion" });

@@ -4,15 +4,7 @@ import * as fc from "fast-check";
 import { afterAll, beforeAll, describe, expect } from "vitest";
 import { db } from "../../src/db/index.js";
 import {
-  containerInventory,
-  containers,
-  features,
   items,
-  monsterInstances,
-  monsterSpawns,
-  monsters,
-  npcs,
-  playerFeats,
   playerInventory,
   players,
   roomInventory,
@@ -22,26 +14,30 @@ import {
 import * as ItemService from "../../src/services/items/index.js";
 import { quantityArb } from "../generators/item.generator.js";
 
-// Dummy usage to prevent auto-removal of playerFeats import
-const _playerFeatsTable = playerFeats;
-
 const testUserId = "test-user-item-prop";
 
+/**
+ * Clean up only the test-specific data created by this test file.
+ * Does not delete seeded data to avoid foreign key issues.
+ */
 async function cleanupTestData() {
-  await db.delete(containerInventory);
-  await db.delete(monsterInstances);
-  await db.delete(monsterSpawns);
-  await db.delete(roomInventory);
-  await db.delete(playerInventory);
-  await db.delete(features);
-  await db.delete(containers);
-  await db.delete(npcs);
-  await db.delete(playerFeats);
-  await db.delete(players);
-  await db.delete(monsters);
-  await db.delete(items);
-  await db.delete(rooms);
-  await db.delete(users);
+  // Delete player inventory for our test players
+  await db
+    .delete(playerInventory)
+    .where(
+      eq(
+        playerInventory.playerId,
+        db
+          .select({ id: players.id })
+          .from(players)
+          .where(eq(players.userId, testUserId))
+          .limit(1),
+      ),
+    );
+  // Delete players created by this test
+  await db.delete(players).where(eq(players.userId, testUserId));
+  // Delete our test user
+  await db.delete(users).where(eq(users.id, testUserId));
 }
 
 beforeAll(async () => {

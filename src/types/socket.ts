@@ -18,7 +18,18 @@ export type RoomUpdateData = {
 
 export type ChatMessageData = {
   id: string;
-  type: "chat" | "system" | "combat" | "error" | "whisper" | "emote";
+  type:
+    | "chat"
+    | "system"
+    | "combat"
+    | "error"
+    | "whisper"
+    | "emote"
+    | "damage"
+    | "healing"
+    | "xpGain"
+    | "speech"
+    | "roomName";
   content: string;
   sender?: string;
   timestamp: string;

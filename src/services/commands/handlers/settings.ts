@@ -5,6 +5,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../../db/index.js";
 import { users, type UserPreferences } from "../../../db/schema.js";
+import { clearPrefsCache } from "../../../socket/handlers.js";
 import type { CommandContext, CommandResult } from "../../../types/command.js";
 
 /** Valid toggle settings and their display names */
@@ -14,6 +15,7 @@ const TOGGLE_SETTINGS: Record<
 > = {
   rolls: { key: "showRolls", name: "dice rolls" },
   dice: { key: "showRolls", name: "dice rolls" },
+  colors: { key: "showColors", name: "enhanced colors" },
 };
 
 /**
@@ -70,6 +72,9 @@ export async function handleToggle(
     .update(users)
     .set({ preferences: newPrefs })
     .where(eq(users.id, user.id));
+
+  // Clear the preferences cache so new setting takes effect immediately
+  clearPrefsCache(user.id);
 
   const status = newValue ? "ON" : "OFF";
   return {

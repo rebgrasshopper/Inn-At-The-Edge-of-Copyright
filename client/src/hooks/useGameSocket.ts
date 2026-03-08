@@ -30,6 +30,20 @@ function systemMessage(content: string): ChatMessage {
 }
 
 /**
+ * Creates a room name message object (bright white styling).
+ * @param content - Room name
+ * @returns ChatMessage object with roomName type
+ */
+function roomNameMessage(content: string): ChatMessage {
+  return {
+    id: generateId(),
+    type: "roomName",
+    content,
+    timestamp: new Date(),
+  };
+}
+
+/**
  * Formats a room's contents into display messages.
  * @param room - The room to format
  * @param currentPlayerId - The current player's ID (to exclude from player list)
@@ -99,9 +113,16 @@ export function useGameSocket(socket: Socket | null): void {
       dispatch({ type: "SET_ROOM", payload: data.room });
       dispatch({ type: "SET_PLAYER", payload: data.player });
 
-      // Show full room description
+      // Show room name with special styling
+      dispatch({
+        type: "ADD_MESSAGE",
+        payload: roomNameMessage(data.room.name),
+      });
+
+      // Show rest of room description
       const roomLines = formatRoomDescription(data.room, data.player.id);
-      for (const line of roomLines) {
+      // Skip first line (room name) since we already added it
+      for (const line of roomLines.slice(1)) {
         dispatch({
           type: "ADD_MESSAGE",
           payload: systemMessage(line),
@@ -112,9 +133,16 @@ export function useGameSocket(socket: Socket | null): void {
     const handleRoomLook = (data: { room: Room }) => {
       dispatch({ type: "SET_ROOM", payload: data.room });
 
-      // Show full room description (use current player from state)
+      // Show room name with special styling
+      dispatch({
+        type: "ADD_MESSAGE",
+        payload: roomNameMessage(data.room.name),
+      });
+
+      // Show rest of room description
       const roomLines = formatRoomDescription(data.room);
-      for (const line of roomLines) {
+      // Skip first line (room name) since we already added it
+      for (const line of roomLines.slice(1)) {
         dispatch({
           type: "ADD_MESSAGE",
           payload: systemMessage(line),

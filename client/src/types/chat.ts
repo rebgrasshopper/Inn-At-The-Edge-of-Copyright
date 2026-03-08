@@ -9,7 +9,12 @@ export type MessageType =
   | "error"
   | "whisper"
   | "emote"
-  | "logo";
+  | "logo"
+  | "damage"
+  | "healing"
+  | "xpGain"
+  | "speech"
+  | "roomName";
 
 export type ChatMessage = {
   id: string;

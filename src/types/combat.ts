@@ -98,6 +98,9 @@ export type CombatEvent =
       type: "attack";
       message: string;
       attackerId?: string;
+      defenderId?: string;
+      defenderType?: "player" | "monster";
+      hit?: boolean;
       rollInfo?: string;
     }
   | { type: "flee_success"; playerName: string; direction: string }
@@ -107,6 +110,7 @@ export type CombatEvent =
       type: "monster_death";
       monsterName: string;
       killerName: string;
+      killerId: string;
       xpAwarded: number;
     }
   | {

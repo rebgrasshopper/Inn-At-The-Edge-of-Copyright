@@ -43,7 +43,7 @@ export type PlayerEffect =
 // User preferences type
 export type UserPreferences = {
   showRolls?: boolean;
-  colors?: Record<string, string>;
+  showColors?: boolean;
 };
 
 // Users table (authentication)

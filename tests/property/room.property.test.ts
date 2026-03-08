@@ -1,19 +1,16 @@
 import { test } from "@fast-check/vitest";
 import { randomUUID } from "crypto";
+import { eq, like } from "drizzle-orm";
 import * as fc from "fast-check";
 import { afterAll, beforeAll, describe, expect } from "vitest";
 import { db } from "../../src/db/index.js";
 import {
-  containerInventory,
   containers,
   features,
   items,
   monsterInstances,
-  monsterSpawns,
   monsters,
   npcs,
-  playerFeats,
-  playerInventory,
   players as playersTable,
   roomInventory,
   rooms,
@@ -26,9 +23,6 @@ import {
   exitsWithBlockedArb,
 } from "../generators/room.generator.js";
 
-// Dummy usage to prevent auto-removal of playerFeats import
-const _playerFeatsTable = playerFeats;
-
 const DIRECTIONS: Direction[] = [
   "north",
   "south",
@@ -38,23 +32,37 @@ const DIRECTIONS: Direction[] = [
   "down",
 ];
 
+// Test prefix for isolation
+const TEST_PREFIX = "prop-room-";
 let testUserId: string;
 
+/**
+ * Clean up only the test-specific data created by this test file.
+ * Does not delete seeded data to avoid foreign key issues.
+ */
 async function cleanupTestData() {
-  await db.delete(containerInventory);
-  await db.delete(monsterInstances);
-  await db.delete(monsterSpawns);
-  await db.delete(roomInventory);
-  await db.delete(playerInventory);
-  await db.delete(features);
-  await db.delete(containers);
-  await db.delete(npcs);
-  await db.delete(playerFeats);
-  await db.delete(playersTable);
-  await db.delete(monsters);
-  await db.delete(items);
-  await db.delete(rooms);
-  await db.delete(users);
+  // Delete test data using our prefix patterns
+  await db
+    .delete(monsterInstances)
+    .where(like(monsterInstances.roomId, `${TEST_PREFIX}%`));
+  await db
+    .delete(roomInventory)
+    .where(like(roomInventory.roomId, `${TEST_PREFIX}%`));
+  await db.delete(features).where(like(features.roomId, `${TEST_PREFIX}%`));
+  await db.delete(containers).where(like(containers.roomId, `${TEST_PREFIX}%`));
+  await db.delete(npcs).where(like(npcs.roomId, `${TEST_PREFIX}%`));
+  await db.delete(playersTable).where(like(playersTable.id, `prop8-player-%`));
+  await db.delete(playersTable).where(like(playersTable.id, `prop9-player-%`));
+  await db.delete(monsters).where(like(monsters.id, `prop8-monster-%`));
+  await db.delete(items).where(like(items.id, `prop8-item-%`));
+  await db.delete(rooms).where(like(rooms.id, `${TEST_PREFIX}%`));
+  await db.delete(rooms).where(like(rooms.id, `prop8-room-%`));
+  await db.delete(rooms).where(like(rooms.id, `prop9-room%`));
+  // Delete our test user if it exists
+  if (testUserId) {
+    await db.delete(playersTable).where(eq(playersTable.userId, testUserId));
+    await db.delete(users).where(eq(users.id, testUserId));
+  }
 }
 
 beforeAll(async () => {
@@ -211,14 +219,24 @@ describe("Room Property Tests", () => {
         expect(room!.containers).toHaveLength(containerCount);
         expect(room!.features).toHaveLength(featureCount);
 
-        // Cleanup
-        await cleanupTestData();
-        await db.insert(users).values({
-          id: testUserId,
-          username: `proptest_room_${randomUUID().slice(0, 8)}`,
-          passwordHash: "hashedpassword",
-          createdAt: new Date(),
-        });
+        // Cleanup this iteration's data
+        await db
+          .delete(monsterInstances)
+          .where(eq(monsterInstances.roomId, roomId));
+        await db.delete(roomInventory).where(eq(roomInventory.roomId, roomId));
+        await db.delete(features).where(eq(features.roomId, roomId));
+        await db.delete(containers).where(eq(containers.roomId, roomId));
+        await db.delete(npcs).where(eq(npcs.roomId, roomId));
+        await db
+          .delete(playersTable)
+          .where(like(playersTable.id, `prop8-player-%`));
+        if (monsterCount > 0) {
+          await db.delete(monsters).where(eq(monsters.id, monsterDefId));
+        }
+        for (const itemId of itemIds) {
+          await db.delete(items).where(eq(items.id, itemId));
+        }
+        await db.delete(rooms).where(eq(rooms.id, roomId));
       },
     );
   });
@@ -299,14 +317,10 @@ describe("Room Property Tests", () => {
           expect(result.error).toBe("The way is blocked.");
         }
 
-        // Cleanup
-        await cleanupTestData();
-        await db.insert(users).values({
-          id: testUserId,
-          username: `proptest_room_${randomUUID().slice(0, 8)}`,
-          passwordHash: "hashedpassword",
-          createdAt: new Date(),
-        });
+        // Cleanup this iteration's data
+        await db.delete(playersTable).where(eq(playersTable.id, playerId));
+        await db.delete(rooms).where(eq(rooms.id, room1Id));
+        await db.delete(rooms).where(eq(rooms.id, room2Id));
       },
     );
   });

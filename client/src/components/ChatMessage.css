@@ -15,6 +15,11 @@
   color: #e5e5e5;
 }
 
+/* Speech uses same color as chat when colors are off, bright white when on */
+.msg-speech {
+  color: #ffffff;
+}
+
 .msg-system {
   color: #9ca3af;
 }
@@ -44,6 +49,28 @@
   line-height: 1.1;
   color: #4ade80;
   white-space: pre;
+}
+
+/* Enhanced color message types (when colors toggle is ON) */
+.msg-damage {
+  color: #ef4444;
+}
+
+.msg-healing {
+  color: #4ade80;
+}
+
+.msg-xpGain {
+  color: #60a5fa;
+}
+
+.msg-speech {
+  color: #ffffff;
+}
+
+.msg-roomName {
+  color: #ffffff;
+  font-weight: 500;
 }
 
 /* Roll info styling - right-aligned, gray */

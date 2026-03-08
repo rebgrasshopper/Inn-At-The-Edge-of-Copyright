@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { Server, Socket } from "socket.io";
 import { db } from "../db/index.js";
-import { players, users } from "../db/schema.js";
+import { players, users, type UserPreferences } from "../db/schema.js";
 import * as CombatService from "../services/CombatService.js";
 import * as CommandParser from "../services/CommandParser.js";
 import * as FeatureService from "../services/FeatureService.js";
@@ -10,6 +10,39 @@ import * as SwimmingService from "../services/SwimmingService.js";
 import type { CombatEvent } from "../types/combat.js";
 import type { Player } from "../types/player.js";
 import type { SwimmingEvent } from "../types/swimming.js";
+
+/** Cache of user preferences by userId */
+const userPrefsCache = new Map<string, UserPreferences>();
+
+/**
+ * Get user preferences, using cache when available
+ * @param userId - The user ID
+ * @returns User preferences or empty object
+ */
+async function getUserPreferences(userId: string): Promise<UserPreferences> {
+  const cached = userPrefsCache.get(userId);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const user = await db
+    .select({ preferences: users.preferences })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+
+  const prefs = user?.preferences || {};
+  userPrefsCache.set(userId, prefs);
+  return prefs;
+}
+
+/**
+ * Clear cached preferences for a user (call when preferences change)
+ * @param userId - The user ID
+ */
+export function clearPrefsCache(userId: string): void {
+  userPrefsCache.delete(userId);
+}
 
 /** Data sent when a player enters a room */
 type RoomEnterData = {
@@ -26,7 +59,18 @@ type RoomLeaveData = {
 /** Data sent for chat messages */
 type ChatMessageData = {
   id: string;
-  type: "system" | "error" | "speak" | "shout" | "whisper" | "emote";
+  type:
+    | "system"
+    | "error"
+    | "speak"
+    | "shout"
+    | "whisper"
+    | "emote"
+    | "damage"
+    | "healing"
+    | "xpGain"
+    | "speech"
+    | "roomName";
   content: string;
   sender?: string;
   timestamp: string;
@@ -69,11 +113,11 @@ export function getPlayerRoomName(playerId: string): string {
  * @param event - The combat event to broadcast
  * @param excludePlayerId - Optional player ID to exclude from broadcast
  */
-function broadcastCombatEvent(
+async function broadcastCombatEvent(
   roomId: string,
   event: CombatEvent,
   excludePlayerId?: string,
-): void {
+): Promise<void> {
   if (!ioInstance) return;
 
   const socketRoom = getSocketRoomName(roomId);
@@ -88,35 +132,71 @@ function broadcastCombatEvent(
 
       // For attack events, we need to handle roll info specially
       // Send to everyone without roll info, then send roll info privately to attacker
-      if (event.attackerId && event.rollInfo) {
-        // First, broadcast the message to everyone
+      // Also send damage-colored message to defender if they have colors enabled
+      if (event.attackerId || event.defenderId) {
+        // Build base message for room broadcast
         const publicMessage: ChatMessageData = {
           id: crypto.randomUUID(),
           type: "system",
           content: message,
           timestamp: new Date().toISOString(),
         };
-        ioInstance.to(socketRoom).emit("chat:message", publicMessage);
 
-        // Then send roll info privately to the attacker (if they have preference enabled)
-        const attackerSocket = playerSockets.get(event.attackerId);
+        // Get sockets for attacker and defender
+        const attackerSocket = event.attackerId
+          ? playerSockets.get(event.attackerId)
+          : null;
+        const defenderSocket = event.defenderId
+          ? playerSockets.get(event.defenderId)
+          : null;
+
+        // Build list of socket IDs to exclude from room broadcast
+        const excludeSocketIds: string[] = [];
+
+        // Handle attacker: send with roll info if they have preference enabled
         if (attackerSocket && attackerSocket.player) {
-          // Check user preference
-          const user = db
-            .select({ preferences: users.preferences })
-            .from(users)
-            .where(eq(users.id, attackerSocket.player.userId))
-            .get();
-          if (user?.preferences?.showRolls) {
-            const rollMessage: ChatMessageData = {
-              id: crypto.randomUUID(),
-              type: "system",
-              content: "",
-              timestamp: new Date().toISOString(),
-              rollInfo: event.rollInfo,
-            };
-            attackerSocket.emit("chat:message", rollMessage);
+          excludeSocketIds.push(attackerSocket.id);
+          const prefs = await getUserPreferences(attackerSocket.player.userId);
+
+          const attackerMessage: ChatMessageData = {
+            id: crypto.randomUUID(),
+            type: "system",
+            content: message,
+            timestamp: new Date().toISOString(),
+            rollInfo: prefs.showRolls ? event.rollInfo : undefined,
+          };
+          attackerSocket.emit("chat:message", attackerMessage);
+        }
+
+        // Handle defender: send with damage color if they have colors enabled and attack hit
+        if (
+          defenderSocket &&
+          defenderSocket.player &&
+          event.defenderType === "player"
+        ) {
+          // Only exclude if not already excluded (attacker and defender could theoretically be same in future)
+          if (!excludeSocketIds.includes(defenderSocket.id)) {
+            excludeSocketIds.push(defenderSocket.id);
           }
+          const prefs = await getUserPreferences(defenderSocket.player.userId);
+
+          const defenderMessage: ChatMessageData = {
+            id: crypto.randomUUID(),
+            type: event.hit && prefs.showColors ? "damage" : "system",
+            content: message,
+            timestamp: new Date().toISOString(),
+          };
+          defenderSocket.emit("chat:message", defenderMessage);
+        }
+
+        // Broadcast to everyone else in the room
+        if (excludeSocketIds.length > 0) {
+          ioInstance
+            .to(socketRoom)
+            .except(excludeSocketIds)
+            .emit("chat:message", publicMessage);
+        } else {
+          ioInstance.to(socketRoom).emit("chat:message", publicMessage);
         }
         return; // Already handled
       }
@@ -131,9 +211,36 @@ function broadcastCombatEvent(
     case "player_death":
       message = `${event.playerName} has been slain by ${event.killerName}!`;
       break;
-    case "monster_death":
+    case "monster_death": {
+      // Send XP message with color to killer if they have colors enabled
+      const killerSocket = playerSockets.get(event.killerId);
+      if (killerSocket && killerSocket.player) {
+        const prefs = await getUserPreferences(killerSocket.player.userId);
+        const killerMessage: ChatMessageData = {
+          id: crypto.randomUUID(),
+          type: prefs.showColors ? "xpGain" : "system",
+          content: `You defeat the ${event.monsterName}! (+${event.xpAwarded} XP)`,
+          timestamp: new Date().toISOString(),
+        };
+        killerSocket.emit("chat:message", killerMessage);
+
+        // Broadcast third-person message to others in room
+        const publicMessage: ChatMessageData = {
+          id: crypto.randomUUID(),
+          type: "system",
+          content: `${event.killerName} defeats the ${event.monsterName}!`,
+          timestamp: new Date().toISOString(),
+        };
+        ioInstance
+          .to(socketRoom)
+          .except([killerSocket.id])
+          .emit("chat:message", publicMessage);
+        return;
+      }
+      // Fallback if killer socket not found
       message = `${event.killerName} defeats the ${event.monsterName}! (+${event.xpAwarded} XP)`;
       break;
+    }
     case "level_up": {
       // Public announcement to the room
       const publicMessage: ChatMessageData = {
@@ -146,10 +253,14 @@ function broadcastCombatEvent(
 
       // Private message to the player about attribute points
       const playerSocket = playerSockets.get(event.playerId);
-      if (playerSocket) {
+      if (playerSocket && playerSocket.player) {
+        // Check if user has colors enabled
+        const prefs = await getUserPreferences(playerSocket.player.userId);
+        const msgType = prefs.showColors ? "xpGain" : "system";
+
         const privateMessage: ChatMessageData = {
           id: crypto.randomUUID(),
-          type: "system",
+          type: msgType,
           content: `You gained ${event.attributePoints} attribute points! Use "train" to spend them.`,
           timestamp: new Date().toISOString(),
         };
@@ -159,7 +270,7 @@ function broadcastCombatEvent(
         if (event.gainedFeatSlot) {
           const featMessage: ChatMessageData = {
             id: crypto.randomUUID(),
-            type: "system",
+            type: msgType,
             content: `You gained a feat slot! Use "feats" to see your options.`,
             timestamp: new Date().toISOString(),
           };
@@ -201,11 +312,11 @@ function broadcastCombatEvent(
  * @param event - The swimming event to broadcast
  * @param excludePlayerId - Optional player ID to exclude from broadcast
  */
-function broadcastSwimmingEvent(
+async function broadcastSwimmingEvent(
   roomId: string,
   event: SwimmingEvent,
   excludePlayerId?: string,
-): void {
+): Promise<void> {
   if (!ioInstance) return;
 
   const socketRoom = getSocketRoomName(roomId);
@@ -226,10 +337,14 @@ function broadcastSwimmingEvent(
         : null;
 
       // Always send personal message to the swimming player
-      if (playerSocket && event.personalMessage) {
+      if (playerSocket && playerSocket.player && event.personalMessage) {
+        // Check if user has colors enabled - use damage type for failed checks
+        const prefs = await getUserPreferences(playerSocket.player.userId);
+        const msgType = !event.passed && prefs.showColors ? "damage" : "system";
+
         const personalChatMessage: ChatMessageData = {
           id: crypto.randomUUID(),
-          type: "system",
+          type: msgType,
           content: event.personalMessage,
           timestamp: new Date().toISOString(),
           rollInfo: event.rollInfo,

@@ -2,41 +2,22 @@ import { test } from "@fast-check/vitest";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect } from "vitest";
 import { db } from "../../src/db/index.js";
-import {
-  containerInventory,
-  containers,
-  features,
-  items,
-  monsterInstances,
-  monsterSpawns,
-  monsters,
-  npcs,
-  playerInventory,
-  players as playersTable,
-  roomInventory,
-  rooms,
-  users,
-} from "../../src/db/schema.js";
+import { players as playersTable, rooms, users } from "../../src/db/schema.js";
 import * as ChatService from "../../src/services/ChatService.js";
 import { chatMessageArb, regionArb } from "../generators/chat.generator.js";
 import { roomIdArb } from "../generators/room.generator.js";
 
 const testUserId = "test-user-chat-prop";
 
+/**
+ * Clean up only the test-specific data created by this test file.
+ * Does not delete seeded data to avoid foreign key issues.
+ */
 async function cleanupTestData() {
-  await db.delete(containerInventory);
-  await db.delete(monsterInstances);
-  await db.delete(monsterSpawns);
-  await db.delete(roomInventory);
-  await db.delete(playerInventory);
-  await db.delete(features);
-  await db.delete(containers);
-  await db.delete(npcs);
-  await db.delete(playersTable);
-  await db.delete(monsters);
-  await db.delete(items);
-  await db.delete(rooms);
-  await db.delete(users);
+  // Only delete players created by this test (they have our specific userId)
+  await db.delete(playersTable).where(eq(playersTable.userId, testUserId));
+  // Delete our test user
+  await db.delete(users).where(eq(users.id, testUserId));
 }
 
 beforeAll(async () => {
@@ -95,7 +76,7 @@ describe("ChatService Property Tests", () => {
           expect(
             (result.scope as { type: "room"; roomId: string }).roomId,
           ).toBe(roomId);
-          expect(result.message!.type).toBe("chat");
+          expect(result.message!.type).toBe("speech");
         } finally {
           await db.delete(playersTable).where(eq(playersTable.id, playerId));
           await db.delete(rooms).where(eq(rooms.id, roomId));
@@ -134,7 +115,7 @@ describe("ChatService Property Tests", () => {
           expect(
             (result.scope as { type: "region"; region: string }).region,
           ).toBe(region);
-          expect(result.message!.type).toBe("chat");
+          expect(result.message!.type).toBe("speech");
           expect(result.message!.content).toBe(message.trim().toUpperCase());
         } finally {
           await db.delete(playersTable).where(eq(playersTable.id, playerId));
