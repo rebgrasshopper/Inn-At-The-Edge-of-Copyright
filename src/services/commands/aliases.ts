@@ -100,6 +100,9 @@ export const COMMAND_ALIASES: Record<string, Command> = {
   swim: Command.Swim,
   stop: Command.Swim,
 
+  // Admin
+  spawn: Command.Spawn,
+
   // Multi-word aliases
   "pick up": Command.Get,
   "put down": Command.Drop,

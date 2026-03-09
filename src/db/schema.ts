@@ -53,6 +53,7 @@ export const users = sqliteTable("users", {
   passwordHash: text("password_hash").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   preferences: text("preferences", { mode: "json" }).$type<UserPreferences>(),
+  isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
 });
 
 // Players table (game characters)

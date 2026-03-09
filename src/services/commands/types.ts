@@ -51,6 +51,9 @@ export enum Command {
 
   // Activities
   Swim = "swim",
+
+  // Admin
+  Spawn = "spawn",
 }
 
 /** Command category for legacy type compatibility */
@@ -83,6 +86,7 @@ export const COMMAND_CATEGORIES: Record<Command, CommandCategory> = {
   [Command.Stance]: "info",
   [Command.Toggle]: "info",
   [Command.Swim]: "movement",
+  [Command.Spawn]: "info",
 };
 
 /** Maps commands to their legacy action names (for backward compatibility) */

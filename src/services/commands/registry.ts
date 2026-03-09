@@ -7,6 +7,7 @@ import { getAliasesForCommand } from "./aliases.js";
 import { Command, type CommandDefinition } from "./types.js";
 
 // Import handlers
+import { handleSpawn } from "./handlers/admin.js";
 import {
   handleFeats,
   handleStance,
@@ -300,6 +301,16 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
       usage: ["swim", "stop swimming", "stop"],
       aliases: getAliasesForCommand(Command.Swim),
       examples: ["swim", "stop swimming", "stop"],
+    },
+  },
+
+  [Command.Spawn]: {
+    handler: handleSpawn,
+    help: {
+      summary: "Spawn a monster (admin only)",
+      usage: ["spawn <monster name>"],
+      aliases: getAliasesForCommand(Command.Spawn),
+      examples: ["spawn wolf", "spawn goblin", "spawn giant spider"],
     },
   },
 };

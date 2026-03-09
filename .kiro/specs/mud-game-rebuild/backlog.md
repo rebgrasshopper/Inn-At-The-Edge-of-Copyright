@@ -80,3 +80,9 @@ Note: Don't use `examine`, `inspect`, or `look` as trigger verbs - these are han
 - [ ] **Underground region content**: Populate the cave system with new rooms, monsters (cave creatures like bats, cave spiders, blind fish), and features. The Cave Passage currently has blocked rubble that could be cleared to reveal deeper caves.
 
 - [ ] **Swimming activity restrictions**: While swimming, players should not be able to: attack, equip/unequip items (except maybe head slot), pick up items from the ground, etc. Currently only movement is blocked.
+
+## Feature Ideas
+
+Ideas for future features that aren't fully fleshed out yet.
+
+- [ ] **Echo Canyon/Chamber**: A location with natural rock formations that create echoes. Could have a flavor feature where players can "shout" or "yell" and hear their voice echo back with atmospheric text. Maybe the echo reveals something hidden, or attracts attention (friendly or hostile). Could tie into the sound/listen verb category.

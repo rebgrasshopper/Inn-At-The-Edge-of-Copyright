@@ -40,10 +40,11 @@ async function seed() {
       username: "fox",
       passwordHash,
       createdAt: new Date(),
+      isAdmin: true,
     })
     .onConflictDoNothing();
 
-  console.log("  ✓ Created test user (fox/henhouse)\n");
+  console.log("  ✓ Created test user (fox/henhouse) [admin]\n");
 
   // ============================================
   // ROOMS - A small starter area
@@ -801,21 +802,6 @@ async function seed() {
       triggerTarget: "sounds",
       successMessage:
         "You stand perfectly still and listen. Beneath the rustle of leaves, you hear it: a low, rhythmic chanting from somewhere to the south. It stops abruptly, as if aware of your attention.",
-      isHidden: false,
-      isDiscovered: false,
-    },
-    // Debug feature - summon wolf for testing combat
-    {
-      id: "feature-howl",
-      roomId: forestClearingId,
-      name: "howl",
-      description: "You can howl to summon a wolf.",
-      triggerVerbs: ["howl"],
-      triggerTarget: "wolf",
-      successMessage: "You let out a howl...",
-      successEffects: [
-        { type: "spawn_monster" as const, monsterId: "monster-wolf" },
-      ],
       isHidden: false,
       isDiscovered: false,
     },
