@@ -235,13 +235,13 @@ export async function handleExamine(
     }
 
     // Calculate AC
-    const { calculateAC, calculateEquipmentConBonus } =
+    const { calculateAC, calculateEquipmentACBonus } =
       await import("../../StatService.js");
     const { getEquippedItems } = await import("../../items/equipment.js");
 
     const equipped = await getEquippedItems(player.id);
-    const equipConBonus = calculateEquipmentConBonus(equipped);
-    const ac = await calculateAC(freshPlayer.dex, equipConBonus, player.id);
+    const equipACBonus = calculateEquipmentACBonus(equipped);
+    const ac = await calculateAC(freshPlayer.dex, equipACBonus, player.id);
 
     // Show character info with equipment
     const equipResult = await ItemService.getEquipmentList(player.id);

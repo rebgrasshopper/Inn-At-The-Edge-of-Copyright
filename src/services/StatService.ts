@@ -47,19 +47,19 @@ export function getStatModifier(stat: number): number {
 
 /**
  * Calculate Armor Class for a combatant
- * AC = 10 + DEX modifier + equipment CON bonus + feat bonuses
+ * AC = 10 + DEX modifier + equipment AC bonus + feat bonuses
  * @param dex - DEX stat value
- * @param equipmentConBonus - Total CON bonus from equipped items (default 0)
+ * @param equipmentACBonus - Total AC bonus from equipped armor/shields (default 0)
  * @param playerId - Optional player ID for feat bonus calculation
  * @returns Calculated AC value
  */
 export async function calculateAC(
   dex: number,
-  equipmentConBonus: number = 0,
+  equipmentACBonus: number = 0,
   playerId?: string,
 ): Promise<number> {
   const dexMod = getStatModifier(dex);
-  let baseAC = BASE_AC + dexMod + equipmentConBonus;
+  let baseAC = BASE_AC + dexMod + equipmentACBonus;
 
   // Add feat bonuses if playerId provided
   if (playerId) {
@@ -96,7 +96,8 @@ export function getDamageModifier(str: number): number {
 }
 
 /**
- * Calculate total equipment CON bonus from equipped items
+ * Calculate total equipment CON bonus from equipped items.
+ * Used for max HP calculation (stat-boosting items like Belt of Giant Strength).
  * @param equippedItems - Array of equipped items with conEffect values
  * @returns Total CON bonus from all equipped items
  */
@@ -105,6 +106,45 @@ export function calculateEquipmentConBonus(
 ): number {
   return equippedItems.reduce(
     (total, item) => total + (item.conEffect ?? 0),
+    0,
+  );
+}
+
+/**
+ * Calculate total equipment AC bonus from equipped armor and shields.
+ * @param equippedItems - Array of equipped items with acBonus values
+ * @returns Total AC bonus from all equipped items
+ */
+export function calculateEquipmentACBonus(
+  equippedItems: Array<{ acBonus?: number | null }>,
+): number {
+  return equippedItems.reduce((total, item) => total + (item.acBonus ?? 0), 0);
+}
+
+/**
+ * Calculate total equipment attack bonus from equipped weapons.
+ * @param equippedItems - Array of equipped items with attackBonus values
+ * @returns Total attack bonus from all equipped items
+ */
+export function calculateEquipmentAttackBonus(
+  equippedItems: Array<{ attackBonus?: number | null }>,
+): number {
+  return equippedItems.reduce(
+    (total, item) => total + (item.attackBonus ?? 0),
+    0,
+  );
+}
+
+/**
+ * Calculate total equipment damage bonus from equipped weapons.
+ * @param equippedItems - Array of equipped items with damageBonus values
+ * @returns Total damage bonus from all equipped items
+ */
+export function calculateEquipmentDamageBonus(
+  equippedItems: Array<{ damageBonus?: number | null }>,
+): number {
+  return equippedItems.reduce(
+    (total, item) => total + (item.damageBonus ?? 0),
     0,
   );
 }

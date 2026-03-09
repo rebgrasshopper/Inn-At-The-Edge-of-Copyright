@@ -21,8 +21,10 @@ export {
 // Equipment operations
 export {
   equipItem,
+  getEquipmentCombatBonuses,
   getEquipmentList,
   getEquipmentStatBonuses,
+  getEquippedItems,
   getPlayerEquipment,
   unequipItem,
 } from "./equipment.js";

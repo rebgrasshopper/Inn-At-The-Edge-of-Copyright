@@ -60,6 +60,11 @@ export type Item = {
   weaponDamage?: string; // e.g., "1d6", "2d4+1"
   weaponType?: string; // e.g., "slashing", "piercing", "bludgeoning"
   magicProperties?: string[]; // e.g., ["poison", "flaming"]
+  /** Combat bonuses (direct modifiers) */
+  attackBonus?: number;
+  damageBonus?: number;
+  acBonus?: number;
+  /** Stat effects (for stat-boosting magic items) */
   effects: StatEffects;
 };
 

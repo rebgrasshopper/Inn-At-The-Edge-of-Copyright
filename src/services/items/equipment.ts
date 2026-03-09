@@ -470,13 +470,18 @@ export async function getEquipmentList(
  * @param playerId - The player's ID
  * @returns Array of equipped items with their data
  */
-/** Equipped item with all stat effects */
+/** Equipped item with all stat effects and combat bonuses */
 export type EquippedItemData = {
   slot: keyof PlayerEquipment;
   id: string;
   name: string;
   weaponDamage: string | null;
   weaponRange: string | null;
+  // Combat bonuses (direct modifiers)
+  attackBonus: number | null;
+  damageBonus: number | null;
+  acBonus: number | null;
+  // Stat effects (for stat-boosting magic items)
   strEffect: number | null;
   dexEffect: number | null;
   conEffect: number | null;
@@ -487,9 +492,9 @@ export type EquippedItemData = {
 };
 
 /**
- * Get all equipped items with their full data including stat effects.
+ * Get all equipped items with their full data including stat effects and combat bonuses.
  * @param playerId - The player's ID
- * @returns Array of equipped items with slot, name, and all stat effects
+ * @returns Array of equipped items with slot, name, combat bonuses, and all stat effects
  */
 export async function getEquippedItems(
   playerId: string,
@@ -510,6 +515,9 @@ export async function getEquippedItems(
         name: item.name,
         weaponDamage: item.weaponDamage,
         weaponRange: item.weaponRange,
+        attackBonus: item.attackBonus,
+        damageBonus: item.damageBonus,
+        acBonus: item.acBonus,
         strEffect: item.strEffect,
         dexEffect: item.dexEffect,
         conEffect: item.conEffect,
@@ -576,6 +584,57 @@ export async function getEquipmentStatBonuses(
       if (value && value !== 0) {
         totals[stat] += value;
         bonuses.push({ stat, amount: value, itemName: item.name });
+      }
+    }
+  }
+
+  return { totals, bonuses };
+}
+
+/** Individual combat bonus from an equipped item */
+export type CombatBonus = {
+  type: "attack" | "damage" | "ac";
+  amount: number;
+  itemName: string;
+};
+
+/** Aggregated equipment combat bonuses */
+export type EquipmentCombatBonuses = {
+  totals: {
+    attack: number;
+    damage: number;
+    ac: number;
+  };
+  bonuses: CombatBonus[];
+};
+
+/**
+ * Get aggregated combat bonuses from all equipped items.
+ * @param playerId - The player's ID
+ * @returns Totals for attack/damage/AC and list of individual bonuses with item names
+ */
+export async function getEquipmentCombatBonuses(
+  playerId: string,
+): Promise<EquipmentCombatBonuses> {
+  const equippedItems = await getEquippedItems(playerId);
+
+  const totals = { attack: 0, damage: 0, ac: 0 };
+  const bonuses: CombatBonus[] = [];
+
+  for (const item of equippedItems) {
+    const combatEffects: Array<{
+      type: CombatBonus["type"];
+      value: number | null;
+    }> = [
+      { type: "attack", value: item.attackBonus },
+      { type: "damage", value: item.damageBonus },
+      { type: "ac", value: item.acBonus },
+    ];
+
+    for (const { type, value } of combatEffects) {
+      if (value && value !== 0) {
+        totals[type] += value;
+        bonuses.push({ type, amount: value, itemName: item.name });
       }
     }
   }

@@ -113,14 +113,20 @@ export async function handleStats(
       : `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}`;
 
   // Calculate AC with breakdown
-  const { calculateAC, getStatModifier, calculateEquipmentConBonus } =
-    await import("../../StatService.js");
-  const { getEquippedItems } = await import("../../items/equipment.js");
+  const {
+    calculateAC,
+    getStatModifier,
+    calculateEquipmentACBonus,
+    calculateEquipmentAttackBonus,
+    calculateEquipmentDamageBonus,
+  } = await import("../../StatService.js");
+  const { getEquippedItems, getEquipmentCombatBonuses } =
+    await import("../../items/equipment.js");
   const { getACModifiers } = await import("../../FeatEffectHandler.js");
 
   const equipped = await getEquippedItems(player.id);
-  const equipConBonus = calculateEquipmentConBonus(equipped);
-  const ac = await calculateAC(freshPlayer.dex, equipConBonus, player.id);
+  const equipACBonus = calculateEquipmentACBonus(equipped);
+  const ac = await calculateAC(freshPlayer.dex, equipACBonus, player.id);
   const acMods = await getACModifiers(player.id);
   const dexMod = getStatModifier(freshPlayer.dex);
 
@@ -129,8 +135,8 @@ export async function handleStats(
   if (dexMod !== 0) {
     acParts.push(`${dexMod > 0 ? "+" : ""}${dexMod} DEX`);
   }
-  if (equipConBonus !== 0) {
-    acParts.push(`${equipConBonus > 0 ? "+" : ""}${equipConBonus} CON`);
+  if (equipACBonus !== 0) {
+    acParts.push(`${equipACBonus > 0 ? "+" : ""}${equipACBonus} armor`);
   }
   if (acMods.dodge !== 0) {
     acParts.push(`${acMods.dodge > 0 ? "+" : ""}${acMods.dodge} dodge`);
@@ -142,9 +148,66 @@ export async function handleStats(
   const acDisplay =
     acParts.length > 0 ? `AC: ${ac} (${acParts.join(", ")})` : `AC: ${ac}`;
 
+  // Calculate attack and damage bonuses
+  const { calculateBAB } = await import("../../FeatService.js");
+  const { getAttackModifiers, getDamageModifiers } =
+    await import("../../FeatEffectHandler.js");
+
+  const bab = calculateBAB(freshPlayer.level);
+  const strMod = getStatModifier(freshPlayer.str + totals.str);
+  const equipAttackBonus = calculateEquipmentAttackBonus(equipped);
+  const equipDamageBonus = calculateEquipmentDamageBonus(equipped);
+  const featAttackMods = await getAttackModifiers(player.id);
+  // Use melee as default for stats display (most common case)
+  const featDamageMods = await getDamageModifiers(player.id, "melee");
+
+  // Calculate feat totals
+  const featAttackTotal = featAttackMods.stance;
+  const featDamageTotal = featDamageMods.stance;
+
+  // Build attack bonus breakdown
+  const totalAttackBonus = bab + strMod + equipAttackBonus + featAttackTotal;
+  const attackParts: string[] = [];
+  if (bab !== 0) attackParts.push(`${bab > 0 ? "+" : ""}${bab} BAB`);
+  if (strMod !== 0) attackParts.push(`${strMod > 0 ? "+" : ""}${strMod} STR`);
+  if (equipAttackBonus !== 0)
+    attackParts.push(
+      `${equipAttackBonus > 0 ? "+" : ""}${equipAttackBonus} equip`,
+    );
+  if (featAttackTotal !== 0)
+    attackParts.push(
+      `${featAttackTotal > 0 ? "+" : ""}${featAttackTotal} feat`,
+    );
+
+  const attackSign = totalAttackBonus >= 0 ? "+" : "";
+  const attackDisplay =
+    attackParts.length > 0
+      ? `Attack: ${attackSign}${totalAttackBonus} (${attackParts.join(", ")})`
+      : `Attack: ${attackSign}${totalAttackBonus}`;
+
+  // Build damage bonus breakdown
+  const totalDamageBonus = strMod + equipDamageBonus + featDamageTotal;
+  const damageParts: string[] = [];
+  if (strMod !== 0) damageParts.push(`${strMod > 0 ? "+" : ""}${strMod} STR`);
+  if (equipDamageBonus !== 0)
+    damageParts.push(
+      `${equipDamageBonus > 0 ? "+" : ""}${equipDamageBonus} equip`,
+    );
+  if (featDamageTotal !== 0)
+    damageParts.push(
+      `${featDamageTotal > 0 ? "+" : ""}${featDamageTotal} feat`,
+    );
+
+  const damageSign = totalDamageBonus >= 0 ? "+" : "";
+  const damageDisplay =
+    damageParts.length > 0
+      ? `Damage: ${damageSign}${totalDamageBonus} (${damageParts.join(", ")})`
+      : `Damage: ${damageSign}${totalDamageBonus}`;
+
   const lines = [
     `${freshPlayer.name} - Level ${freshPlayer.level}`,
     `${hpDisplay}  ${acDisplay}  XP: ${freshPlayer.xp}`,
+    `${attackDisplay}  ${damageDisplay}`,
     `STR: ${strDisplay}  DEX: ${dexDisplay}  CON: ${conDisplay}`,
     `INT: ${intDisplay}  WIS: ${wisDisplay}  CHA: ${chaDisplay}`,
   ];

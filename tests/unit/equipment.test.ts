@@ -60,7 +60,8 @@ beforeAll(async () => {
       category: "weapon",
       equipSlots: ["mainHand", "offHand"],
       weaponDamage: "1d8",
-      strEffect: 2,
+      attackBonus: 1,
+      damageBonus: 1,
     },
     {
       id: "item-test-shield",
@@ -68,7 +69,7 @@ beforeAll(async () => {
       description: "A simple wooden shield",
       category: "armor",
       equipSlots: ["offHand"],
-      conEffect: 1,
+      acBonus: 1,
     },
     {
       id: "item-test-helmet",
@@ -76,7 +77,7 @@ beforeAll(async () => {
       description: "A protective iron helmet",
       category: "armor",
       equipSlots: ["head"],
-      conEffect: 2,
+      acBonus: 2,
     },
     {
       id: "item-test-ring",
@@ -471,7 +472,22 @@ describe("Equipment Operations", () => {
       expect(result.bonuses).toHaveLength(0);
     });
 
-    it("should return correct bonus for single equipped item", async () => {
+    it("should return correct bonus for single equipped item with stat effects", async () => {
+      // Gauntlets have strEffect: 3, dexEffect: 1
+      await db
+        .update(players)
+        .set({ wornHands: "item-test-gauntlets" })
+        .where(eq(players.id, testPlayerId));
+
+      const result = await ItemService.getEquipmentStatBonuses(testPlayerId);
+
+      expect(result.totals.str).toBe(3);
+      expect(result.totals.dex).toBe(1);
+      expect(result.bonuses).toHaveLength(2);
+    });
+
+    it("should return empty bonuses for items with only combat bonuses", async () => {
+      // Sword has attackBonus/damageBonus but no stat effects
       await db
         .update(players)
         .set({ wornMainHand: "item-test-sword" })
@@ -479,41 +495,15 @@ describe("Equipment Operations", () => {
 
       const result = await ItemService.getEquipmentStatBonuses(testPlayerId);
 
-      expect(result.totals.str).toBe(2);
-      expect(result.totals.dex).toBe(0);
-      expect(result.bonuses).toHaveLength(1);
-      expect(result.bonuses[0]).toEqual({
-        stat: "str",
-        amount: 2,
-        itemName: "iron sword",
-      });
-    });
-
-    it("should stack bonuses from multiple items to same stat", async () => {
-      // Sword gives +2 STR, gauntlets give +3 STR
-      await db
-        .update(players)
-        .set({
-          wornMainHand: "item-test-sword",
-          wornHands: "item-test-gauntlets",
-        })
-        .where(eq(players.id, testPlayerId));
-
-      const result = await ItemService.getEquipmentStatBonuses(testPlayerId);
-
-      expect(result.totals.str).toBe(5); // 2 + 3
-      expect(result.totals.dex).toBe(1); // from gauntlets
-      const strBonuses = result.bonuses.filter((b) => b.stat === "str");
-      expect(strBonuses).toHaveLength(2);
+      expect(result.totals.str).toBe(0);
+      expect(result.bonuses).toHaveLength(0);
     });
 
     it("should return bonuses for different stats from multiple items", async () => {
-      // Helmet gives +2 CON, shield gives +1 CON, gauntlets give +3 STR and +1 DEX
+      // Gauntlets give +3 STR and +1 DEX (stat effects)
       await db
         .update(players)
         .set({
-          wornHead: "item-test-helmet",
-          wornOffHand: "item-test-shield",
           wornHands: "item-test-gauntlets",
         })
         .where(eq(players.id, testPlayerId));
@@ -522,11 +512,78 @@ describe("Equipment Operations", () => {
 
       expect(result.totals.str).toBe(3);
       expect(result.totals.dex).toBe(1);
-      expect(result.totals.con).toBe(3); // 2 + 1
+      expect(result.totals.con).toBe(0);
       expect(result.totals.int).toBe(0);
       expect(result.totals.wis).toBe(0);
       expect(result.totals.cha).toBe(0);
-      expect(result.bonuses).toHaveLength(4); // STR, DEX, CON x2
+      expect(result.bonuses).toHaveLength(2); // STR, DEX
+    });
+  });
+
+  describe("getEquipmentCombatBonuses", () => {
+    it("should return empty totals when nothing equipped", async () => {
+      const result = await ItemService.getEquipmentCombatBonuses(testPlayerId);
+
+      expect(result.totals).toEqual({
+        attack: 0,
+        damage: 0,
+        ac: 0,
+      });
+      expect(result.bonuses).toHaveLength(0);
+    });
+
+    it("should return correct attack/damage bonus for weapon", async () => {
+      // Sword has attackBonus: 1, damageBonus: 1
+      await db
+        .update(players)
+        .set({ wornMainHand: "item-test-sword" })
+        .where(eq(players.id, testPlayerId));
+
+      const result = await ItemService.getEquipmentCombatBonuses(testPlayerId);
+
+      expect(result.totals.attack).toBe(1);
+      expect(result.totals.damage).toBe(1);
+      expect(result.totals.ac).toBe(0);
+      expect(result.bonuses).toHaveLength(2);
+    });
+
+    it("should return correct AC bonus for armor", async () => {
+      // Helmet has acBonus: 2, shield has acBonus: 1
+      await db
+        .update(players)
+        .set({
+          wornHead: "item-test-helmet",
+          wornOffHand: "item-test-shield",
+        })
+        .where(eq(players.id, testPlayerId));
+
+      const result = await ItemService.getEquipmentCombatBonuses(testPlayerId);
+
+      expect(result.totals.attack).toBe(0);
+      expect(result.totals.damage).toBe(0);
+      expect(result.totals.ac).toBe(3); // 2 + 1
+      expect(result.bonuses).toHaveLength(2);
+    });
+
+    it("should stack bonuses from multiple items", async () => {
+      // Sword: attack +1, damage +1
+      // Helmet: AC +2
+      // Shield: AC +1
+      await db
+        .update(players)
+        .set({
+          wornMainHand: "item-test-sword",
+          wornHead: "item-test-helmet",
+          wornOffHand: "item-test-shield",
+        })
+        .where(eq(players.id, testPlayerId));
+
+      const result = await ItemService.getEquipmentCombatBonuses(testPlayerId);
+
+      expect(result.totals.attack).toBe(1);
+      expect(result.totals.damage).toBe(1);
+      expect(result.totals.ac).toBe(3);
+      expect(result.bonuses).toHaveLength(4); // attack, damage, AC x2
     });
   });
 });

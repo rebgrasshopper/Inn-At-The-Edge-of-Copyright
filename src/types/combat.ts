@@ -23,6 +23,10 @@ export type CombatParticipant = {
   weaponRange: "melee" | "ranged";
   ac: number;
   level: number;
+  /** Equipment attack bonus (from weapons) */
+  equipAttackBonus: number;
+  /** Equipment damage bonus (from weapons) */
+  equipDamageBonus: number;
 };
 
 /**

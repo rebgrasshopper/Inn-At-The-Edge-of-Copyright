@@ -27,7 +27,10 @@ import { calculateBAB, grantFeatSlot } from "./FeatService.js";
 import {
   calculateAC,
   calculateAttackInterval,
+  calculateEquipmentACBonus,
+  calculateEquipmentAttackBonus,
   calculateEquipmentConBonus,
+  calculateEquipmentDamageBonus,
   calculateFleeDC,
   calculateMaxHp,
   calculateXpAfterDeath,
@@ -163,10 +166,14 @@ async function buildPlayerParticipant(
 
   if (!player) return null;
 
-  // Get equipped items for AC calculation and weapon
+  // Get equipped items for AC calculation, weapon, and combat bonuses
   const equipped = await getEquippedItems(playerId);
-  const conBonus = calculateEquipmentConBonus(equipped);
-  const ac = await calculateAC(player.dex, conBonus, playerId);
+  const acBonus = calculateEquipmentACBonus(equipped);
+  const ac = await calculateAC(player.dex, acBonus, playerId);
+
+  // Calculate equipment attack and damage bonuses
+  const equipAttackBonus = calculateEquipmentAttackBonus(equipped);
+  const equipDamageBonus = calculateEquipmentDamageBonus(equipped);
 
   // Find equipped weapon damage and range
   const weapon = equipped.find((item) => item.weaponDamage);
@@ -188,6 +195,8 @@ async function buildPlayerParticipant(
     weaponRange,
     ac,
     level: player.level,
+    equipAttackBonus,
+    equipDamageBonus,
   };
 }
 
@@ -227,6 +236,8 @@ async function buildMonsterParticipant(
     weaponRange: "melee", // Monsters default to melee attacks
     ac,
     level: monster.level,
+    equipAttackBonus: 0, // Monsters don't have equipment bonuses
+    equipDamageBonus: 0,
   };
 }
 
@@ -322,9 +333,10 @@ export function processAttack(
     attacker.weaponRange === "ranged" ? attacker.stats.dex : attacker.stats.str;
   const attackStatMod = getStatModifier(attackStat);
 
-  // Roll d20 + BAB + STR/DEX modifier + feat attack bonus
-  const attackBonus = featMods?.attackBonus ?? 0;
-  const totalAttackMod = bab + attackStatMod + attackBonus;
+  // Roll d20 + BAB + STR/DEX modifier + equipment attack bonus + feat attack bonus
+  const featAttackBonus = featMods?.attackBonus ?? 0;
+  const totalAttackMod =
+    bab + attackStatMod + attacker.equipAttackBonus + featAttackBonus;
   const attackResult = rollD20WithDetails(totalAttackMod);
 
   const hit = attackResult.total >= defender.ac;
@@ -342,16 +354,20 @@ export function processAttack(
     };
   }
 
-  // Calculate damage: weapon dice + STR modifier + feat damage bonus, minimum 1
+  // Calculate damage: weapon dice + STR modifier + equipment damage bonus + feat damage bonus, minimum 1
   const weaponNotation = attacker.weaponDamage || "1d4";
   const damageResult = rollDamageWithDetails(weaponNotation);
   const strMod = getDamageModifier(attacker.stats.str);
-  const damageBonus = featMods?.damageBonus ?? 0;
-  const rawDamage = (damageResult?.total || 1) + strMod + damageBonus;
+  const featDamageBonus = featMods?.damageBonus ?? 0;
+  const rawDamage =
+    (damageResult?.total || 1) +
+    strMod +
+    attacker.equipDamageBonus +
+    featDamageBonus;
   const damage = Math.max(1, rawDamage);
 
   // Build damage formula string with modifiers
-  const totalDamageMod = strMod + damageBonus;
+  const totalDamageMod = strMod + attacker.equipDamageBonus + featDamageBonus;
   let damageFormula: string;
   if (totalDamageMod === 0) {
     damageFormula = `${weaponNotation} = ${damage}`;

@@ -102,7 +102,8 @@ beforeAll(async () => {
     name: "test sword",
     description: "A test sword",
     category: "weapon",
-    strEffect: 2,
+    attackBonus: 1,
+    damageBonus: 1,
   });
 
   // Create test monster definition

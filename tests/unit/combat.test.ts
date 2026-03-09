@@ -17,6 +17,8 @@ describe("CombatService", () => {
       weaponRange: "melee",
       ac: 12,
       level: 1,
+      equipAttackBonus: 0,
+      equipDamageBonus: 0,
       ...overrides,
     });
 
@@ -33,6 +35,8 @@ describe("CombatService", () => {
       weaponRange: "melee",
       ac: 10,
       level: 1,
+      equipAttackBonus: 0,
+      equipDamageBonus: 0,
       ...overrides,
     });
 
@@ -173,7 +177,7 @@ describe("CombatService", () => {
       const result = processAttack(attacker, defender);
 
       expect(result.attackRoll).toBeGreaterThanOrEqual(1);
-      expect(result.attackRoll).toBeLessThanOrEqual(21); // d20 + modifier
+      expect(result.attackRoll).toBeLessThanOrEqual(22); // d20 + STR modifier (+2 from STR 14)
       expect(result.targetAC).toBe(15);
     });
   });

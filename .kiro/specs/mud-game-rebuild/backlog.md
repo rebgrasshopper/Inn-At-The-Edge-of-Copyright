@@ -38,8 +38,6 @@ Items to revisit after the initial prototype is working.
 
 - [ ] **UX: "look self" vs "stats" consistency**: Currently `look self` shows basic info (name, level, HP, equipment list) while `stats` shows detailed stats with equipment bonuses. Users may expect to see stat bonuses in both places. Consider whether to: (a) add stat bonuses to `look self`, (b) merge the commands, (c) add a hint in `look self` output to use `stats` for details, or (d) keep as-is. Need to balance information density vs discoverability.
 
-- [ ] **Equipment bonuses → attack/damage/AC instead of stats**: Currently weapons boost STR and armor boosts CON, which then affect derived values. Change to direct attack bonus, damage bonus, and AC bonus instead. This is more intuitive and matches tabletop conventions. Keep the door open for actual stat-boosting items (like a Belt of Giant Strength) as a separate category. May need new columns on items table: `attackBonus`, `damageBonus`, `acBonus`.
-
 - [ ] **Tab completion**: Add command/target auto-completion in InputPanel (Tab key). Old project had `parseSuggestion` for reference.
 
 - [ ] **Command history persistence**: Optionally persist command history to localStorage across sessions.

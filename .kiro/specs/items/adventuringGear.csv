@@ -1,0 +1,123 @@
+Name,Category,Cost,Weight,Description
+Backpack,Adventuring Gear,2 gp,2 lb.,Container for carrying items
+Barrel,Adventuring Gear,2 gp,30 lb.,Large container
+Basket,Adventuring Gear,4 sp,1 lb.,Container
+Bedroll,Adventuring Gear,1 sp,5 lb.,For sleeping
+Bell,Adventuring Gear,1 gp,,Small bell
+Blanket (winter),Adventuring Gear,5 sp,3 lb.,Warm blanket
+Block and tackle,Adventuring Gear,5 gp,5 lb.,Lifting mechanism
+Bottle (wine glass),Adventuring Gear,2 gp,,Glass bottle
+Bucket,Adventuring Gear,5 sp,2 lb.,Container for liquids
+Caltrops,Adventuring Gear,1 gp,2 lb.,Covers 5 ft square; attack +0 deals 1 damage and halves speed
+Candle,Adventuring Gear,1 cp,,Illuminates 5 ft radius for 1 hour
+Canvas (sq. yd.),Adventuring Gear,1 sp,1 lb.,Fabric
+Case (map or scroll),Adventuring Gear,1 gp,0.5 lb.,Protective container
+Chain (10 ft.),Adventuring Gear,30 gp,2 lb.,Hardness 10; 5 HP; DC 26 to burst
+Chalk,Adventuring Gear,1 cp,,For marking
+Chest,Adventuring Gear,2 gp,25 lb.,Storage container
+Crowbar,Adventuring Gear,2 gp,5 lb.,+2 on Strength checks to pry
+Firewood (per day),Adventuring Gear,1 cp,20 lb.,Fuel
+Fishhook,Adventuring Gear,1 sp,,For fishing
+Fishing net (25 sq. ft.),Adventuring Gear,4 gp,5 lb.,For catching fish
+Flask,Adventuring Gear,3 cp,1.5 lb.,Container for liquids
+Flint and steel,Adventuring Gear,1 gp,,Fire starting kit
+Grappling hook,Adventuring Gear,1 gp,4 lb.,DC 10 Use Rope to throw
+Hammer,Adventuring Gear,5 sp,2 lb.,Tool
+Ink (1 oz. vial),Adventuring Gear,8 gp,,Black ink
+Inkpen,Adventuring Gear,1 sp,,Writing implement
+Jug (clay),Adventuring Gear,3 cp,9 lb.,Holds 1 gallon
+Ladder (10-foot),Adventuring Gear,5 cp,20 lb.,Climbing aid
+Lamp (common),Adventuring Gear,1 sp,1 lb.,Illuminates 15 ft radius for 6 hours
+Lantern (bullseye),Adventuring Gear,12 gp,3 lb.,60 ft cone illumination for 6 hours
+Lantern (hooded),Adventuring Gear,7 gp,2 lb.,30 ft radius illumination for 6 hours
+Lock (very simple),Adventuring Gear,20 gp,1 lb.,DC 20 to open
+Lock (average),Adventuring Gear,40 gp,1 lb.,DC 25 to open
+Lock (good),Adventuring Gear,80 gp,1 lb.,DC 30 to open
+Lock (amazing),Adventuring Gear,150 gp,1 lb.,DC 40 to open
+Manacles,Adventuring Gear,15 gp,2 lb.,DC 30 Escape Artist; DC 26 Strength
+Manacles (masterwork),Adventuring Gear,50 gp,2 lb.,DC 35 Escape Artist; DC 28 Strength
+Mirror (small steel),Adventuring Gear,10 gp,0.5 lb.,Reflective surface
+Mug/Tankard (clay),Adventuring Gear,2 cp,1 lb.,Drinking vessel
+Oil (1-pint flask),Adventuring Gear,1 sp,1 lb.,Burns 6 hours; splash weapon
+Paper (sheet),Adventuring Gear,4 sp,,Writing surface
+Parchment (sheet),Adventuring Gear,2 sp,,Writing surface
+Pick (miner's),Adventuring Gear,3 gp,10 lb.,Mining tool
+Pitcher (clay),Adventuring Gear,2 cp,5 lb.,Container
+Piton,Adventuring Gear,1 sp,0.5 lb.,Climbing spike
+Pole (10-foot),Adventuring Gear,2 sp,8 lb.,Probing tool
+Pot (iron),Adventuring Gear,5 sp,10 lb.,Cooking vessel
+Pouch (belt),Adventuring Gear,1 gp,0.5 lb.,Small container
+Ram (portable),Adventuring Gear,10 gp,20 lb.,+2 to break doors; allows helper
+Rations (trail per day),Adventuring Gear,5 sp,1 lb.,Food for one day
+Rope (hempen 50 ft.),Adventuring Gear,1 gp,10 lb.,2 HP; DC 23 to burst
+Rope (silk 50 ft.),Adventuring Gear,10 gp,5 lb.,4 HP; DC 24 to burst; +2 Use Rope
+Sack,Adventuring Gear,1 sp,0.5 lb.,Container
+Sealing wax,Adventuring Gear,1 gp,1 lb.,For sealing letters
+Sewing needle,Adventuring Gear,5 sp,,Crafting tool
+Signal whistle,Adventuring Gear,8 sp,,Signaling device
+Signet ring,Adventuring Gear,5 gp,,Personal seal
+Sledge,Adventuring Gear,1 gp,10 lb.,Heavy hammer
+Soap (per lb.),Adventuring Gear,5 sp,1 lb.,Cleaning
+Spade or shovel,Adventuring Gear,2 gp,8 lb.,Digging tool
+Spyglass,Adventuring Gear,1000 gp,1 lb.,Magnifies 2x
+Tent,Adventuring Gear,10 gp,20 lb.,Shelter
+Torch,Adventuring Gear,1 cp,1 lb.,20 ft radius illumination for 1 hour
+Vial,Adventuring Gear,1 gp,0.1 lb.,Holds 1 oz
+Waterskin,Adventuring Gear,1 gp,4 lb.,Water container
+Whetstone,Adventuring Gear,2 cp,1 lb.,Blade sharpening
+
+Acid (flask),Special Substance,10 gp,1 lb.,Splash weapon; 1d6 acid damage; 1 splash
+Alchemist's fire (flask),Special Substance,20 gp,1 lb.,Splash weapon; 1d6 fire + 1d6 next round
+Antitoxin (vial),Special Substance,50 gp,,+5 on Fortitude vs poison for 1 hour
+Everburning torch,Special Substance,110 gp,1 lb.,Permanent 20 ft illumination
+Holy water (flask),Special Substance,25 gp,1 lb.,2d4 damage to undead/evil outsiders
+Smokestick,Special Substance,20 gp,0.5 lb.,Creates 10 ft cube of smoke
+Sunrod,Special Substance,2 gp,1 lb.,30 ft illumination for 6 hours
+Tanglefoot bag,Special Substance,50 gp,4 lb.,Entangles target; DC 15 Reflex
+Thunderstone,Special Substance,30 gp,1 lb.,DC 15 Fort or deafened 1 hour
+Tindertwig,Special Substance,1 gp,,Quick fire starting
+Alchemist's lab,Tools,500 gp,40 lb.,+2 on Craft (alchemy)
+Artisan's tools,Tools,5 gp,5 lb.,Basic craft tools
+Artisan's tools (masterwork),Tools,55 gp,5 lb.,+2 on Craft checks
+Climber's kit,Tools,80 gp,5 lb.,+2 on Climb checks
+Disguise kit,Tools,50 gp,8 lb.,+2 on Disguise; 10 uses
+Healer's kit,Tools,50 gp,1 lb.,+2 on Heal; 10 uses
+Holy symbol (wooden),Tools,1 gp,,Divine focus
+Holy symbol (silver),Tools,25 gp,1 lb.,Divine focus
+Hourglass,Tools,25 gp,1 lb.,Time keeping
+Magnifying glass,Tools,100 gp,,+2 Appraise small items; fire starting
+Musical instrument (common),Tools,5 gp,3 lb.,Performance tool
+Musical instrument (masterwork),Tools,100 gp,3 lb.,+2 on Perform
+Scale (merchant's),Tools,2 gp,1 lb.,+2 Appraise by weight
+Spell component pouch,Tools,5 gp,2 lb.,Holds spell components
+Spellbook (blank),Tools,15 gp,3 lb.,100 pages
+Thieves' tools,Tools,30 gp,1 lb.,For Disable Device and Open Lock
+Thieves' tools (masterwork),Tools,100 gp,2 lb.,+2 on Disable Device and Open Lock
+Tool (masterwork),Tools,50 gp,1 lb.,+2 on related skill
+Water clock,Tools,1000 gp,200 lb.,Accurate to 30 min/day
+Artisan's outfit,Clothing,1 gp,4 lb.,Work clothes
+Cleric's vestments,Clothing,5 gp,6 lb.,Religious garb
+Cold weather outfit,Clothing,8 gp,7 lb.,+5 Fort vs cold exposure
+Courtier's outfit,Clothing,30 gp,6 lb.,Fancy clothes for nobles
+Entertainer's outfit,Clothing,3 gp,4 lb.,Performance attire
+Explorer's outfit,Clothing,10 gp,8 lb.,Practical adventuring clothes
+Monk's outfit,Clothing,5 gp,2 lb.,Loose comfortable clothes
+Noble's outfit,Clothing,75 gp,10 lb.,Expensive clothing
+Peasant's outfit,Clothing,1 sp,2 lb.,Simple clothes
+Royal outfit,Clothing,200 gp,15 lb.,Ostentatious royal garb
+Scholar's outfit,Clothing,5 gp,6 lb.,Robe and accessories
+Traveler's outfit,Clothing,1 gp,5 lb.,Sturdy travel clothes
+Ale (gallon),Food & Drink,2 sp,8 lb.,Alcoholic beverage
+Ale (mug),Food & Drink,4 cp,1 lb.,Alcoholic beverage
+Banquet (per person),Food & Drink,10 gp,,Fancy meal
+Bread (loaf),Food & Drink,2 cp,0.5 lb.,Basic food
+Cheese (hunk),Food & Drink,1 sp,0.5 lb.,Basic food
+Inn stay (good per day),Food & Drink,2 gp,,Private room
+Inn stay (common per day),Food & Drink,5 sp,,Raised floor with blanket
+Inn stay (poor per day),Food & Drink,2 sp,,Floor near hearth
+Meals (good per day),Food & Drink,5 sp,,Bread pastries beef peas ale
+Meals (common per day),Food & Drink,3 sp,,Bread chicken stew carrots
+Meals (poor per day),Food & Drink,1 sp,,Bread turnips onions water
+Meat (chunk),Food & Drink,3 sp,0.5 lb.,Basic food
+Wine (common pitcher),Food & Drink,2 sp,6 lb.,Alcoholic beverage
+Wine (fine bottle),Food & Drink,10 gp,1.5 lb.,Quality alcoholic beverage

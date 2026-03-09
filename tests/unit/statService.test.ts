@@ -43,9 +43,9 @@ describe("StatService", () => {
       expect(await StatService.calculateAC(8, 0)).toBe(9); // -1 DEX mod
     });
 
-    it("should add equipment CON bonus to AC", async () => {
+    it("should add equipment AC bonus to AC", async () => {
       expect(await StatService.calculateAC(10, 2)).toBe(12);
-      expect(await StatService.calculateAC(14, 3)).toBe(15); // 10 + 2 DEX + 3 CON
+      expect(await StatService.calculateAC(14, 3)).toBe(15); // 10 + 2 DEX + 3 armor
     });
 
     it("should handle negative equipment bonus", async () => {
@@ -110,6 +110,67 @@ describe("StatService", () => {
     it("should handle negative CON effects", () => {
       const items = [{ conEffect: 2 }, { conEffect: -1 }];
       expect(StatService.calculateEquipmentConBonus(items)).toBe(1);
+    });
+  });
+
+  describe("calculateEquipmentACBonus", () => {
+    it("should return 0 for empty array", () => {
+      expect(StatService.calculateEquipmentACBonus([])).toBe(0);
+    });
+
+    it("should sum AC bonuses from all items", () => {
+      const items = [{ acBonus: 2 }, { acBonus: 1 }, { acBonus: 3 }];
+      expect(StatService.calculateEquipmentACBonus(items)).toBe(6);
+    });
+
+    it("should handle null and undefined acBonus", () => {
+      const items = [
+        { acBonus: 2 },
+        { acBonus: null },
+        { acBonus: undefined },
+        { acBonus: 1 },
+      ];
+      expect(StatService.calculateEquipmentACBonus(items)).toBe(3);
+    });
+  });
+
+  describe("calculateEquipmentAttackBonus", () => {
+    it("should return 0 for empty array", () => {
+      expect(StatService.calculateEquipmentAttackBonus([])).toBe(0);
+    });
+
+    it("should sum attack bonuses from all items", () => {
+      const items = [{ attackBonus: 1 }, { attackBonus: 2 }];
+      expect(StatService.calculateEquipmentAttackBonus(items)).toBe(3);
+    });
+
+    it("should handle null and undefined attackBonus", () => {
+      const items = [
+        { attackBonus: 2 },
+        { attackBonus: null },
+        { attackBonus: undefined },
+      ];
+      expect(StatService.calculateEquipmentAttackBonus(items)).toBe(2);
+    });
+  });
+
+  describe("calculateEquipmentDamageBonus", () => {
+    it("should return 0 for empty array", () => {
+      expect(StatService.calculateEquipmentDamageBonus([])).toBe(0);
+    });
+
+    it("should sum damage bonuses from all items", () => {
+      const items = [{ damageBonus: 1 }, { damageBonus: 2 }];
+      expect(StatService.calculateEquipmentDamageBonus(items)).toBe(3);
+    });
+
+    it("should handle null and undefined damageBonus", () => {
+      const items = [
+        { damageBonus: 2 },
+        { damageBonus: null },
+        { damageBonus: undefined },
+      ];
+      expect(StatService.calculateEquipmentDamageBonus(items)).toBe(2);
     });
   });
 

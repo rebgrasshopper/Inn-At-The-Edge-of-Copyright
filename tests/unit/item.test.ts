@@ -76,7 +76,8 @@ beforeAll(async () => {
       equipSlots: ["mainHand", "offHand"],
       weaponDamage: "1d6",
       weaponType: "slashing",
-      strEffect: 2,
+      attackBonus: 1,
+      damageBonus: 1,
       size: 2, // medium
     },
     {
@@ -516,7 +517,8 @@ describe("ItemService", () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.description).toContain("+2 STR");
+      expect(result.description).toContain("+1 Attack");
+      expect(result.description).toContain("+1 Damage");
       expect(result.description).toContain("1d6");
     });
 

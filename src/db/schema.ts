@@ -168,7 +168,12 @@ export const items = sqliteTable("items", {
   // Weapon range for feat effects (Power Attack = melee, Deadly Aim = ranged)
   weaponRange: text("weapon_range"), // "melee" or "ranged" for weapons
 
-  // Stat effects when used/equipped
+  // Combat bonuses (direct modifiers to attack/damage/AC)
+  attackBonus: integer("attack_bonus").default(0),
+  damageBonus: integer("damage_bonus").default(0),
+  acBonus: integer("ac_bonus").default(0),
+
+  // Stat effects when used/equipped (for stat-boosting magic items)
   strEffect: integer("str_effect").default(0),
   dexEffect: integer("dex_effect").default(0),
   conEffect: integer("con_effect").default(0),

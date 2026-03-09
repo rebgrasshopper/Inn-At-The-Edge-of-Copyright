@@ -86,6 +86,9 @@ export function toItem(row: typeof items.$inferSelect): Item {
     weaponDamage: row.weaponDamage ?? undefined,
     weaponType: row.weaponType ?? undefined,
     magicProperties: row.magicProperties ?? undefined,
+    attackBonus: row.attackBonus ?? undefined,
+    damageBonus: row.damageBonus ?? undefined,
+    acBonus: row.acBonus ?? undefined,
     effects: {
       str: row.strEffect ?? undefined,
       dex: row.dexEffect ?? undefined,
@@ -141,7 +144,18 @@ export function getItemDisplayName(item: Item, quantity: number): string {
 export function generateStatsDescription(item: Item): string {
   const parts: string[] = [];
 
-  // Stat effects
+  // Combat bonuses (attack, damage, AC)
+  if (item.attackBonus && item.attackBonus !== 0) {
+    parts.push(`${item.attackBonus > 0 ? "+" : ""}${item.attackBonus} Attack`);
+  }
+  if (item.damageBonus && item.damageBonus !== 0) {
+    parts.push(`${item.damageBonus > 0 ? "+" : ""}${item.damageBonus} Damage`);
+  }
+  if (item.acBonus && item.acBonus !== 0) {
+    parts.push(`${item.acBonus > 0 ? "+" : ""}${item.acBonus} AC`);
+  }
+
+  // Stat effects (for stat-boosting magic items)
   const statNames: Record<string, string> = {
     str: "STR",
     dex: "DEX",

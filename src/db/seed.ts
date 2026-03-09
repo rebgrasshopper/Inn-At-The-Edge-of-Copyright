@@ -5,11 +5,21 @@ import * as dotenv from "dotenv";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
 import { seedFeats } from "./seeders/featSeeder.js";
+import {
+  getArmorData,
+  getMiscItemsData,
+  getWeaponsData,
+} from "./seeders/itemSeeder.js";
 
 dotenv.config();
 
 const sqlite = new Database(process.env.DATABASE_URL || "game.db");
 const db = drizzle(sqlite, { schema });
+
+// Pre-load item data at module level so imports aren't removed
+const WEAPONS_DATA = getWeaponsData();
+const ARMOR_DATA = getArmorData();
+const MISC_ITEMS_DATA = getMiscItemsData();
 
 async function seed() {
   console.log("🌱 Seeding database...\n");
@@ -145,120 +155,14 @@ async function seed() {
   console.log(`  ✓ Created ${roomsData.length} rooms\n`);
 
   // ============================================
-  // ITEMS - Basic starter items
+  // ITEMS - Weapons, Armor, and Miscellaneous
   // ============================================
   console.log("Creating items...");
 
   const itemsData: (typeof schema.items.$inferInsert)[] = [
-    {
-      id: "item-rusty-sword",
-      name: "rusty sword",
-      pluralName: "rusty swords",
-      description:
-        "A battered old sword, its blade pitted with rust. Despite its poor condition, it still has a sharp edge.",
-      category: "weapon",
-      equipSlots: ["mainHand", "offHand"],
-      weaponDamage: "1d6",
-      weaponType: "slashing",
-      strEffect: 2,
-      isBulk: false,
-      size: 2, // medium
-    },
-    {
-      id: "item-leather-cap",
-      name: "leather cap",
-      pluralName: "leather caps",
-      description:
-        "A simple cap made of boiled leather. It offers modest protection.",
-      category: "armor",
-      equipSlots: ["head"],
-      conEffect: 1,
-      isBulk: false,
-      size: 1, // small
-    },
-    {
-      id: "item-healing-potion",
-      name: "healing potion",
-      pluralName: "healing potions",
-      description:
-        "A small vial filled with a glowing red liquid. It smells faintly of cherries.",
-      category: "consumable",
-      hpEffect: 10,
-      isBulk: false,
-      size: 1, // small
-    },
-    {
-      id: "item-torch",
-      name: "torch",
-      pluralName: "torches",
-      description:
-        "A wooden torch wrapped in oil-soaked rags. It provides light in dark places.",
-      category: "tool",
-      equipSlots: ["mainHand", "offHand"],
-      isBulk: false,
-      size: 2, // medium
-    },
-    {
-      id: "item-gold-coin",
-      name: "gold coin",
-      pluralName: "gold coins",
-      description:
-        "A shiny gold coin stamped with the image of a long-forgotten king.",
-      category: "currency",
-      isBulk: true,
-      size: 0, // tiny
-    },
-    {
-      id: "item-stale-bread",
-      name: "stale bread",
-      pluralName: "stale bread",
-      description:
-        "A hard loaf of bread, several days old. Still edible, if not appetizing.",
-      category: "food",
-      hpEffect: 2,
-      isBulk: false,
-      size: 1, // small
-    },
-    {
-      id: "item-circus-flyer",
-      name: "circus flyer",
-      pluralName: "circus flyers",
-      description:
-        "A colorful paper flyer advertising 'The Magnificent Traveling Circus of Wonders!' It promises acrobats, fire-breathers, and a mysterious fortune teller. The show dates have long since passed.",
-      category: "junk",
-      isBulk: false,
-      size: 0, // tiny
-    },
-    {
-      id: "item-copper-coin",
-      name: "copper coin",
-      pluralName: "copper coins",
-      description:
-        "A tarnished copper coin. It's not worth much, but every bit counts.",
-      category: "currency",
-      isBulk: true,
-      size: 0, // tiny
-    },
-    {
-      id: "item-small-rock",
-      name: "small rock",
-      pluralName: "small rocks",
-      description:
-        "A smooth, palm-sized rock. Good for skipping across water or throwing at things.",
-      category: "junk",
-      isBulk: true,
-      size: 0, // tiny
-    },
-    {
-      id: "item-blue-feather",
-      name: "blue feather",
-      pluralName: "blue feathers",
-      description:
-        "A brilliant blue feather, likely from a jay or some exotic forest bird. It shimmers faintly in the light.",
-      category: "junk",
-      isBulk: false,
-      size: 0, // tiny
-    },
+    ...WEAPONS_DATA,
+    ...ARMOR_DATA,
+    ...MISC_ITEMS_DATA,
   ];
 
   for (const item of itemsData) {

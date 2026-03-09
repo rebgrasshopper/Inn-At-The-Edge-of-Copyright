@@ -144,6 +144,9 @@ export async function getRoomWithContents(
       category: record.items.category || undefined,
       isBulk: record.items.isBulk || undefined,
       size: record.items.size,
+      attackBonus: record.items.attackBonus || undefined,
+      damageBonus: record.items.damageBonus || undefined,
+      acBonus: record.items.acBonus || undefined,
       effects: {
         str: record.items.strEffect || undefined,
         dex: record.items.dexEffect || undefined,
