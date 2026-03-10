@@ -7,7 +7,7 @@ import { getAliasesForCommand } from "./aliases.js";
 import { Command, type CommandDefinition } from "./types.js";
 
 // Import handlers
-import { handleSpawn } from "./handlers/admin.js";
+import { handleMake, handleSpawn } from "./handlers/admin.js";
 import {
   handleFeats,
   handleStance,
@@ -306,11 +306,23 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
 
   [Command.Spawn]: {
     handler: handleSpawn,
+    adminOnly: true,
     help: {
       summary: "Spawn a monster (admin only)",
       usage: ["spawn <monster name>"],
       aliases: getAliasesForCommand(Command.Spawn),
       examples: ["spawn wolf", "spawn goblin", "spawn giant spider"],
+    },
+  },
+
+  [Command.Make]: {
+    handler: handleMake,
+    adminOnly: true,
+    help: {
+      summary: "Create an item (admin only)",
+      usage: ["make <item name>"],
+      aliases: getAliasesForCommand(Command.Make),
+      examples: ["make longsword", "make potion", "make leather armor"],
     },
   },
 };

@@ -7,7 +7,7 @@ import { db } from "../../../db/index.js";
 import { players } from "../../../db/schema.js";
 import type { CommandContext, CommandResult } from "../../../types/command.js";
 import * as CorpseService from "../../CorpseService.js";
-import * as FeatureService from "../../FeatureService.js";
+import { resolveEntity } from "../../EntityResolver.js";
 import * as ItemService from "../../items/index.js";
 
 /**
@@ -223,107 +223,202 @@ export async function handleExamine(
   // Check for self-examination
   const selfWords = ["self", "me", "myself", player.name.toLowerCase()];
   if (selfWords.includes(target.toLowerCase())) {
-    // Fetch fresh player data from database to get current HP/XP
-    const freshPlayer = db
-      .select()
-      .from(players)
-      .where(eq(players.id, player.id))
-      .get();
-
-    if (!freshPlayer) {
-      return { success: false, message: "Player not found." };
-    }
-
-    // Calculate AC
-    const { calculateAC, calculateEquipmentACBonus } =
-      await import("../../StatService.js");
-    const { getEquippedItems } = await import("../../items/equipment.js");
-
-    const equipped = await getEquippedItems(player.id);
-    const equipACBonus = calculateEquipmentACBonus(equipped);
-    const ac = await calculateAC(freshPlayer.dex, equipACBonus, player.id);
-
-    // Show character info with equipment
-    const equipResult = await ItemService.getEquipmentList(player.id);
-    const lines = [
-      `${freshPlayer.name} - Level ${freshPlayer.level}`,
-      `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}  AC: ${ac}  XP: ${freshPlayer.xp}`,
-      `STR: ${freshPlayer.str}  DEX: ${freshPlayer.dex}  CON: ${freshPlayer.con}`,
-      `INT: ${freshPlayer.int}  WIS: ${freshPlayer.wis}  CHA: ${freshPlayer.cha}`,
-      "",
-      equipResult.message,
-    ];
-    return { success: true, message: lines.join("\n") };
+    return examinePlayer(player.id);
   }
 
-  // Check for corpse examination
+  // Check for corpse examination (special case - not in EntityResolver)
   const targetLower = target.toLowerCase();
   if (targetLower === "corpse" || targetLower.startsWith("corpse of ")) {
-    const corpseResult = await CorpseService.findCorpseInRoom(room.id, target);
-    if (!corpseResult.found) {
-      return { success: false, message: corpseResult.error };
-    }
-
-    const corpse = corpseResult.corpse;
-    const lines = [`The corpse of ${corpse.playerName}.`];
-
-    if (corpse.inventory.length === 0) {
-      lines.push("It is empty.");
-    } else {
-      lines.push("It contains:");
-      for (const item of corpse.inventory) {
-        if (item.quantity === 1) {
-          lines.push(`  ${item.itemName}`);
-        } else {
-          const displayName = item.itemPluralName || `${item.itemName}s`;
-          lines.push(`  ${item.quantity} ${displayName}`);
-        }
-      }
-    }
-
-    // Check if locked for this player
-    const canLoot = await CorpseService.canLootCorpse(player.id, corpse.id);
-    if (!canLoot) {
-      const timeLeft = Math.ceil(
-        (corpse.unlocksAt.getTime() - Date.now()) / 60000,
-      );
-      lines.push(`(Locked for ${timeLeft} more minutes)`);
-    }
-
-    return { success: true, message: lines.join("\n") };
+    return examineCorpse(room.id, target, player.id);
   }
 
-  // Check for "examine my X" pattern
+  // Check for "examine my X" pattern - search own inventory first
   const myMatch = target.match(/^my\s+(.+)$/i);
-  const searchOwn = !!myMatch;
-  const itemName = myMatch ? myMatch[1] : target;
-
-  const result = await ItemService.examineItem(
-    player.id,
-    room.id,
-    itemName,
-    searchOwn,
-  );
-
-  // If item not found, check for a feature by name (just show description)
-  if (!result.success) {
-    const feature = await FeatureService.findFeatureByName(
-      room.id,
-      target,
+  if (myMatch) {
+    const itemName = myMatch[1];
+    const result = await ItemService.examineItem(
       player.id,
+      room.id,
+      itemName,
+      true, // searchOwn = true
     );
-    if (feature) {
+    return { success: result.success, message: result.description };
+  }
+
+  // Use EntityResolver to find the target - examine can target anything visible
+  const resolved = await resolveEntity(room.id, target, [
+    "item",
+    "monster",
+    "npc",
+    "player",
+    "feature",
+    "container",
+  ]);
+
+  if (resolved.status === "not_found") {
+    return { success: false, message: `You don't see any "${target}" here.` };
+  }
+
+  // wrong_type shouldn't happen since we allow all types, but handle it
+  if (resolved.status === "wrong_type") {
+    return { success: false, message: `You don't see any "${target}" here.` };
+  }
+
+  // Handle each entity type (resolved.status === "found" at this point)
+  switch (resolved.type) {
+    case "item": {
+      const result = await ItemService.examineItem(
+        player.id,
+        room.id,
+        target,
+        false,
+      );
+      return { success: result.success, message: result.description };
+    }
+
+    case "feature": {
+      const feature = resolved.entity as { description: string };
       return { success: true, message: feature.description };
     }
 
-    // If no feature by name, check for a container
-    const containerResult = await ItemService.examineContainer(room.id, target);
-    if (containerResult.success) {
-      return { success: true, message: containerResult.description };
+    case "container": {
+      const containerResult = await ItemService.examineContainer(
+        room.id,
+        target,
+      );
+      return {
+        success: containerResult.success,
+        message: containerResult.description,
+      };
+    }
+
+    case "monster": {
+      const monsterData = resolved.entity as {
+        monsters: { name: string; description: string; maxHp: number };
+        monster_instances: { currentHp: number };
+      };
+      const healthStatus = getHealthStatus(
+        monsterData.monster_instances.currentHp,
+        monsterData.monsters.maxHp,
+      );
+      return {
+        success: true,
+        message: `${monsterData.monsters.description}\nIt looks ${healthStatus}.`,
+      };
+    }
+
+    case "npc": {
+      const npc = resolved.entity as { name: string; description: string };
+      return { success: true, message: npc.description };
+    }
+
+    case "player": {
+      const otherPlayer = resolved.entity as { id: string };
+      return examinePlayer(otherPlayer.id);
+    }
+
+    default:
+      return { success: false, message: `You don't see any "${target}" here.` };
+  }
+}
+
+/**
+ * Get a health status description based on current/max HP ratio.
+ * @param currentHp - Current hit points
+ * @param maxHp - Maximum hit points
+ * @returns Health status string
+ */
+function getHealthStatus(currentHp: number, maxHp: number): string {
+  const ratio = currentHp / maxHp;
+  if (ratio >= 1) return "healthy";
+  if (ratio >= 0.75) return "slightly wounded";
+  if (ratio >= 0.5) return "wounded";
+  if (ratio >= 0.25) return "badly wounded";
+  return "near death";
+}
+
+/**
+ * Examine a player (self or other).
+ * @param playerId - The player to examine
+ * @returns CommandResult with player info
+ */
+async function examinePlayer(playerId: string): Promise<CommandResult> {
+  const freshPlayer = db
+    .select()
+    .from(players)
+    .where(eq(players.id, playerId))
+    .get();
+
+  if (!freshPlayer) {
+    return { success: false, message: "Player not found." };
+  }
+
+  // Calculate AC
+  const { calculateAC, calculateEquipmentACBonus } =
+    await import("../../StatService.js");
+  const { getEquippedItems } = await import("../../items/equipment.js");
+
+  const equipped = await getEquippedItems(playerId);
+  const equipACBonus = calculateEquipmentACBonus(equipped);
+  const ac = await calculateAC(freshPlayer.dex, equipACBonus, playerId);
+
+  // Show character info with equipment
+  const equipResult = await ItemService.getEquipmentList(playerId);
+  const lines = [
+    `${freshPlayer.name} - Level ${freshPlayer.level}`,
+    `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}  AC: ${ac}  XP: ${freshPlayer.xp}`,
+    `STR: ${freshPlayer.str}  DEX: ${freshPlayer.dex}  CON: ${freshPlayer.con}`,
+    `INT: ${freshPlayer.int}  WIS: ${freshPlayer.wis}  CHA: ${freshPlayer.cha}`,
+    "",
+    equipResult.message,
+  ];
+  return { success: true, message: lines.join("\n") };
+}
+
+/**
+ * Examine a corpse in the room.
+ * @param roomId - The room to search
+ * @param target - The corpse name/identifier
+ * @param playerId - The player examining (for lock check)
+ * @returns CommandResult with corpse info
+ */
+async function examineCorpse(
+  roomId: string,
+  target: string,
+  playerId: string,
+): Promise<CommandResult> {
+  const corpseResult = await CorpseService.findCorpseInRoom(roomId, target);
+  if (!corpseResult.found) {
+    return { success: false, message: corpseResult.error };
+  }
+
+  const corpse = corpseResult.corpse;
+  const lines = [`The corpse of ${corpse.playerName}.`];
+
+  if (corpse.inventory.length === 0) {
+    lines.push("It is empty.");
+  } else {
+    lines.push("It contains:");
+    for (const item of corpse.inventory) {
+      if (item.quantity === 1) {
+        lines.push(`  ${item.itemName}`);
+      } else {
+        const displayName = item.itemPluralName || `${item.itemName}s`;
+        lines.push(`  ${item.quantity} ${displayName}`);
+      }
     }
   }
 
-  return { success: result.success, message: result.description };
+  // Check if locked for this player
+  const canLoot = await CorpseService.canLootCorpse(playerId, corpse.id);
+  if (!canLoot) {
+    const timeLeft = Math.ceil(
+      (corpse.unlocksAt.getTime() - Date.now()) / 60000,
+    );
+    lines.push(`(Locked for ${timeLeft} more minutes)`);
+  }
+
+  return { success: true, message: lines.join("\n") };
 }
 
 /**

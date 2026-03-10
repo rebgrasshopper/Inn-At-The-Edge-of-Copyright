@@ -54,6 +54,7 @@ export enum Command {
 
   // Admin
   Spawn = "spawn",
+  Make = "make",
 }
 
 /** Command category for legacy type compatibility */
@@ -87,6 +88,7 @@ export const COMMAND_CATEGORIES: Record<Command, CommandCategory> = {
   [Command.Toggle]: "info",
   [Command.Swim]: "movement",
   [Command.Spawn]: "info",
+  [Command.Make]: "info",
 };
 
 /** Maps commands to their legacy action names (for backward compatibility) */
@@ -120,4 +122,6 @@ export type CommandHandler = (
 export type CommandDefinition = {
   handler: CommandHandler;
   help: CommandHelp;
+  /** If true, command is hidden from help listings */
+  adminOnly?: boolean;
 };

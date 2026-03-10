@@ -26,8 +26,6 @@ Items to revisit after the initial prototype is working.
 
 - [ ] **Property 21-23 (Socket tests)**: Defer socket room membership, disconnect state, and reconnection restoration property tests to integration testing phase. These require real socket connections and are better tested end-to-end.
 
-- [ ] **Examine monsters**: Currently `examine` only handles items, features, and containers. Add support for examining monsters in the room to see their description, level, and possibly HP status (e.g., "healthy", "wounded", "near death").
-
 - [ ] **Target command for combat**: Add a `target <monster>` command to let players manually switch their attack target mid-combat. Currently players auto-target the first monster they attack, and auto-switch to another attacker when their target dies. Manual targeting would let players prioritize dangerous threats. Implementation: clear current attack timer, find the new target in combat participants, reschedule attack against new target.
 
 - [ ] **Multi-monster combat unit tests**: Add unit tests for the multi-monster combat state management. Currently only manually tested. Potential tests:

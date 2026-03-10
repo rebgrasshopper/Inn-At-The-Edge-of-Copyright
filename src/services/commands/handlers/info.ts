@@ -120,8 +120,7 @@ export async function handleStats(
     calculateEquipmentAttackBonus,
     calculateEquipmentDamageBonus,
   } = await import("../../StatService.js");
-  const { getEquippedItems, getEquipmentCombatBonuses } =
-    await import("../../items/equipment.js");
+  const { getEquippedItems } = await import("../../items/equipment.js");
   const { getACModifiers } = await import("../../FeatEffectHandler.js");
 
   const equipped = await getEquippedItems(player.id);
@@ -241,11 +240,13 @@ export async function handleHelp(
   _context: CommandContext,
 ): Promise<CommandResult> {
   if (args.length === 0) {
-    // General help - list all commands
+    // General help - list all commands (excluding admin-only)
     const lines = ["Available commands:", ""];
 
     for (const cmd of Object.values(Command)) {
       const def = COMMAND_REGISTRY[cmd];
+      if (def.adminOnly) continue;
+
       const aliasStr =
         def.help.aliases.length > 0
           ? ` (${def.help.aliases.slice(0, 3).join(", ")}${def.help.aliases.length > 3 ? "..." : ""})`
@@ -267,6 +268,12 @@ export async function handleHelp(
   }
 
   const def = COMMAND_REGISTRY[command];
+
+  // Hide admin-only commands from help lookups
+  if (def.adminOnly) {
+    return { success: false, message: `Unknown command: ${topic}` };
+  }
+
   const lines = [
     `${command} - ${def.help.summary}`,
     "",

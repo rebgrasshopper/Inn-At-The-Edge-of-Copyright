@@ -102,6 +102,8 @@ export const COMMAND_ALIASES: Record<string, Command> = {
 
   // Admin
   spawn: Command.Spawn,
+  make: Command.Make,
+  create: Command.Make,
 
   // Multi-word aliases
   "pick up": Command.Get,
