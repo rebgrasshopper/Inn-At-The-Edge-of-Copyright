@@ -1,7 +1,7 @@
 # fly.toml - Fly.io deployment configuration
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 
-app = "inn-at-the-edge"
+app = "pixelless-word-dungeon"
 primary_region = "iad"
 
 [build]
@@ -25,5 +25,5 @@ primary_region = "iad"
   cpus = 1
 
 [mounts]
-  source = "mud_data"
+  source = "pixelless_word_dungeon_data"
   destination = "/data"

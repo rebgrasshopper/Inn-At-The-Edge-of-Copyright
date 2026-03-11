@@ -33,9 +33,10 @@ RUN npm install drizzle-kit better-sqlite3
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/client/dist ./client/dist
 
-# Copy drizzle config for migrations
+# Copy drizzle config and migrations
 COPY drizzle.config.ts ./
 COPY src/db/schema.ts ./src/db/
+COPY drizzle ./drizzle
 
 # Create data directory for SQLite
 RUN mkdir -p /data

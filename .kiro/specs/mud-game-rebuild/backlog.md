@@ -2,9 +2,35 @@
 
 Items to revisit after the initial prototype is working.
 
-## Pending
+## Dual-User Testing Findings (March 2026)
 
-- [ ] **INT → Spell system**: Add spells that players can learn/use based on INT modifier. Number of spell slots = INT modifier (minimum 0). Include a basic attack spell (e.g., "magic missile") so non-STR builds have a combat option. Spells could use a `spells` table and `player_spells` junction table.
+Issues found during first multiplayer testing session, ordered from smallest to largest fix:
+
+- [ ] **Add "loot" as alias for "get all from"**: "loot corpse" should work as shorthand for "get all from corpse".
+
+- [ ] **Wearing already-equipped item gives confusing message**: Trying to wear an item you're already wearing says "You equip the leather cap on your head (removing leather cap)." Should say "You're already wearing that." or similar.
+
+- [ ] **"look <myPlayerName>" should resolve to "look self"**: Looking at your own character name should use the self-view logic, not the "look at other player" logic.
+
+- [ ] **Show direction when player leaves**: When another player leaves the room, show which direction they went. E.g., "Fox leaves to the north." instead of just "Fox has left."
+
+- [ ] **No broadcast when player picks up item**: Other players in the room don't see a message when someone picks up an item. Should broadcast something like "Fox picks up a rusty sword."
+
+- [ ] **Equip fuzzy match should prioritize unequipped items**: When using "wear" or "equip" with a fuzzy item name, prioritize matching unequipped items over already-equipped ones. Avoids the "already wearing that" issue when you have duplicates.
+
+- [ ] **"look <item>" should check inventory**: When looking at an item by name, it should also search the player's inventory, not just the room. E.g., "look sword" should work if you're carrying a sword.
+
+- [ ] **Look at other players shows too much info**: When looking at another player, you currently see their full stats (STR, DEX, etc.), level, HP, AC, XP. Should only show a description and visible equipped items — not their private stats. The "You don't have anything equipped" message is also wrong (should be "They don't have..." or list their gear).
+
+- [ ] **Monster spawn not broadcast to room**: When a monster spawns (via admin command or respawn system), other players in the room don't see it appear. Should broadcast something like "A wolf emerges from the shadows."
+
+- [ ] **Split XP for group combat**: When multiple players fight the same monster, XP should be split among participants. Consider a bonus so each player gets slightly more than a pure split (e.g., 60% each for 2 players instead of 50%).
+
+- [ ] **Monster respawn system**: Monsters don't respawn after being killed. Need logic to re-spawn monsters after some time (either per-monster cooldown or periodic sweep that repopulates rooms).
+
+- [ ] **UI overlap issue (intermittent)**: Room description overlapping with exits display. Not reproducible yet — only happened for one player. Need to investigate CSS/layout when it happens again.
+
+## Pending: Add spells that players can learn/use based on INT modifier. Number of spell slots = INT modifier (minimum 0). Include a basic attack spell (e.g., "magic missile") so non-STR builds have a combat option. Spells could use a `spells` table and `player_spells` junction table.
 
 - [ ] **WIS → Perception/Discovery**: WIS modifier affects chance to notice hidden features, traps, or secrets. Could also affect saving throws against illusions or mind effects.
 

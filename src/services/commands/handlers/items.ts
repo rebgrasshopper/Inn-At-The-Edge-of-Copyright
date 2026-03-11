@@ -148,6 +148,25 @@ export async function handleGet(
 }
 
 /**
+ * Handle loot command - shorthand for "get all from <target>"
+ * @param args - Command arguments (target container/corpse)
+ * @param context - Command context with player info
+ * @returns Command result from handleGet
+ */
+export async function handleLoot(
+  args: string[],
+  context: CommandContext,
+): Promise<CommandResult> {
+  if (args.length === 0) {
+    return { success: false, message: "What do you want to loot?" };
+  }
+
+  // Transform "loot <target>" into "get all from <target>"
+  const transformedArgs = ["all", "from", ...args];
+  return handleGet(transformedArgs, context);
+}
+
+/**
  * Handle drop command
  */
 export async function handleDrop(
@@ -223,7 +242,7 @@ export async function handleExamine(
   // Check for self-examination
   const selfWords = ["self", "me", "myself", player.name.toLowerCase()];
   if (selfWords.includes(target.toLowerCase())) {
-    return examinePlayer(player.id);
+    return examinePlayer(player.id, true);
   }
 
   // Check for corpse examination (special case - not in EntityResolver)
@@ -342,7 +361,10 @@ function getHealthStatus(currentHp: number, maxHp: number): string {
  * @param playerId - The player to examine
  * @returns CommandResult with player info
  */
-async function examinePlayer(playerId: string): Promise<CommandResult> {
+async function examinePlayer(
+  playerId: string,
+  isSelf: boolean = false,
+): Promise<CommandResult> {
   const freshPlayer = db
     .select()
     .from(players)
@@ -362,16 +384,31 @@ async function examinePlayer(playerId: string): Promise<CommandResult> {
   const equipACBonus = calculateEquipmentACBonus(equipped);
   const ac = await calculateAC(freshPlayer.dex, equipACBonus, playerId);
 
-  // Show character info with equipment
-  const equipResult = await ItemService.getEquipmentList(playerId);
-  const lines = [
-    `${freshPlayer.name} - Level ${freshPlayer.level}`,
-    `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}  AC: ${ac}  XP: ${freshPlayer.xp}`,
-    `STR: ${freshPlayer.str}  DEX: ${freshPlayer.dex}  CON: ${freshPlayer.con}`,
-    `INT: ${freshPlayer.int}  WIS: ${freshPlayer.wis}  CHA: ${freshPlayer.cha}`,
-    "",
-    equipResult.message,
-  ];
+  // Self-examination: show full stats
+  if (isSelf) {
+    const equipResult = await ItemService.getEquipmentList(playerId);
+    const lines = [
+      `${freshPlayer.name} - Level ${freshPlayer.level}`,
+      `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}  AC: ${ac}  XP: ${freshPlayer.xp}`,
+      `STR: ${freshPlayer.str}  DEX: ${freshPlayer.dex}  CON: ${freshPlayer.con}`,
+      `INT: ${freshPlayer.int}  WIS: ${freshPlayer.wis}  CHA: ${freshPlayer.cha}`,
+      "",
+      equipResult.message,
+    ];
+    return { success: true, message: lines.join("\n") };
+  }
+
+  // Examining another player: show limited info
+  const lines = [`${freshPlayer.name} - Level ${freshPlayer.level}`];
+
+  // Show visible equipment
+  if (equipped.length > 0) {
+    const visibleGear = equipped.map((e) => e.name).join(", ");
+    lines.push(`Wearing: ${visibleGear}`);
+  } else {
+    lines.push("They don't have anything equipped.");
+  }
+
   return { success: true, message: lines.join("\n") };
 }
 

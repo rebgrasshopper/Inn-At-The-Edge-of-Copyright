@@ -119,7 +119,7 @@ export async function handleFlee(
     broadcasts.push({
       event: "room:leave",
       room: room.id,
-      data: { playerName: player.name, roomId: room.id },
+      data: { player, roomId: room.id, direction: result.destination },
     });
   }
 

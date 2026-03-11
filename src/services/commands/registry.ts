@@ -29,6 +29,7 @@ import {
   handleExamine,
   handleGet,
   handleInventory,
+  handleLoot,
   handleOpen,
   handlePut,
   handleUnequip,
@@ -99,6 +100,16 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
       usage: ["get <item>", "get <item> from <container>", "get all <item>"],
       aliases: getAliasesForCommand(Command.Get),
       examples: ["get sword", "take 3 coins", "get potion from chest"],
+    },
+  },
+
+  [Command.Loot]: {
+    handler: handleLoot,
+    help: {
+      summary: "Take all items from a container or corpse",
+      usage: ["loot <target>"],
+      aliases: getAliasesForCommand(Command.Loot),
+      examples: ["loot corpse", "loot chest"],
     },
   },
 

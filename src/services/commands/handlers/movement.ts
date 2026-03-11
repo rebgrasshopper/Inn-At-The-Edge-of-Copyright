@@ -85,11 +85,11 @@ export async function handleMove(
   // Build broadcasts for room enter/leave
   const broadcasts = [];
 
-  // Notify old room that player left
+  // Notify old room that player left (with direction)
   broadcasts.push({
     event: "room:leave",
     room: room.id,
-    data: { playerName: player.name, roomId: room.id },
+    data: { player, roomId: room.id, direction },
   });
 
   // Notify new room that player entered

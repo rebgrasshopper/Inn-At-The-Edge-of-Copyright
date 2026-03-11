@@ -22,6 +22,7 @@ export enum Command {
   Put = "put",
   Examine = "examine",
   Inventory = "inventory",
+  Loot = "loot",
 
   // Equipment
   Equip = "equip",
@@ -73,6 +74,7 @@ export const COMMAND_CATEGORIES: Record<Command, CommandCategory> = {
   [Command.Put]: "item",
   [Command.Examine]: "item",
   [Command.Inventory]: "item",
+  [Command.Loot]: "item",
   [Command.Equip]: "item",
   [Command.Unequip]: "item",
   [Command.Equipment]: "item",

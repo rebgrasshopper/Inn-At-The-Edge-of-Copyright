@@ -50,6 +50,7 @@ export const COMMAND_ALIASES: Record<string, Command> = {
   inventory: Command.Inventory,
   inv: Command.Inventory,
   i: Command.Inventory,
+  loot: Command.Loot,
 
   // Equipment
   equip: Command.Equip,

@@ -1,0 +1,43 @@
+# 1. Install flyctl (if needed)
+brew install flyctl
+
+# 2. Login
+fly auth login
+
+# 3. Create the app
+fly apps create pixelless-word-dungeon
+
+# 4. Create the volume (1GB is the minimum, plenty for SQLite)
+fly volumes create pixelless_word_dungeon_data --region iad --size 1
+
+# 5. Set JWT secret
+fly secrets set JWT_SECRET=$(openssl rand -base64 32)
+
+# 6. Deploy
+fly deploy
+Let me know when you hit the deploy step or if you run into any issues along the way!
+
+Credits used: 0.34
+Elapsed time: 9s
+
+Checkpoint
+Restore
+got back this in case we need it in a later step:                   ID: vol_vdm1p5gdyqne0g3v
+
+                Name: pixelless_word_dungeon_data
+
+                 App: pixelless-word-dungeon
+
+              Region: iad
+
+                Zone: c8dc
+
+             Size GB: 1
+
+           Encrypted: true
+
+          Created at: 11 Mar 26 17:24 UTC
+
+  Snapshot retention: 5
+
+ Scheduled snapshots: true

@@ -150,11 +150,16 @@ export function useGameSocket(socket: Socket | null): void {
       }
     };
 
-    const handleRoomLeave = (data: { roomId: string; player?: Player }) => {
+    const handleRoomLeave = (data: {
+      roomId: string;
+      player?: Player;
+      direction?: string;
+    }) => {
       if (!data.player) return;
+      const directionText = data.direction ? ` to the ${data.direction}` : "";
       dispatch({
         type: "ADD_MESSAGE",
-        payload: systemMessage(`${data.player.name} leaves.`),
+        payload: systemMessage(`${data.player.name} leaves${directionText}.`),
       });
     };
 

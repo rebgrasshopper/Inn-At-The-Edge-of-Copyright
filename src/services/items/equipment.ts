@@ -274,6 +274,14 @@ export async function equipItem(
   let swapMessage = "";
   let oldItemConEffect = 0;
 
+  // Check if trying to equip the same item that's already equipped
+  if (currentItemId === item.id) {
+    return {
+      success: false,
+      message: `You're already wearing the ${item.name}.`,
+    };
+  }
+
   if (currentItemId) {
     // Get the currently equipped item's name and CON effect
     const currentItem = db
