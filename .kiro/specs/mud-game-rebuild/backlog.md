@@ -79,6 +79,12 @@ Note: Don't use `examine`, `inspect`, or `look` as trigger verbs - these are han
 
 - [ ] **Swimming activity restrictions**: While swimming, players should not be able to: attack, equip/unequip items (except maybe head slot), pick up items from the ground, etc. Currently only movement is blocked.
 
+- [ ] **Party system**: Allow players to form parties/groups. Party members share a combat encounter and can coordinate tactics. Commands: `party invite <player>`, `party accept`, `party leave`, `party list`. Party members see each other's HP in combat. Monsters could also form groups (packs, patrols). Foundation for front/rear line positioning system.
+
+- [ ] **Front/rear line positioning**: When in a party or group combat, combatants are positioned in front line or rear line based on their weapon type. Melee weapons = front line, ranged weapons = rear line. Melee attackers can only hit front line targets unless the front line is empty. Ranged attackers can hit either line. Flying monsters or those with ranged attacks (breath weapons, spitting) count as rear line. Adds tactical depth: protect your ranged attackers, focus down enemy front line to reach their casters. Requires party system first.
+
+- [ ] **Monster group behavior**: Monsters in the same group (pack, patrol) all join combat when one is attacked, regardless of individual aggression levels. Ungrouped monsters in the room react differently: timid creatures might flee when combat starts nearby, neutral creatures ignore it, and only aggressive ones might opportunistically join. Could add a `groupId` field to monster instances and a `combatReaction` field to monster templates ("join", "flee", "ignore"). Creates more dynamic encounters — attack one wolf and the pack swarms you, but the nearby deer scatter.
+
 ## Feature Ideas
 
 Ideas for future features that aren't fully fleshed out yet.

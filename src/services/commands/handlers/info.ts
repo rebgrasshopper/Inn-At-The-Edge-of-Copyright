@@ -157,18 +157,33 @@ export async function handleStats(
   const equipAttackBonus = calculateEquipmentAttackBonus(equipped);
   const equipDamageBonus = calculateEquipmentDamageBonus(equipped);
   const featAttackMods = await getAttackModifiers(player.id);
-  // Use melee as default for stats display (most common case)
-  const featDamageMods = await getDamageModifiers(player.id, "melee");
+
+  // Check if mainHand weapon is ranged to determine attack stat
+  const mainHandWeapon = equipped.find((e) => e.slot === "mainHand");
+  const isRanged = mainHandWeapon?.weaponRange === "ranged";
+  const weaponType = isRanged ? "ranged" : "melee";
+
+  // Use appropriate stat for attack (DEX for ranged, STR for melee)
+  const attackStatMod = isRanged
+    ? getStatModifier(freshPlayer.dex + totals.dex)
+    : strMod;
+  const attackStatName = isRanged ? "DEX" : "STR";
+
+  const featDamageMods = await getDamageModifiers(player.id, weaponType);
 
   // Calculate feat totals
   const featAttackTotal = featAttackMods.stance;
   const featDamageTotal = featDamageMods.stance;
 
   // Build attack bonus breakdown
-  const totalAttackBonus = bab + strMod + equipAttackBonus + featAttackTotal;
+  const totalAttackBonus =
+    bab + attackStatMod + equipAttackBonus + featAttackTotal;
   const attackParts: string[] = [];
   if (bab !== 0) attackParts.push(`${bab > 0 ? "+" : ""}${bab} BAB`);
-  if (strMod !== 0) attackParts.push(`${strMod > 0 ? "+" : ""}${strMod} STR`);
+  if (attackStatMod !== 0)
+    attackParts.push(
+      `${attackStatMod > 0 ? "+" : ""}${attackStatMod} ${attackStatName}`,
+    );
   if (equipAttackBonus !== 0)
     attackParts.push(
       `${equipAttackBonus > 0 ? "+" : ""}${equipAttackBonus} equip`,

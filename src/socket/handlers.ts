@@ -380,7 +380,6 @@ async function broadcastSwimmingEvent(
     type: "system",
     content: message,
     timestamp: new Date().toISOString(),
-    rollInfo: event.type === "swim_check" ? event.rollInfo : undefined,
   };
 
   // If excluding a player, use their socket to broadcast to others
