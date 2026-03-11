@@ -4,7 +4,6 @@
 
 import type { CommandContext, CommandResult } from "../../../types/command.js";
 import * as ChatService from "../../ChatService.js";
-import * as RoomService from "../../RoomService.js";
 
 /**
  * Handle say/speak command
@@ -38,7 +37,7 @@ export async function handleSay(
 }
 
 /**
- * Handle shout/yell command
+ * Handle shout/yell command - broadcasts to current room and adjacent rooms
  */
 export async function handleShout(
   args: string[],
@@ -57,13 +56,12 @@ export async function handleShout(
   }
 
   const broadcasts = [];
-  if (result.message && result.scope?.type === "region") {
-    // Get all rooms in the region for broadcasting
-    const regionRooms = await RoomService.getRoomsByRegion(result.scope.region);
-    for (const regionRoom of regionRooms) {
+  if (result.message && result.scope?.type === "adjacentRooms") {
+    // Broadcast to current room and all adjacent rooms
+    for (const roomId of result.scope.roomIds) {
       broadcasts.push({
         event: "chat:message",
-        room: regionRoom.id,
+        room: roomId,
         data: result.message,
       });
     }

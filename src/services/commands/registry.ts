@@ -7,7 +7,7 @@ import { getAliasesForCommand } from "./aliases.js";
 import { Command, type CommandDefinition } from "./types.js";
 
 // Import handlers
-import { handleMake, handleSpawn } from "./handlers/admin.js";
+import { handleAnnounce, handleMake, handleSpawn } from "./handlers/admin.js";
 import {
   handleFeats,
   handleStance,
@@ -65,7 +65,7 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
   [Command.Shout]: {
     handler: handleShout,
     help: {
-      summary: "Shout to everyone in the region",
+      summary: "Shout to nearby rooms",
       usage: ["shout <message>"],
       aliases: getAliasesForCommand(Command.Shout),
       examples: ["shout Help!", "yell Is anyone there?"],
@@ -323,6 +323,17 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
       usage: ["make <item name>"],
       aliases: getAliasesForCommand(Command.Make),
       examples: ["make longsword", "make potion", "make leather armor"],
+    },
+  },
+
+  [Command.Announce]: {
+    handler: handleAnnounce,
+    adminOnly: true,
+    help: {
+      summary: "Announce a message to the entire region (admin only)",
+      usage: ["announce <message>"],
+      aliases: getAliasesForCommand(Command.Announce),
+      examples: ["announce Server restarting in 5 minutes"],
     },
   },
 };

@@ -85,17 +85,28 @@ describe("ChatService Property Tests", () => {
     );
 
     test.prop([chatMessageArb, regionArb, roomIdArb], { numRuns: 20 })(
-      "shout messages target the sender's region",
+      "shout messages target the sender's current room and adjacent rooms",
       async (message, region, roomId) => {
         const playerId = `prop-player-shout-${Date.now()}-${Math.random()}`;
+        const adjacentRoomId = `prop-adjacent-room-${Date.now()}-${Math.random()}`;
 
-        await db.insert(rooms).values({
-          id: roomId,
-          name: "Test Room",
-          description: "A test room",
-          region,
-          exits: {},
-        });
+        // Create two connected rooms
+        await db.insert(rooms).values([
+          {
+            id: roomId,
+            name: "Test Room",
+            description: "A test room",
+            region,
+            exits: { north: { roomId: adjacentRoomId } },
+          },
+          {
+            id: adjacentRoomId,
+            name: "Adjacent Room",
+            description: "An adjacent room",
+            region,
+            exits: { south: { roomId: roomId } },
+          },
+        ]);
 
         await db.insert(playersTable).values({
           id: playerId,
@@ -111,15 +122,20 @@ describe("ChatService Property Tests", () => {
 
           expect(result.success).toBe(true);
           expect(result.scope).toBeDefined();
-          expect(result.scope!.type).toBe("region");
-          expect(
-            (result.scope as { type: "region"; region: string }).region,
-          ).toBe(region);
+          expect(result.scope!.type).toBe("adjacentRooms");
+          const scope = result.scope as {
+            type: "adjacentRooms";
+            roomIds: string[];
+          };
+          // Should include current room and adjacent room
+          expect(scope.roomIds).toContain(roomId);
+          expect(scope.roomIds).toContain(adjacentRoomId);
           expect(result.message!.type).toBe("speech");
           expect(result.message!.content).toBe(message.trim().toUpperCase());
         } finally {
           await db.delete(playersTable).where(eq(playersTable.id, playerId));
           await db.delete(rooms).where(eq(rooms.id, roomId));
+          await db.delete(rooms).where(eq(rooms.id, adjacentRoomId));
         }
       },
     );

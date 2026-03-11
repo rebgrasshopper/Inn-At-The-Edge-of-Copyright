@@ -8,6 +8,7 @@ import * as RoomService from "./RoomService.js";
 export type ChatScope =
   | { type: "room"; roomId: string }
   | { type: "region"; region: string }
+  | { type: "adjacentRooms"; roomIds: string[] }
   | { type: "player"; playerId: string };
 
 export type ChatResult = {
@@ -115,12 +116,60 @@ export async function speak(
 }
 
 /**
- * Broadcast a message to all players in the same region
+ * Broadcast a message to the current room and all adjacent rooms (connected via exits)
  * @param playerId - The shouting player's ID
+ * @param message - The message content
+ * @returns ChatResult with message data and adjacentRooms scope
+ */
+export async function shout(
+  playerId: string,
+  message: string,
+): Promise<ChatResult> {
+  const playerInfo = await getPlayerChatInfo(playerId);
+  if (!playerInfo) {
+    return { success: false, error: "Player not found or not in a room" };
+  }
+
+  if (!message.trim()) {
+    return { success: false, error: "Message cannot be empty" };
+  }
+
+  // Get current room to find adjacent rooms
+  const currentRoom = await RoomService.getRoom(playerInfo.roomId);
+  if (!currentRoom) {
+    return { success: false, error: "Room not found" };
+  }
+
+  // Collect current room + all adjacent rooms from exits
+  const adjacentRoomIds = new Set<string>([playerInfo.roomId]);
+  for (const exit of Object.values(currentRoom.exits)) {
+    if (exit && exit.roomId) {
+      adjacentRoomIds.add(exit.roomId);
+    }
+  }
+
+  const chatMessage: ChatMessageData = {
+    id: uuidv4(),
+    type: "speech",
+    content: message.trim().toUpperCase(), // Shouting is loud!
+    sender: playerInfo.name,
+    timestamp: new Date().toISOString(),
+  };
+
+  return {
+    success: true,
+    message: chatMessage,
+    scope: { type: "adjacentRooms", roomIds: Array.from(adjacentRoomIds) },
+  };
+}
+
+/**
+ * Broadcast a message to all players in the same region (admin/system announcements)
+ * @param playerId - The announcing player's ID
  * @param message - The message content
  * @returns ChatResult with message data and region scope
  */
-export async function shout(
+export async function announce(
   playerId: string,
   message: string,
 ): Promise<ChatResult> {
@@ -136,7 +185,7 @@ export async function shout(
   const chatMessage: ChatMessageData = {
     id: uuidv4(),
     type: "speech",
-    content: message.trim().toUpperCase(), // Shouting is loud!
+    content: message.trim(),
     sender: playerInfo.name,
     timestamp: new Date().toISOString(),
   };

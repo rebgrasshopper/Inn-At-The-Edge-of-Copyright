@@ -15,7 +15,9 @@ import {
 } from "../../../db/schema.js";
 import type { CommandContext, CommandResult } from "../../../types/command.js";
 import { fuzzyMatch } from "../../../utils/fuzzyMatch.js";
+import * as ChatService from "../../ChatService.js";
 import * as CombatService from "../../CombatService.js";
+import * as RoomService from "../../RoomService.js";
 
 /**
  * Check if a user is an admin by their userId.
@@ -29,6 +31,52 @@ async function isAdmin(userId: string): Promise<boolean> {
     .where(eq(users.id, userId))
     .get();
   return user?.isAdmin ?? false;
+}
+
+/**
+ * Handle the announce command - broadcasts a message to all players in the region.
+ * Admin only. This is the region-wide broadcast that shout used to do.
+ * @param args - Command arguments (message)
+ * @param context - Command context with player and room info
+ * @returns CommandResult with success/failure message and broadcasts
+ */
+export async function handleAnnounce(
+  args: string[],
+  context: CommandContext,
+): Promise<CommandResult> {
+  // Check admin permission
+  const admin = await isAdmin(context.player.userId);
+  if (!admin) {
+    return {
+      success: false,
+      message: "You don't have permission to use this command.",
+    };
+  }
+
+  const message = args.join(" ").trim();
+  if (!message) {
+    return { success: false, message: "What do you want to announce?" };
+  }
+
+  const result = await ChatService.announce(context.player.id, message);
+  if (!result.success) {
+    return { success: false, message: result.error };
+  }
+
+  const broadcasts = [];
+  if (result.message && result.scope?.type === "region") {
+    // Get all rooms in the region for broadcasting
+    const regionRooms = await RoomService.getRoomsByRegion(result.scope.region);
+    for (const regionRoom of regionRooms) {
+      broadcasts.push({
+        event: "chat:message",
+        room: regionRoom.id,
+        data: result.message,
+      });
+    }
+  }
+
+  return { success: true, broadcast: broadcasts };
 }
 
 /**

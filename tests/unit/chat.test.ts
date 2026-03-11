@@ -141,7 +141,7 @@ describe("ChatService", () => {
   });
 
   describe("shout", () => {
-    it("should create a chat message with region scope", async () => {
+    it("should create a chat message with adjacentRooms scope", async () => {
       const result = await ChatService.shout(testPlayer1Id, "Help!");
 
       expect(result.success).toBe(true);
@@ -149,7 +149,13 @@ describe("ChatService", () => {
       expect(result.message!.type).toBe("speech");
       expect(result.message!.content).toBe("HELP!"); // Uppercase for shouting
       expect(result.message!.sender).toBe("ChatPlayer1");
-      expect(result.scope).toEqual({ type: "region", region: "chatregion" });
+      // Should include current room and adjacent room (via east exit)
+      expect(result.scope?.type).toBe("adjacentRooms");
+      if (result.scope?.type === "adjacentRooms") {
+        expect(result.scope.roomIds).toContain(testRoom1Id);
+        expect(result.scope.roomIds).toContain(testRoom2Id);
+        expect(result.scope.roomIds.length).toBe(2);
+      }
     });
 
     it("should fail for non-existent player", async () => {
@@ -161,6 +167,36 @@ describe("ChatService", () => {
 
     it("should fail for empty message", async () => {
       const result = await ChatService.shout(testPlayer1Id, "");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("empty");
+    });
+  });
+
+  describe("announce", () => {
+    it("should create a chat message with region scope", async () => {
+      const result = await ChatService.announce(
+        testPlayer1Id,
+        "Server restart in 5 minutes",
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBeDefined();
+      expect(result.message!.type).toBe("speech");
+      expect(result.message!.content).toBe("Server restart in 5 minutes");
+      expect(result.message!.sender).toBe("ChatPlayer1");
+      expect(result.scope).toEqual({ type: "region", region: "chatregion" });
+    });
+
+    it("should fail for non-existent player", async () => {
+      const result = await ChatService.announce("non-existent", "Hello!");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("not found");
+    });
+
+    it("should fail for empty message", async () => {
+      const result = await ChatService.announce(testPlayer1Id, "");
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("empty");
