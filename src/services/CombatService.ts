@@ -28,9 +28,7 @@ import {
   calculateAC,
   calculateAttackInterval,
   calculateEquipmentACBonus,
-  calculateEquipmentAttackBonus,
   calculateEquipmentConBonus,
-  calculateEquipmentDamageBonus,
   calculateFleeDC,
   calculateMaxHp,
   calculateXpAfterDeath,
@@ -166,19 +164,36 @@ async function buildPlayerParticipant(
 
   if (!player) return null;
 
-  // Get equipped items for AC calculation, weapon, and combat bonuses
+  // Get equipped items for AC calculation and weapon data
   const equipped = await getEquippedItems(playerId);
   const acBonus = calculateEquipmentACBonus(equipped);
   const ac = await calculateAC(player.dex, acBonus, playerId);
 
-  // Calculate equipment attack and damage bonuses
-  const equipAttackBonus = calculateEquipmentAttackBonus(equipped);
-  const equipDamageBonus = calculateEquipmentDamageBonus(equipped);
+  // Find main hand and off hand weapons
+  const mainHandItem = equipped.find((item) => item.slot === "mainHand");
+  const offHandItem = equipped.find((item) => item.slot === "offHand");
 
-  // Find equipped weapon damage and range
-  const weapon = equipped.find((item) => item.weaponDamage);
-  const weaponDamage = weapon?.weaponDamage || null;
-  const weaponRange = (weapon?.weaponRange as "melee" | "ranged") ?? "melee";
+  // Build main hand weapon data (or null if unarmed/no weapon)
+  let mainHandWeapon: CombatParticipant["mainHandWeapon"] = null;
+  if (mainHandItem?.weaponDamage) {
+    mainHandWeapon = {
+      damage: mainHandItem.weaponDamage,
+      range: (mainHandItem.weaponRange as "melee" | "ranged") ?? "melee",
+      attackBonus: mainHandItem.attackBonus ?? 0,
+      damageBonus: mainHandItem.damageBonus ?? 0,
+    };
+  }
+
+  // Build off hand weapon data (only if it's a weapon, not a shield)
+  let offHandWeapon: CombatParticipant["offHandWeapon"] = null;
+  if (offHandItem?.weaponDamage) {
+    offHandWeapon = {
+      damage: offHandItem.weaponDamage,
+      range: (offHandItem.weaponRange as "melee" | "ranged") ?? "melee",
+      attackBonus: offHandItem.attackBonus ?? 0,
+      damageBonus: offHandItem.damageBonus ?? 0,
+    };
+  }
 
   return {
     type: "player",
@@ -191,12 +206,10 @@ async function buildPlayerParticipant(
       dex: player.dex,
       con: player.con,
     },
-    weaponDamage,
-    weaponRange,
+    mainHandWeapon,
+    offHandWeapon,
     ac,
     level: player.level,
-    equipAttackBonus,
-    equipDamageBonus,
   };
 }
 
@@ -221,6 +234,14 @@ async function buildMonsterParticipant(
   // Monster AC: 10 + DEX modifier (no equipment, no feats)
   const ac = await calculateAC(monster.dex, 0);
 
+  // Monsters use main hand weapon only (no dual wielding for monsters)
+  const mainHandWeapon: CombatParticipant["mainHandWeapon"] = {
+    damage: monster.weaponDamage || "1d4",
+    range: "melee", // Monsters default to melee attacks
+    attackBonus: 0, // Monsters don't have equipment bonuses
+    damageBonus: 0,
+  };
+
   return {
     type: "monster",
     id: instance.id,
@@ -232,12 +253,10 @@ async function buildMonsterParticipant(
       dex: monster.dex,
       con: monster.con,
     },
-    weaponDamage: monster.weaponDamage || "1d4",
-    weaponRange: "melee", // Monsters default to melee attacks
+    mainHandWeapon,
+    offHandWeapon: null, // Monsters don't dual wield
     ac,
     level: monster.level,
-    equipAttackBonus: 0, // Monsters don't have equipment bonuses
-    equipDamageBonus: 0,
   };
 }
 
@@ -313,30 +332,49 @@ type FeatModifiers = {
   damageBonus: number;
 };
 
+/** Weapon data for a single attack */
+type AttackWeaponData = {
+  damage: string;
+  range: "melee" | "ranged";
+  attackBonus: number;
+  damageBonus: number;
+};
+
+/** Dual wield penalty constant */
+const DUAL_WIELD_PENALTY = -4;
+
 /**
  * Process a single attack from attacker to defender
  * @param attacker - The attacking participant
  * @param defender - The defending participant
+ * @param weapon - The weapon being used for this attack
  * @param featMods - Optional feat modifiers (attack and damage bonuses)
+ * @param dualWieldPenalty - Penalty to attack roll for dual wielding (default 0)
  * @returns Attack result with hit/miss, damage, and messages
  */
 export function processAttack(
   attacker: CombatParticipant,
   defender: CombatParticipant,
+  weapon: AttackWeaponData,
   featMods?: FeatModifiers,
+  dualWieldPenalty: number = 0,
 ): AttackResult {
   // Calculate BAB from level
   const bab = calculateBAB(attacker.level);
 
   // Use STR for melee, DEX for ranged
   const attackStat =
-    attacker.weaponRange === "ranged" ? attacker.stats.dex : attacker.stats.str;
+    weapon.range === "ranged" ? attacker.stats.dex : attacker.stats.str;
   const attackStatMod = getStatModifier(attackStat);
 
-  // Roll d20 + BAB + STR/DEX modifier + equipment attack bonus + feat attack bonus
+  // Roll d20 + BAB + STR/DEX modifier + weapon attack bonus + feat attack bonus + dual wield penalty
   const featAttackBonus = featMods?.attackBonus ?? 0;
   const totalAttackMod =
-    bab + attackStatMod + attacker.equipAttackBonus + featAttackBonus;
+    bab +
+    attackStatMod +
+    weapon.attackBonus +
+    featAttackBonus +
+    dualWieldPenalty;
   const attackResult = rollD20WithDetails(totalAttackMod);
 
   const hit = attackResult.total >= defender.ac;
@@ -354,20 +392,17 @@ export function processAttack(
     };
   }
 
-  // Calculate damage: weapon dice + STR modifier + equipment damage bonus + feat damage bonus, minimum 1
-  const weaponNotation = attacker.weaponDamage || "1d4";
+  // Calculate damage: weapon dice + STR modifier + weapon damage bonus + feat damage bonus, minimum 1
+  const weaponNotation = weapon.damage;
   const damageResult = rollDamageWithDetails(weaponNotation);
   const strMod = getDamageModifier(attacker.stats.str);
   const featDamageBonus = featMods?.damageBonus ?? 0;
   const rawDamage =
-    (damageResult?.total || 1) +
-    strMod +
-    attacker.equipDamageBonus +
-    featDamageBonus;
+    (damageResult?.total || 1) + strMod + weapon.damageBonus + featDamageBonus;
   const damage = Math.max(1, rawDamage);
 
   // Build damage formula string with modifiers
-  const totalDamageMod = strMod + attacker.equipDamageBonus + featDamageBonus;
+  const totalDamageMod = strMod + weapon.damageBonus + featDamageBonus;
   let damageFormula: string;
   if (totalDamageMod === 0) {
     damageFormula = `${weaponNotation} = ${damage}`;
@@ -403,8 +438,51 @@ export function processAttack(
 // Combat Flow
 // ============================================
 
+/** Default unarmed weapon data */
+const UNARMED_WEAPON: AttackWeaponData = {
+  damage: "1d4",
+  range: "melee",
+  attackBonus: 0,
+  damageBonus: 0,
+};
+
 /**
- * Schedule an attack for a participant
+ * Get the weapon data for an attack, defaulting to unarmed if no weapon
+ */
+function getWeaponData(
+  weapon: CombatParticipant["mainHandWeapon"],
+): AttackWeaponData {
+  if (!weapon) return UNARMED_WEAPON;
+  return weapon;
+}
+
+/**
+ * Find the next available monster target in combat for off-hand attack
+ * @param combat - The active combat
+ * @param playerId - The player looking for a target
+ * @param excludeId - Monster ID to exclude (just killed)
+ * @returns Next monster participant or null
+ */
+function findNextMonsterTarget(
+  combat: ActiveCombat,
+  playerId: string,
+  excludeId: string,
+): CombatParticipant | null {
+  // Look through monster targets to find another monster the player is fighting
+  for (const [monsterId, targets] of combat.monsterTargets) {
+    if (monsterId !== excludeId && targets.has(playerId)) {
+      const monster = combat.participants.get(monsterId);
+      if (monster && monster.currentHp > 0) {
+        return monster;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Schedule an attack for a participant.
+ * For dual-wielding players, processes both main hand and off hand attacks.
  */
 function scheduleAttack(
   combat: ActiveCombat,
@@ -424,7 +502,7 @@ function scheduleAttack(
     if (!currentCombat) return;
 
     const currentAttacker = currentCombat.participants.get(attackerId);
-    const currentDefender = currentCombat.participants.get(defenderId);
+    let currentDefender = currentCombat.participants.get(defenderId);
 
     if (!currentAttacker || !currentDefender) return;
 
@@ -432,14 +510,8 @@ function scheduleAttack(
     let featMods: { attackBonus: number; damageBonus: number } | undefined;
     if (currentAttacker.type === "player") {
       const attackMods = await getAttackModifiers(attackerId);
-
-      // Get weapon range for damage modifiers
-      const equipped = await getEquippedItems(attackerId);
-      const weapon = equipped.find((item) => item.weaponDamage);
-      const weaponRange =
-        (weapon?.weaponRange as "melee" | "ranged") ?? "melee";
-
-      const damageMods = await getDamageModifiers(attackerId, weaponRange);
+      const mainWeapon = getWeaponData(currentAttacker.mainHandWeapon);
+      const damageMods = await getDamageModifiers(attackerId, mainWeapon.range);
 
       featMods = {
         attackBonus: attackMods.stance,
@@ -447,46 +519,174 @@ function scheduleAttack(
       };
     }
 
-    // Process the attack with feat modifiers
-    const result = processAttack(currentAttacker, currentDefender, featMods);
+    // Check if dual wielding (player has off-hand weapon)
+    const isDualWielding =
+      currentAttacker.type === "player" &&
+      currentAttacker.offHandWeapon !== null;
+
+    // Get weapon data
+    const mainWeapon = getWeaponData(currentAttacker.mainHandWeapon);
+    const dualPenalty = isDualWielding ? DUAL_WIELD_PENALTY : 0;
+
+    // Process main hand attack
+    const mainResult = processAttack(
+      currentAttacker,
+      currentDefender,
+      mainWeapon,
+      featMods,
+      dualPenalty,
+    );
 
     // Update defender HP in combat state
-    currentDefender.currentHp = result.defenderHp;
+    currentDefender.currentHp = mainResult.defenderHp;
 
-    // Broadcast attack result (include attacker ID for roll info delivery)
+    // Broadcast main hand attack result
     broadcast(currentCombat.roomId, {
       type: "attack",
-      message: result.message,
+      message: mainResult.message,
       attackerId: currentAttacker.type === "player" ? attackerId : undefined,
       defenderId: currentDefender.type === "player" ? defenderId : undefined,
       defenderType: currentDefender.type,
-      hit: result.hit,
-      rollInfo: result.rollInfo,
+      hit: mainResult.hit,
+      rollInfo: mainResult.rollInfo,
     });
 
-    if (result.defenderDead) {
+    // Handle main hand kill
+    if (mainResult.defenderDead) {
       if (currentDefender.type === "monster") {
         await handleMonsterDeath(defenderId, attackerId);
+
+        // If dual wielding, try to hit next target with off-hand
+        if (isDualWielding && currentAttacker.offHandWeapon) {
+          const nextTarget = findNextMonsterTarget(
+            currentCombat,
+            attackerId,
+            defenderId,
+          );
+          if (nextTarget) {
+            // Process off-hand attack against next target
+            const offWeapon = currentAttacker.offHandWeapon;
+            const offResult = processAttack(
+              currentAttacker,
+              nextTarget,
+              offWeapon,
+              featMods,
+              DUAL_WIELD_PENALTY,
+            );
+
+            // Update next target's HP
+            nextTarget.currentHp = offResult.defenderHp;
+
+            // Broadcast off-hand attack
+            broadcast(currentCombat.roomId, {
+              type: "attack",
+              message: offResult.message,
+              attackerId: attackerId,
+              defenderId:
+                nextTarget.type === "player" ? nextTarget.id : undefined,
+              defenderType: nextTarget.type,
+              hit: offResult.hit,
+              rollInfo: offResult.rollInfo,
+            });
+
+            if (offResult.defenderDead) {
+              await handleMonsterDeath(nextTarget.id, attackerId);
+            } else {
+              // Update HP in database
+              await db
+                .update(monsterInstances)
+                .set({ currentHp: offResult.defenderHp })
+                .where(eq(monsterInstances.id, nextTarget.id));
+            }
+          }
+        }
       } else {
         await handlePlayerDeath(defenderId, currentCombat.roomId);
       }
-    } else {
-      // Update HP in database
-      if (currentDefender.type === "player") {
-        await db
-          .update(players)
-          .set({ currentHp: result.defenderHp })
-          .where(eq(players.id, defenderId));
-      } else {
-        await db
-          .update(monsterInstances)
-          .set({ currentHp: result.defenderHp })
-          .where(eq(monsterInstances.id, defenderId));
-      }
 
-      // Schedule next attack if combat still active
-      if (activeCombats.has(combat.id)) {
-        scheduleAttack(currentCombat, attackerId, defenderId);
+      // Schedule next attack if combat still active and attacker still in combat
+      if (activeCombats.has(combat.id) && playerCombatMap.has(attackerId)) {
+        // Find a remaining target for the attacker
+        for (const [monsterId, targets] of currentCombat.monsterTargets) {
+          if (targets.has(attackerId)) {
+            const monster = currentCombat.participants.get(monsterId);
+            if (monster && monster.currentHp > 0) {
+              scheduleAttack(currentCombat, attackerId, monsterId);
+              break;
+            }
+          }
+        }
+      }
+    } else {
+      // Main hand didn't kill - process off-hand attack if dual wielding
+      if (isDualWielding && currentAttacker.offHandWeapon) {
+        const offWeapon = currentAttacker.offHandWeapon;
+        const offResult = processAttack(
+          currentAttacker,
+          currentDefender,
+          offWeapon,
+          featMods,
+          DUAL_WIELD_PENALTY,
+        );
+
+        // Update defender HP
+        currentDefender.currentHp = offResult.defenderHp;
+
+        // Broadcast off-hand attack
+        broadcast(currentCombat.roomId, {
+          type: "attack",
+          message: offResult.message,
+          attackerId: attackerId,
+          defenderId:
+            currentDefender.type === "player" ? defenderId : undefined,
+          defenderType: currentDefender.type,
+          hit: offResult.hit,
+          rollInfo: offResult.rollInfo,
+        });
+
+        if (offResult.defenderDead) {
+          if (currentDefender.type === "monster") {
+            await handleMonsterDeath(defenderId, attackerId);
+          } else {
+            await handlePlayerDeath(defenderId, currentCombat.roomId);
+          }
+        } else {
+          // Update HP in database
+          if (currentDefender.type === "player") {
+            await db
+              .update(players)
+              .set({ currentHp: offResult.defenderHp })
+              .where(eq(players.id, defenderId));
+          } else {
+            await db
+              .update(monsterInstances)
+              .set({ currentHp: offResult.defenderHp })
+              .where(eq(monsterInstances.id, defenderId));
+          }
+
+          // Schedule next attack if combat still active
+          if (activeCombats.has(combat.id)) {
+            scheduleAttack(currentCombat, attackerId, defenderId);
+          }
+        }
+      } else {
+        // Not dual wielding - update HP and schedule next attack
+        if (currentDefender.type === "player") {
+          await db
+            .update(players)
+            .set({ currentHp: mainResult.defenderHp })
+            .where(eq(players.id, defenderId));
+        } else {
+          await db
+            .update(monsterInstances)
+            .set({ currentHp: mainResult.defenderHp })
+            .where(eq(monsterInstances.id, defenderId));
+        }
+
+        // Schedule next attack if combat still active
+        if (activeCombats.has(combat.id)) {
+          scheduleAttack(currentCombat, attackerId, defenderId);
+        }
       }
     }
   }, interval);

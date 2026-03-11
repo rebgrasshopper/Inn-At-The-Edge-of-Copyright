@@ -113,13 +113,8 @@ export async function handleStats(
       : `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}`;
 
   // Calculate AC with breakdown
-  const {
-    calculateAC,
-    getStatModifier,
-    calculateEquipmentACBonus,
-    calculateEquipmentAttackBonus,
-    calculateEquipmentDamageBonus,
-  } = await import("../../StatService.js");
+  const { calculateAC, getStatModifier, calculateEquipmentACBonus } =
+    await import("../../StatService.js");
   const { getEquippedItems } = await import("../../items/equipment.js");
   const { getACModifiers } = await import("../../FeatEffectHandler.js");
 
@@ -154,13 +149,16 @@ export async function handleStats(
 
   const bab = calculateBAB(freshPlayer.level);
   const strMod = getStatModifier(freshPlayer.str + totals.str);
-  const equipAttackBonus = calculateEquipmentAttackBonus(equipped);
-  const equipDamageBonus = calculateEquipmentDamageBonus(equipped);
   const featAttackMods = await getAttackModifiers(player.id);
 
+  // Get main hand and off hand weapons
+  const mainHandItem = equipped.find((e) => e.slot === "mainHand");
+  const offHandItem = equipped.find((e) => e.slot === "offHand");
+  const isDualWielding =
+    mainHandItem?.weaponDamage && offHandItem?.weaponDamage;
+
   // Check if mainHand weapon is ranged to determine attack stat
-  const mainHandWeapon = equipped.find((e) => e.slot === "mainHand");
-  const isRanged = mainHandWeapon?.weaponRange === "ranged";
+  const isRanged = mainHandItem?.weaponRange === "ranged";
   const weaponType = isRanged ? "ranged" : "melee";
 
   // Use appropriate stat for attack (DEX for ranged, STR for melee)
@@ -175,48 +173,90 @@ export async function handleStats(
   const featAttackTotal = featAttackMods.stance;
   const featDamageTotal = featDamageMods.stance;
 
-  // Build attack bonus breakdown
-  const totalAttackBonus =
-    bab + attackStatMod + equipAttackBonus + featAttackTotal;
-  const attackParts: string[] = [];
-  if (bab !== 0) attackParts.push(`${bab > 0 ? "+" : ""}${bab} BAB`);
-  if (attackStatMod !== 0)
-    attackParts.push(
-      `${attackStatMod > 0 ? "+" : ""}${attackStatMod} ${attackStatName}`,
-    );
-  if (equipAttackBonus !== 0)
-    attackParts.push(
-      `${equipAttackBonus > 0 ? "+" : ""}${equipAttackBonus} equip`,
-    );
-  if (featAttackTotal !== 0)
-    attackParts.push(
-      `${featAttackTotal > 0 ? "+" : ""}${featAttackTotal} feat`,
-    );
+  // Dual wield penalty constant
+  const DUAL_WIELD_PENALTY = -4;
 
-  const attackSign = totalAttackBonus >= 0 ? "+" : "";
-  const attackDisplay =
-    attackParts.length > 0
-      ? `Attack: ${attackSign}${totalAttackBonus} (${attackParts.join(", ")})`
-      : `Attack: ${attackSign}${totalAttackBonus}`;
+  let attackDisplay: string;
+  let damageDisplay: string;
 
-  // Build damage bonus breakdown
-  const totalDamageBonus = strMod + equipDamageBonus + featDamageTotal;
-  const damageParts: string[] = [];
-  if (strMod !== 0) damageParts.push(`${strMod > 0 ? "+" : ""}${strMod} STR`);
-  if (equipDamageBonus !== 0)
-    damageParts.push(
-      `${equipDamageBonus > 0 ? "+" : ""}${equipDamageBonus} equip`,
-    );
-  if (featDamageTotal !== 0)
-    damageParts.push(
-      `${featDamageTotal > 0 ? "+" : ""}${featDamageTotal} feat`,
-    );
+  if (isDualWielding) {
+    // Show per-weapon stats for dual wielding
+    const mainAttackBonus = mainHandItem?.attackBonus ?? 0;
+    const mainDamageBonus = mainHandItem?.damageBonus ?? 0;
+    const offAttackBonus = offHandItem?.attackBonus ?? 0;
+    const offDamageBonus = offHandItem?.damageBonus ?? 0;
 
-  const damageSign = totalDamageBonus >= 0 ? "+" : "";
-  const damageDisplay =
-    damageParts.length > 0
-      ? `Damage: ${damageSign}${totalDamageBonus} (${damageParts.join(", ")})`
-      : `Damage: ${damageSign}${totalDamageBonus}`;
+    // Calculate totals for each hand (including dual wield penalty)
+    const mainTotalAttack =
+      bab +
+      attackStatMod +
+      mainAttackBonus +
+      featAttackTotal +
+      DUAL_WIELD_PENALTY;
+    const offTotalAttack =
+      bab +
+      attackStatMod +
+      offAttackBonus +
+      featAttackTotal +
+      DUAL_WIELD_PENALTY;
+    const mainTotalDamage = strMod + mainDamageBonus + featDamageTotal;
+    const offTotalDamage = strMod + offDamageBonus + featDamageTotal;
+
+    const mainAttackSign = mainTotalAttack >= 0 ? "+" : "";
+    const offAttackSign = offTotalAttack >= 0 ? "+" : "";
+    const mainDamageSign = mainTotalDamage >= 0 ? "+" : "";
+    const offDamageSign = offTotalDamage >= 0 ? "+" : "";
+
+    attackDisplay = `Attack: ${mainAttackSign}${mainTotalAttack}/${offAttackSign}${offTotalAttack} (dual wield -4)`;
+    damageDisplay = `Damage: ${mainDamageSign}${mainTotalDamage}/${offDamageSign}${offTotalDamage}`;
+  } else {
+    // Single weapon or unarmed - show combined stats
+    const equipAttackBonus = mainHandItem?.attackBonus ?? 0;
+    const equipDamageBonus = mainHandItem?.damageBonus ?? 0;
+
+    // Build attack bonus breakdown
+    const totalAttackBonus =
+      bab + attackStatMod + equipAttackBonus + featAttackTotal;
+    const attackParts: string[] = [];
+    if (bab !== 0) attackParts.push(`${bab > 0 ? "+" : ""}${bab} BAB`);
+    if (attackStatMod !== 0)
+      attackParts.push(
+        `${attackStatMod > 0 ? "+" : ""}${attackStatMod} ${attackStatName}`,
+      );
+    if (equipAttackBonus !== 0)
+      attackParts.push(
+        `${equipAttackBonus > 0 ? "+" : ""}${equipAttackBonus} equip`,
+      );
+    if (featAttackTotal !== 0)
+      attackParts.push(
+        `${featAttackTotal > 0 ? "+" : ""}${featAttackTotal} feat`,
+      );
+
+    const attackSign = totalAttackBonus >= 0 ? "+" : "";
+    attackDisplay =
+      attackParts.length > 0
+        ? `Attack: ${attackSign}${totalAttackBonus} (${attackParts.join(", ")})`
+        : `Attack: ${attackSign}${totalAttackBonus}`;
+
+    // Build damage bonus breakdown
+    const totalDamageBonus = strMod + equipDamageBonus + featDamageTotal;
+    const damageParts: string[] = [];
+    if (strMod !== 0) damageParts.push(`${strMod > 0 ? "+" : ""}${strMod} STR`);
+    if (equipDamageBonus !== 0)
+      damageParts.push(
+        `${equipDamageBonus > 0 ? "+" : ""}${equipDamageBonus} equip`,
+      );
+    if (featDamageTotal !== 0)
+      damageParts.push(
+        `${featDamageTotal > 0 ? "+" : ""}${featDamageTotal} feat`,
+      );
+
+    const damageSign = totalDamageBonus >= 0 ? "+" : "";
+    damageDisplay =
+      damageParts.length > 0
+        ? `Damage: ${damageSign}${totalDamageBonus} (${damageParts.join(", ")})`
+        : `Damage: ${damageSign}${totalDamageBonus}`;
+  }
 
   const lines = [
     `${freshPlayer.name} - Level ${freshPlayer.level}`,

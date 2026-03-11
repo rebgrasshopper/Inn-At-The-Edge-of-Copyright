@@ -4,6 +4,20 @@
  */
 
 /**
+ * Weapon data for a single equipped weapon
+ */
+export type WeaponData = {
+  /** Damage dice notation (e.g., "1d6") */
+  damage: string;
+  /** Weapon range for attack stat selection */
+  range: "melee" | "ranged";
+  /** Attack bonus from the weapon (e.g., +1 magic weapon) */
+  attackBonus: number;
+  /** Damage bonus from the weapon (e.g., +1 magic weapon) */
+  damageBonus: number;
+};
+
+/**
  * A participant in combat (player or monster)
  */
 export type CombatParticipant = {
@@ -17,16 +31,12 @@ export type CombatParticipant = {
     dex: number;
     con: number;
   };
-  /** Weapon damage dice notation (e.g., "1d6"), null = unarmed (1d4) */
-  weaponDamage: string | null;
-  /** Weapon range for attack stat selection ("melee" uses STR, "ranged" uses DEX) */
-  weaponRange: "melee" | "ranged";
+  /** Main hand weapon data, null = unarmed */
+  mainHandWeapon: WeaponData | null;
+  /** Off hand weapon data, null = not dual wielding (presence indicates dual wielding) */
+  offHandWeapon: WeaponData | null;
   ac: number;
   level: number;
-  /** Equipment attack bonus (from weapons) */
-  equipAttackBonus: number;
-  /** Equipment damage bonus (from weapons) */
-  equipDamageBonus: number;
 };
 
 /**
