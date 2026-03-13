@@ -6,6 +6,7 @@ import * as CombatService from "../services/CombatService.js";
 import * as CommandParser from "../services/CommandParser.js";
 import * as FeatureService from "../services/FeatureService.js";
 import * as RoomService from "../services/RoomService.js";
+import * as SpawnService from "../services/SpawnService.js";
 import * as SwimmingService from "../services/SwimmingService.js";
 import type { CombatEvent } from "../types/combat.js";
 import type { Player } from "../types/player.js";
@@ -212,34 +213,47 @@ async function broadcastCombatEvent(
       message = `${event.playerName} has been slain by ${event.killerName}!`;
       break;
     case "monster_death": {
-      // Send XP message with color to killer if they have colors enabled
-      const killerSocket = playerSockets.get(event.killerId);
-      if (killerSocket && killerSocket.player) {
-        const prefs = await getUserPreferences(killerSocket.player.userId);
-        const killerMessage: ChatMessageData = {
-          id: crypto.randomUUID(),
-          type: prefs.showColors ? "xpGain" : "system",
-          content: `You defeat the ${event.monsterName}! (+${event.xpAwarded} XP)`,
-          timestamp: new Date().toISOString(),
-        };
-        killerSocket.emit("chat:message", killerMessage);
+      // Send personalized XP message to each participant
+      const excludeSocketIds: string[] = [];
 
-        // Broadcast third-person message to others in room
-        const publicMessage: ChatMessageData = {
-          id: crypto.randomUUID(),
-          type: "system",
-          content: `${event.killerName} defeats the ${event.monsterName}!`,
-          timestamp: new Date().toISOString(),
-        };
+      for (const award of event.xpAwards) {
+        const participantSocket = playerSockets.get(award.playerId);
+        if (participantSocket && participantSocket.player) {
+          excludeSocketIds.push(participantSocket.id);
+          const prefs = await getUserPreferences(
+            participantSocket.player.userId,
+          );
+
+          // Killer gets "You defeat" message, others get "You helped defeat"
+          const isKiller = award.playerId === event.killerId;
+          const verb = isKiller ? "defeat" : "helped defeat";
+          const participantMessage: ChatMessageData = {
+            id: crypto.randomUUID(),
+            type: prefs.showColors ? "xpGain" : "system",
+            content: `You ${verb} the ${event.monsterName}! (+${award.xp} XP)`,
+            timestamp: new Date().toISOString(),
+          };
+          participantSocket.emit("chat:message", participantMessage);
+        }
+      }
+
+      // Broadcast third-person message to others in room
+      const publicMessage: ChatMessageData = {
+        id: crypto.randomUUID(),
+        type: "system",
+        content: `${event.killerName} defeats the ${event.monsterName}!`,
+        timestamp: new Date().toISOString(),
+      };
+
+      if (excludeSocketIds.length > 0) {
         ioInstance
           .to(socketRoom)
-          .except([killerSocket.id])
+          .except(excludeSocketIds)
           .emit("chat:message", publicMessage);
-        return;
+      } else {
+        ioInstance.to(socketRoom).emit("chat:message", publicMessage);
       }
-      // Fallback if killer socket not found
-      message = `${event.killerName} defeats the ${event.monsterName}! (+${event.xpAwarded} XP)`;
-      break;
+      return;
     }
     case "level_up": {
       // Public announcement to the room
@@ -396,6 +410,25 @@ async function broadcastSwimmingEvent(
 }
 
 /**
+ * Broadcast a monster spawn/respawn event to a room
+ * @param roomId - The room where the monster spawned
+ * @param monsterName - The name of the monster that spawned
+ */
+function broadcastSpawnEvent(roomId: string, monsterName: string): void {
+  if (!ioInstance) return;
+
+  const socketRoom = getSocketRoomName(roomId);
+  const chatMessage: ChatMessageData = {
+    id: crypto.randomUUID(),
+    type: "system",
+    content: `A ${monsterName} emerges from the shadows.`,
+    timestamp: new Date().toISOString(),
+  };
+
+  ioInstance.to(socketRoom).emit("chat:message", chatMessage);
+}
+
+/**
  * Handle player death - move to respawn room and update client state
  * @param playerId - The player who died
  * @param deathRoomId - The room where death occurred
@@ -411,9 +444,6 @@ async function handlePlayerDeathRespawn(
 
   // Leave old socket room
   socket.leave(getSocketRoomName(deathRoomId));
-
-  // Join new socket room
-  socket.join(getSocketRoomName(respawnRoomId));
 
   // Get updated player data from database
   const updatedPlayer = db
@@ -432,12 +462,26 @@ async function handlePlayerDeathRespawn(
     xp: updatedPlayer.xp,
   };
 
-  // Get respawn room data (include player's personal discoveries)
+  // Check for monster respawns (don't broadcast yet - player not in socket room)
+  const respawnedMonsters = await SpawnService.checkRoomRespawns(
+    respawnRoomId,
+    false,
+  );
+
+  // Get respawn room data (includes respawned monsters)
   const respawnRoom = await RoomService.getRoomWithContents(
     respawnRoomId,
     socket.player.id,
   );
   if (!respawnRoom) return;
+
+  // Broadcast respawn messages to existing room occupants (before player joins)
+  for (const monsterName of respawnedMonsters) {
+    broadcastSpawnEvent(respawnRoomId, monsterName);
+  }
+
+  // Now join new socket room
+  socket.join(getSocketRoomName(respawnRoomId));
 
   // Send respawn message and new room data to the player
   const respawnMessage: ChatMessageData = {
@@ -501,8 +545,6 @@ export async function handleConnection(
 
   // Join the game room's socket room
   const socketRoomName = getSocketRoomName(player.currentRoomId);
-  socket.join(socketRoomName);
-
   // Check for re-hiding features when entering room
   const playersInRoom = await RoomService.getPlayersInRoom(
     player.currentRoomId,
@@ -513,7 +555,13 @@ export async function handleConnection(
     playersInRoom.length - 1,
   );
 
-  // Get room data to send to the player (include player's personal discoveries)
+  // Check for monster respawns (don't broadcast yet - player not in socket room)
+  const respawnedMonsters = await SpawnService.checkRoomRespawns(
+    player.currentRoomId,
+    false,
+  );
+
+  // Get room data to send to the player (includes respawned monsters)
   const roomData = await RoomService.getRoomWithContents(
     player.currentRoomId,
     player.id,
@@ -522,6 +570,14 @@ export async function handleConnection(
     socket.emit("error", { message: "Room not found" });
     return;
   }
+
+  // Broadcast respawn messages to existing room occupants (before player joins socket)
+  for (const monsterName of respawnedMonsters) {
+    broadcastSpawnEvent(player.currentRoomId, monsterName);
+  }
+
+  // Now join socket room
+  socket.join(socketRoomName);
 
   // Send room data to the connecting player
   const enterData: RoomEnterData = {
@@ -651,13 +707,19 @@ export async function handleCommand(
         io.to(targetRoom).emit(broadcast.event, broadcast.data);
       } else if (targetRoom.startsWith("room:")) {
         // Already formatted as socket room
-        io.to(targetRoom).emit(broadcast.event, broadcast.data);
+        if (broadcast.excludeSender) {
+          socket.to(targetRoom).emit(broadcast.event, broadcast.data);
+        } else {
+          io.to(targetRoom).emit(broadcast.event, broadcast.data);
+        }
       } else {
         // Game room ID - convert to socket room name
-        io.to(getSocketRoomName(targetRoom)).emit(
-          broadcast.event,
-          broadcast.data,
-        );
+        const socketRoom = getSocketRoomName(targetRoom);
+        if (broadcast.excludeSender) {
+          socket.to(socketRoom).emit(broadcast.event, broadcast.data);
+        } else {
+          io.to(socketRoom).emit(broadcast.event, broadcast.data);
+        }
       }
     }
   }
@@ -712,7 +774,31 @@ async function handleRoomChange(
     socket.leave(getSocketRoomName(oldRoomId));
   }
 
-  // Join new socket room
+  // Check for re-hiding features when entering new room
+  const playersInNewRoom = await RoomService.getPlayersInRoom(newRoomId);
+  await FeatureService.checkRehideOnRoomEntry(
+    newRoomId,
+    playersInNewRoom.length - 1,
+  );
+
+  // Check for monster respawns (don't broadcast yet - player not in room)
+  const respawnedMonsters = await SpawnService.checkRoomRespawns(
+    newRoomId,
+    false,
+  );
+
+  // Get new room data (includes respawned monsters)
+  const newRoomData = await RoomService.getRoomWithContents(
+    newRoomId,
+    player.id,
+  );
+
+  // Broadcast respawn messages to existing room occupants (before player joins)
+  for (const monsterName of respawnedMonsters) {
+    broadcastSpawnEvent(newRoomId, monsterName);
+  }
+
+  // Now join new socket room
   socket.join(getSocketRoomName(newRoomId));
 
   // Update socket's player reference
@@ -721,18 +807,6 @@ async function handleRoomChange(
     currentRoomId: newRoomId,
   };
 
-  // Check for re-hiding features when entering new room
-  const playersInNewRoom = await RoomService.getPlayersInRoom(newRoomId);
-  await FeatureService.checkRehideOnRoomEntry(
-    newRoomId,
-    playersInNewRoom.length - 1,
-  );
-
-  // Get new room data (include player's personal discoveries)
-  const newRoomData = await RoomService.getRoomWithContents(
-    newRoomId,
-    player.id,
-  );
   if (newRoomData) {
     // Send full room data to the moving player
     const enterData: RoomEnterData = {
@@ -811,6 +885,7 @@ export function registerHandlers(io: Server, socket: Socket): void {
     CombatService.setBroadcaster(broadcastCombatEvent);
     CombatService.setDeathCallback(handlePlayerDeathRespawn);
     SwimmingService.setBroadcaster(broadcastSwimmingEvent);
+    SpawnService.setBroadcaster(broadcastSpawnEvent);
   }
 
   // Handle connection setup

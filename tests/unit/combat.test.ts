@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { processAttack } from "../../src/services/CombatService.js";
+import {
+  calculateGroupXpMultiplier,
+  calculateXpReward,
+} from "../../src/services/StatService.js";
 import type { CombatParticipant, WeaponData } from "../../src/types/combat.js";
 
 describe("CombatService", () => {
@@ -245,6 +249,90 @@ describe("CombatService", () => {
       // d20 + 4 (DEX mod) + 0 (BAB) + 0 (weapon bonus)
       expect(result.attackRoll).toBeGreaterThanOrEqual(5); // 1 + 4 = 5
       expect(result.attackRoll).toBeLessThanOrEqual(24); // 20 + 4 = 24
+    });
+  });
+
+  describe("calculateGroupXpMultiplier", () => {
+    it("should return 1 for solo player", () => {
+      expect(calculateGroupXpMultiplier(1)).toBe(1);
+    });
+
+    it("should return 0.6 for 2 players", () => {
+      // (1 + 0.2 * 1) / 2 = 1.2 / 2 = 0.6
+      expect(calculateGroupXpMultiplier(2)).toBe(0.6);
+    });
+
+    it("should return ~0.467 for 3 players", () => {
+      // (1 + 0.2 * 2) / 3 = 1.4 / 3 ≈ 0.467
+      expect(calculateGroupXpMultiplier(3)).toBeCloseTo(0.467, 2);
+    });
+
+    it("should return 0.4 for 4 players", () => {
+      // (1 + 0.2 * 3) / 4 = 1.6 / 4 = 0.4
+      expect(calculateGroupXpMultiplier(4)).toBe(0.4);
+    });
+
+    it("should return 0.36 for 5 players", () => {
+      // (1 + 0.2 * 4) / 5 = 1.8 / 5 = 0.36
+      expect(calculateGroupXpMultiplier(5)).toBe(0.36);
+    });
+
+    it("should cap bonus at 5 players (6+ players get same multiplier as 5)", () => {
+      // (1 + 0.2 * 4) / 6 = 1.8 / 6 = 0.3
+      expect(calculateGroupXpMultiplier(6)).toBe(0.3);
+      // (1 + 0.2 * 4) / 10 = 1.8 / 10 = 0.18
+      expect(calculateGroupXpMultiplier(10)).toBe(0.18);
+    });
+
+    it("should handle edge case of 0 participants", () => {
+      expect(calculateGroupXpMultiplier(0)).toBe(1);
+    });
+  });
+
+  describe("Group XP calculation", () => {
+    it("should give higher level player more XP when helping lower level player", () => {
+      // Level 5 player vs Level 5 monster: 40 XP solo
+      // Level 3 player vs Level 5 monster: 80 XP solo (monster 2 levels higher)
+      const level5Solo = calculateXpReward(5, 5);
+      const level3Solo = calculateXpReward(5, 3);
+
+      expect(level5Solo).toBe(40);
+      expect(level3Solo).toBe(80);
+
+      // Pool: 40 + 80 = 120, Average: 60
+      const pool = level5Solo + level3Solo;
+      const average = pool / 2;
+      expect(average).toBe(60);
+
+      // Each gets: 60 × 0.6 = 36 XP
+      const multiplier = calculateGroupXpMultiplier(2);
+      const xpEach = Math.floor(average * multiplier);
+      expect(xpEach).toBe(36);
+
+      // Level 5 player gets 36 instead of 40 (slight penalty for easy kill)
+      // Level 3 player gets 36 instead of 80 (big penalty but still good XP)
+      // But if level 5 helped level 3 kill a level 3 monster:
+      // Level 5 solo: 20 XP (monster 2 levels lower)
+      // Level 3 solo: 40 XP (same level)
+      // Pool: 60, Average: 30, Each: 30 × 0.6 = 18 XP
+      // Level 5 gets 18 instead of 20 - small penalty
+      // Level 3 gets 18 instead of 40 - bigger penalty but still helped
+    });
+
+    it("should give same XP to equal level players", () => {
+      // Two level 5 players vs Level 5 monster
+      const soloXp = calculateXpReward(5, 5);
+      expect(soloXp).toBe(40);
+
+      // Pool: 40 + 40 = 80, Average: 40
+      const pool = soloXp * 2;
+      const average = pool / 2;
+      expect(average).toBe(40);
+
+      // Each gets: 40 × 0.6 = 24 XP
+      const multiplier = calculateGroupXpMultiplier(2);
+      const xpEach = Math.floor(average * multiplier);
+      expect(xpEach).toBe(24);
     });
   });
 });

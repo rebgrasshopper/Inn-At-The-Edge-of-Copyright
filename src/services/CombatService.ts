@@ -30,6 +30,7 @@ import {
   calculateEquipmentACBonus,
   calculateEquipmentConBonus,
   calculateFleeDC,
+  calculateGroupXpMultiplier,
   calculateMaxHp,
   calculateXpAfterDeath,
   calculateXpReward,
@@ -1160,7 +1161,7 @@ export async function handlePlayerDeath(
 }
 
 /**
- * Handle monster death - award XP, check for level up, remove monster, end combat
+ * Handle monster death - award XP to all participants, check for level ups, remove monster, end combat
  * @param monsterInstanceId - The dying monster's instance ID
  * @param killerPlayerId - The player who dealt the killing blow
  */
@@ -1183,41 +1184,74 @@ export async function handleMonsterDeath(
 
   const monster = record.monsters;
 
-  // Get killer for XP calculation
-  const killer = await db
-    .select()
-    .from(players)
-    .where(eq(players.id, killerPlayerId))
-    .get();
+  // Get all players who participated in killing this monster
+  const participantIds = getPlayersAttackingMonster(monsterInstanceId);
+  if (participantIds.length === 0) {
+    // Fallback to killer only if no participants tracked
+    participantIds.push(killerPlayerId);
+  }
 
-  if (killer) {
-    // Calculate XP based on level difference (PF2e style)
-    const xpReward = calculateXpReward(monster.level, killer.level);
-    const newXp = killer.xp + xpReward;
+  // Get all participant player data
+  const participantPlayers = await Promise.all(
+    participantIds.map((id) =>
+      db.select().from(players).where(eq(players.id, id)).get(),
+    ),
+  );
 
-    // Check for level up
-    const levelUpResult = checkLevelUp(newXp, killer.level);
+  // Filter out any null results
+  const validParticipants = participantPlayers.filter(
+    (p): p is NonNullable<typeof p> => p !== undefined,
+  );
+
+  if (validParticipants.length === 0) return;
+
+  // Calculate pooled XP: sum of each participant's solo XP, then average
+  const soloXpValues = validParticipants.map((p) =>
+    calculateXpReward(monster.level, p.level),
+  );
+  const totalPooledXp = soloXpValues.reduce((sum, xp) => sum + xp, 0);
+  const averageXp = totalPooledXp / validParticipants.length;
+
+  // Apply group multiplier
+  const groupMultiplier = calculateGroupXpMultiplier(validParticipants.length);
+  const xpPerPlayer = Math.floor(averageXp * groupMultiplier);
+
+  // Track XP awards for broadcast
+  const xpAwards: Array<{ playerId: string; playerName: string; xp: number }> =
+    [];
+
+  // Award XP to each participant
+  for (const participant of validParticipants) {
+    const newXp = participant.xp + xpPerPlayer;
+    const levelUpResult = checkLevelUp(newXp, participant.level);
+
+    xpAwards.push({
+      playerId: participant.id,
+      playerName: participant.name,
+      xp: xpPerPlayer,
+    });
 
     if (levelUpResult.shouldLevel) {
       // Level up! Update XP, level, and grant attribute points
       const newUnspentPoints =
-        (killer.unspentAttributePoints ?? 0) + levelUpResult.attributePoints;
+        (participant.unspentAttributePoints ?? 0) +
+        levelUpResult.attributePoints;
 
       // Get equipment CON bonus for max HP calculation
-      const equipped = await getEquippedItems(killerPlayerId);
+      const equipped = await getEquippedItems(participant.id);
       const equipConBonus = calculateEquipmentConBonus(equipped);
-      const totalCon = killer.con + equipConBonus;
+      const totalCon = participant.con + equipConBonus;
 
       // Calculate new max HP based on new level (with feat bonuses)
       const newMaxHp = await calculateMaxHp(
         levelUpResult.newLevel,
         totalCon,
-        killerPlayerId,
+        participant.id,
       );
 
       // Heal the HP gained from leveling (difference between old and new max)
-      const hpGained = newMaxHp - killer.maxHp;
-      const newCurrentHp = killer.currentHp + hpGained;
+      const hpGained = newMaxHp - participant.maxHp;
+      const newCurrentHp = participant.currentHp + hpGained;
 
       await db
         .update(players)
@@ -1228,20 +1262,20 @@ export async function handleMonsterDeath(
           maxHp: newMaxHp,
           currentHp: newCurrentHp,
         })
-        .where(eq(players.id, killerPlayerId));
+        .where(eq(players.id, participant.id));
 
       // Grant feat slot on even levels (2, 4, 6, 8, ...)
       const gainedFeatSlot = levelUpResult.newLevel % 2 === 0;
       if (gainedFeatSlot) {
-        await grantFeatSlot(killerPlayerId);
+        await grantFeatSlot(participant.id);
       }
 
       // Broadcast level up
       if (roomId) {
         broadcast(roomId, {
           type: "level_up",
-          playerId: killerPlayerId,
-          playerName: killer.name,
+          playerId: participant.id,
+          playerName: participant.name,
           newLevel: levelUpResult.newLevel,
           attributePoints: levelUpResult.attributePoints,
           gainedFeatSlot,
@@ -1252,19 +1286,23 @@ export async function handleMonsterDeath(
       await db
         .update(players)
         .set({ xp: newXp })
-        .where(eq(players.id, killerPlayerId));
+        .where(eq(players.id, participant.id));
     }
+  }
 
-    // Broadcast monster death with actual XP awarded
-    if (roomId) {
-      broadcast(roomId, {
-        type: "monster_death",
-        monsterName: monster.name,
-        killerName: killer.name,
-        killerId: killerPlayerId,
-        xpAwarded: xpReward,
-      });
-    }
+  // Get killer name for broadcast
+  const killer = validParticipants.find((p) => p.id === killerPlayerId);
+  const killerName = killer?.name || "someone";
+
+  // Broadcast monster death with all XP awards
+  if (roomId) {
+    broadcast(roomId, {
+      type: "monster_death",
+      monsterName: monster.name,
+      killerName,
+      killerId: killerPlayerId,
+      xpAwards,
+    });
   }
 
   // Remove monster from combat, keeping players in combat with remaining monsters
@@ -1272,10 +1310,20 @@ export async function handleMonsterDeath(
     removeMonsterFromCombat(combat, monsterInstanceId);
   }
 
-  // Remove monster instance from database
-  await db
-    .delete(monsterInstances)
-    .where(eq(monsterInstances.id, monsterInstanceId));
+  // Handle monster death based on permanent flag
+  const isPermanent = record.monster_instances.permanent;
+  if (isPermanent) {
+    // Mark monster as dead (soft-delete) for respawn system
+    await db
+      .update(monsterInstances)
+      .set({ currentHp: 0, killedAt: new Date() })
+      .where(eq(monsterInstances.id, monsterInstanceId));
+  } else {
+    // Temporary monster - delete permanently
+    await db
+      .delete(monsterInstances)
+      .where(eq(monsterInstances.id, monsterInstanceId));
+  }
 }
 
 /**

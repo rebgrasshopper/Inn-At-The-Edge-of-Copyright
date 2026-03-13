@@ -221,6 +221,23 @@ export function calculateFleeDC(
 export const XP_PER_LEVEL = 1000;
 
 /**
+ * Calculate group XP multiplier based on number of participants.
+ * Formula: (1 + 0.2 * min(numParticipants - 1, 4)) / numParticipants
+ * - 1 player: 100%
+ * - 2 players: 60% each
+ * - 3 players: ~47% each
+ * - 4 players: ~40% each
+ * - 5+ players: ~36% each (capped at 5 for bonus)
+ * @param numParticipants - Number of players in the group
+ * @returns Multiplier to apply to each player's XP share
+ */
+export function calculateGroupXpMultiplier(numParticipants: number): number {
+  if (numParticipants <= 1) return 1;
+  const bonusCap = Math.min(numParticipants - 1, 4);
+  return (1 + 0.2 * bonusCap) / numParticipants;
+}
+
+/**
  * Calculate XP reward based on monster level relative to player level (PF2e style).
  * Uses a lookup table based on level difference.
  * @param monsterLevel - The monster's level

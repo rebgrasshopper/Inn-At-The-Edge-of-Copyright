@@ -388,6 +388,7 @@ async function seed() {
       roomId: forestPathId,
       currentHp: 8,
       spawnedAt: new Date(),
+      permanent: true,
     },
     {
       id: randomUUID(),
@@ -395,6 +396,7 @@ async function seed() {
       roomId: forestClearingId,
       currentHp: 12,
       spawnedAt: new Date(),
+      permanent: true,
     },
   ];
 

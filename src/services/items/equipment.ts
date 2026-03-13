@@ -187,8 +187,21 @@ export async function equipItem(
   itemName: string,
   targetSlot?: string,
 ): Promise<ItemResult> {
-  // Find the item in player's inventory
-  const found = await findItemInPlayerInventory(playerId, itemName);
+  // Get current equipment first so we can prefer unequipped items
+  const equipment = await getPlayerEquipment(playerId);
+  if (!equipment) {
+    return { success: false, message: "Player not found." };
+  }
+
+  // Collect currently equipped item IDs to deprioritize in search
+  const equippedItemIds = Object.values(equipment).filter(
+    (id): id is string => id !== null,
+  );
+
+  // Find the item in player's inventory, preferring unequipped items
+  const found = await findItemInPlayerInventory(playerId, itemName, {
+    excludeItemIds: equippedItemIds,
+  });
   if (!found) {
     return { success: false, message: `You don't have any "${itemName}".` };
   }
@@ -198,12 +211,6 @@ export async function equipItem(
   // Check if item is equippable
   if (!item.equipSlots || item.equipSlots.length === 0) {
     return { success: false, message: `You can't equip the ${item.name}.` };
-  }
-
-  // Get current equipment
-  const equipment = await getPlayerEquipment(playerId);
-  if (!equipment) {
-    return { success: false, message: "Player not found." };
   }
 
   // Determine which slot to use

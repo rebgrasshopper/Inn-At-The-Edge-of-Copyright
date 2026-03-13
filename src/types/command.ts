@@ -30,6 +30,8 @@ export type BroadcastMessage = {
   event: string;
   room?: string;
   data: unknown;
+  /** If true, exclude the command sender from receiving this broadcast */
+  excludeSender?: boolean;
 };
 
 export type CommandResult = {

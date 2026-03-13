@@ -125,7 +125,8 @@ export type CombatEvent =
       monsterName: string;
       killerName: string;
       killerId: string;
-      xpAwarded: number;
+      /** XP awarded to each participant: { playerId, playerName, xp } */
+      xpAwards: Array<{ playerId: string; playerName: string; xp: number }>;
     }
   | {
       type: "level_up";

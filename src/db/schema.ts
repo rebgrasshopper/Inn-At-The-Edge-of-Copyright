@@ -271,6 +271,9 @@ export const monsters = sqliteTable("monsters", {
 
   // Monster level (used for flee DC calculation)
   level: integer("level").notNull().default(1),
+
+  // Respawn time in seconds after being killed (default 2 min for testing, use 900 for 15 min in production)
+  respawnSeconds: integer("respawn_seconds").notNull().default(120),
 });
 
 // Monster instances (spawned monsters in rooms)
@@ -284,6 +287,10 @@ export const monsterInstances = sqliteTable("monster_instances", {
     .references(() => rooms.id),
   currentHp: integer("current_hp").notNull(),
   spawnedAt: integer("spawned_at", { mode: "timestamp" }).notNull(),
+  // When the monster was killed (null = alive, timestamp = dead and waiting for respawn)
+  killedAt: integer("killed_at", { mode: "timestamp" }),
+  // Permanent monsters respawn after death; temporary monsters are deleted
+  permanent: integer("permanent", { mode: "boolean" }).notNull().default(false),
 });
 
 // NPCs table

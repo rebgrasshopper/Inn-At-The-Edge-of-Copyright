@@ -14,6 +14,7 @@ import {
   monsterInstances,
   monsters,
   npcs,
+  playerInventory,
   players,
   roomInventory,
 } from "../db/schema.js";
@@ -54,15 +55,18 @@ const DEFAULT_PRIORITY: EntityType[] = [
 ];
 
 /**
- * Find matching items in a room.
+ * Find matching items in a room or player inventory.
  * @param roomId - The room to search
  * @param targetName - The name to match
+ * @param playerId - Optional player ID to also search their inventory
  * @returns First matching item or null
  */
 async function findItem(
   roomId: string,
   targetName: string,
+  playerId?: string,
 ): Promise<EntityMatch | null> {
+  // Search room inventory
   const roomItems = await db
     .select()
     .from(roomInventory)
@@ -83,6 +87,31 @@ async function findItem(
       };
     }
   }
+
+  // Also search player inventory if playerId provided
+  if (playerId) {
+    const playerItems = await db
+      .select()
+      .from(playerInventory)
+      .innerJoin(items, eq(playerInventory.itemId, items.id))
+      .where(eq(playerInventory.playerId, playerId));
+
+    for (const record of playerItems) {
+      const result = fuzzyMatch(
+        targetName,
+        record.items.name,
+        record.items.pluralName,
+      );
+      if (result.matches) {
+        return {
+          type: "item",
+          entity: record.items,
+          name: record.items.name,
+        };
+      }
+    }
+  }
+
   return null;
 }
 
@@ -188,20 +217,40 @@ async function findPlayer(
 
 /**
  * Find matching visible features in a room.
+ * Includes globally visible features and personal discoveries for the player.
  * @param roomId - The room to search
  * @param targetName - The name to match
+ * @param playerId - Optional player ID to include their personal discoveries
  * @returns First matching feature or null
  */
 async function findFeature(
   roomId: string,
   targetName: string,
+  playerId?: string,
 ): Promise<EntityMatch | null> {
+  // Get player's discovered feature IDs if playerId provided
+  let discoveredIds: string[] = [];
+  if (playerId) {
+    const player = await db
+      .select({ discoveredFeatureIds: players.discoveredFeatureIds })
+      .from(players)
+      .where(eq(players.id, playerId))
+      .get();
+    discoveredIds = (player?.discoveredFeatureIds as string[]) ?? [];
+  }
+
+  // Get all features in room
   const roomFeatures = await db
     .select()
     .from(features)
-    .where(and(eq(features.roomId, roomId), eq(features.isHidden, false)));
+    .where(eq(features.roomId, roomId));
 
-  for (const feature of roomFeatures) {
+  // Filter to visible features (not hidden OR in player's discoveries)
+  const visibleFeatures = roomFeatures.filter(
+    (f) => !f.isHidden || discoveredIds.includes(f.id),
+  );
+
+  for (const feature of visibleFeatures) {
     const result = fuzzyMatch(targetName, feature.name);
     if (result.matches) {
       return {
@@ -216,22 +265,42 @@ async function findFeature(
 
 /**
  * Find matching visible containers in a room.
+ * Includes globally visible containers and personal discoveries for the player.
  * @param roomId - The room to search
  * @param targetName - The name to match
+ * @param playerId - Optional player ID to include their personal discoveries
  * @returns First matching container or null
  */
 async function findContainer(
   roomId: string,
   targetName: string,
+  playerId?: string,
 ): Promise<EntityMatch | null> {
+  // Get player's discovered container IDs if playerId provided
+  let discoveredIds: string[] = [];
+  if (playerId) {
+    const player = await db
+      .select({ discoveredContainerIds: players.discoveredContainerIds })
+      .from(players)
+      .where(eq(players.id, playerId))
+      .get();
+    discoveredIds = (player?.discoveredContainerIds as string[]) ?? [];
+  }
+
+  // Get all containers in room
   const roomContainers = await db
     .select()
     .from(containers)
-    .where(and(eq(containers.roomId, roomId), eq(containers.isHidden, false)));
+    .where(eq(containers.roomId, roomId));
+
+  // Filter to visible containers (not hidden OR in player's discoveries)
+  const visibleContainers = roomContainers.filter(
+    (c) => !c.isHidden || discoveredIds.includes(c.id),
+  );
 
   const nameLower = targetName.toLowerCase();
 
-  for (const container of roomContainers) {
+  for (const container of visibleContainers) {
     // Check main name
     const result = fuzzyMatch(targetName, container.name);
     if (result.matches) {
@@ -317,20 +386,22 @@ async function findCorpse(
  * Runs all finder functions in parallel and returns a map of matches.
  * @param roomId - The room to search
  * @param targetName - The name to match
+ * @param playerId - Optional player ID for inventory and personal discovery searches
  * @returns Map of entity type to first match
  */
 async function gatherAllMatches(
   roomId: string,
   targetName: string,
+  playerId?: string,
 ): Promise<Map<EntityType, EntityMatch>> {
   const [item, monster, npc, player, feature, container, corpse] =
     await Promise.all([
-      findItem(roomId, targetName),
+      findItem(roomId, targetName, playerId),
       findMonster(roomId, targetName),
       findNpc(roomId, targetName),
       findPlayer(roomId, targetName),
-      findFeature(roomId, targetName),
-      findContainer(roomId, targetName),
+      findFeature(roomId, targetName, playerId),
+      findContainer(roomId, targetName, playerId),
       findCorpse(roomId, targetName),
     ]);
 
@@ -354,6 +425,7 @@ async function gatherAllMatches(
  * @param roomId - The room to search
  * @param targetName - The name to search for (fuzzy matched)
  * @param allowedTypes - Entity types that are valid for this action (in priority order)
+ * @param playerId - Optional player ID for inventory and personal discovery searches
  * @returns ResolveResult indicating found, wrong_type, or not_found
  *
  * @example
@@ -364,19 +436,17 @@ async function gatherAllMatches(
  * }
  *
  * @example
- * // For get command - only items are valid
- * const result = await resolveEntity(roomId, "sword", ["item"]);
- * if (result.status === "wrong_type") {
- *   return "You can't take that.";
- * }
+ * // For examine command - include player inventory search
+ * const result = await resolveEntity(roomId, "sword", ["item", "monster", "npc"], playerId);
  */
 export async function resolveEntity(
   roomId: string,
   targetName: string,
   allowedTypes: EntityType[],
+  playerId?: string,
 ): Promise<ResolveResult> {
   // Gather all matches in parallel
-  const matches = await gatherAllMatches(roomId, targetName);
+  const matches = await gatherAllMatches(roomId, targetName, playerId);
 
   // Check allowed types in caller's priority order
   for (const type of allowedTypes) {

@@ -6,29 +6,51 @@ Items to revisit after the initial prototype is working.
 
 Issues found during first multiplayer testing session, ordered from smallest to largest fix:
 
-- [ ] **Add "loot" as alias for "get all from"**: "loot corpse" should work as shorthand for "get all from corpse".
+- [x] **Add "loot" as alias for "get all from"**: "loot corpse" should work as shorthand for "get all from corpse".
 
-- [ ] **Wearing already-equipped item gives confusing message**: Trying to wear an item you're already wearing says "You equip the leather cap on your head (removing leather cap)." Should say "You're already wearing that." or similar.
+- [x] **Wearing already-equipped item gives confusing message**: Trying to wear an item you're already wearing says "You equip the leather cap on your head (removing leather cap)." Should say "You're already wearing that." or similar.
 
-- [ ] **"look <myPlayerName>" should resolve to "look self"**: Looking at your own character name should use the self-view logic, not the "look at other player" logic.
+- [x] **"look <myPlayerName>" should resolve to "look self"**: Looking at your own character name should use the self-view logic, not the "look at other player" logic.
 
-- [ ] **Show direction when player leaves**: When another player leaves the room, show which direction they went. E.g., "Fox leaves to the north." instead of just "Fox has left."
+- [x] **Show direction when player leaves**: When another player leaves the room, show which direction they went. E.g., "Fox leaves to the north." instead of just "Fox has left."
 
-- [ ] **No broadcast when player picks up item**: Other players in the room don't see a message when someone picks up an item. Should broadcast something like "Fox picks up a rusty sword."
+- [x] **No broadcast when player picks up item**: Other players in the room don't see a message when someone picks up an item. Should broadcast something like "Fox picks up a rusty sword."
 
-- [ ] **Equip fuzzy match should prioritize unequipped items**: When using "wear" or "equip" with a fuzzy item name, prioritize matching unequipped items over already-equipped ones. Avoids the "already wearing that" issue when you have duplicates.
+- [x] **Look at other players shows too much info**: When looking at another player, you currently see their full stats (STR, DEX, etc.), level, HP, AC, XP. Should only show a description and visible equipped items — not their private stats. The "You don't have anything equipped" message is also wrong (should be "They don't have..." or list their gear).
 
-- [ ] **"look <item>" should check inventory**: When looking at an item by name, it should also search the player's inventory, not just the room. E.g., "look sword" should work if you're carrying a sword.
+- [x] **Equip fuzzy match should prioritize unequipped items**: When using "wear" or "equip" with a fuzzy item name, prioritize matching unequipped items over already-equipped ones. Avoids the "already wearing that" issue when you have duplicates.
 
-- [ ] **Look at other players shows too much info**: When looking at another player, you currently see their full stats (STR, DEX, etc.), level, HP, AC, XP. Should only show a description and visible equipped items — not their private stats. The "You don't have anything equipped" message is also wrong (should be "They don't have..." or list their gear).
+- [x] **"look <item>" should check inventory**: When looking at an item by name, it should also search the player's inventory, not just the room. E.g., "look sword" should work if you're carrying a sword.
 
-- [ ] **Monster spawn not broadcast to room**: When a monster spawns (via admin command or respawn system), other players in the room don't see it appear. Should broadcast something like "A wolf emerges from the shadows."
+- [x] **Monster spawn not broadcast to room**: When a monster spawns (via admin command or respawn system), other players in the room don't see it appear. Should broadcast something like "A wolf emerges from the shadows."
 
-- [ ] **Split XP for group combat**: When multiple players fight the same monster, XP should be split among participants. Consider a bonus so each player gets slightly more than a pure split (e.g., 60% each for 2 players instead of 50%).
+- [x] **Split XP for group combat**: When multiple players fight the same monster, XP should be split among participants. Consider a bonus so each player gets slightly more than a pure split (e.g., 60% each for 2 players instead of 50%).
 
-- [ ] **Monster respawn system**: Monsters don't respawn after being killed. Need logic to re-spawn monsters after some time (either per-monster cooldown or periodic sweep that repopulates rooms).
+- [x] **Monster respawn system**: Monsters don't respawn after being killed. Need logic to re-spawn monsters after some time (either per-monster cooldown or periodic sweep that repopulates rooms).
 
 - [ ] **UI overlap issue (intermittent)**: Room description overlapping with exits display. Not reproducible yet — only happened for one player. Need to investigate CSS/layout when it happens again.
+
+## Party System Brainstorm (March 2026)
+
+Ideas for party/group mechanics beyond just being in the same combat:
+
+- [ ] **Follow mechanic**: `follow <player>` to auto-move when they move. `stop following` or `unfollow` to stop. Followers see "You follow Djim north." Edge cases: can't follow while in combat, blocked exits leave follower behind with message, chain following (A follows B follows C) probably allowed.
+
+- [ ] **Shared vision**: Party members see each other's personal discoveries. If Djim found the hidden nook, party members can see it too while grouped. Non-party version: `show <feature> to <player>` (already in backlog).
+
+- [ ] **HP visibility**: Party members see each other's HP in room description or via `party status`. Useful for knowing when to heal/help.
+
+- [ ] **Party chat**: `ptell <message>` or `party say <message>` reaches all party members regardless of room. Consider range limit (region-based?) to avoid weirdness when crossing region boundaries.
+
+- [ ] **Monster loot drops**: Monsters should drop loot when killed. Could be fixed drops per monster type, random from loot table, or both. Loot appears on corpse or ground. Foundation for shared loot feature.
+
+- [ ] **Shared loot**: Option to auto-split gold/coins when picked up by party member. Or `party loot` mode where corpse items go to whoever needs them most. Requires monster loot drops first.
+
+- [ ] **Buff sharing / Auras**: When status effects/buffs exist, some could affect the whole party (bard songs, paladin auras, protection spells). Requires temporary stat modifications and status effects systems first.
+
+- [ ] **Revive/rescue**: Party members could have special options for downed allies - drag their corpse to safety, revive with penalty, stabilize to prevent XP loss, etc.
+
+- [ ] **Party formation commands**: `party invite <player>`, `party accept`/`party decline`, `party leave`, `party kick <player>` (leader only), `party list` or `party` (show members/status), `party leader <player>` (transfer leadership).
 
 ## Pending: Add spells that players can learn/use based on INT modifier. Number of spell slots = INT modifier (minimum 0). Include a basic attack spell (e.g., "magic missile") so non-STR builds have a combat option. Spells could use a `spells` table and `player_spells` junction table.
 
@@ -36,9 +58,9 @@ Issues found during first multiplayer testing session, ordered from smallest to 
 
 - [ ] **CHA → NPC interactions**: CHA modifier affects NPC disposition, shop prices, quest rewards, or persuasion checks. Could unlock special dialogue options.
 
-- [ ] **Temporary stat modifications**: Add support for temporary buffs/debuffs with duration tracking. May need a `player_active_effects` table.
+- [ ] **Temporary stat modifications**: Add support for temporary buffs/debuffs with duration tracking. May need a `player_active_effects` table. Foundation for buff sharing/auras in party system.
 
-- [ ] **Status effects system**: Create `statuses` table defining possible statuses (poisoned, stunned, blessed, etc.) with their effects. Some statuses affect movement/speech, others do periodic damage/healing, others modify stats temporarily. Need to revisit temporary stat mods when implementing.
+- [ ] **Status effects system**: Create `statuses` table defining possible statuses (poisoned, stunned, blessed, etc.) with their effects. Some statuses affect movement/speech, others do periodic damage/healing, others modify stats temporarily. Need to revisit temporary stat mods when implementing. Foundation for party auras and buff sharing.
 
 - [ ] **Session-based discoveries**: Some discoveries should be visible to all players (e.g., sweeping leaves reveals trapdoor to everyone). Current time-based reset is MVP approximation.
 
@@ -99,7 +121,7 @@ Note: Don't use `examine`, `inspect`, or `look` as trigger verbs - these are han
 
 - [ ] **Swimming activity restrictions**: While swimming, players should not be able to: attack, equip/unequip items (except maybe head slot), pick up items from the ground, etc. Currently only movement is blocked.
 
-- [ ] **Party system**: Allow players to form parties/groups. Party members share a combat encounter and can coordinate tactics. Commands: `party invite <player>`, `party accept`, `party leave`, `party list`. Party members see each other's HP in combat. Monsters could also form groups (packs, patrols). Foundation for front/rear line positioning system.
+- [ ] **Party system**: Allow players to form parties/groups. See "Party System Brainstorm" section for detailed feature list. Core features: party formation commands, follow mechanic, shared vision, HP visibility, party chat. Foundation for front/rear line positioning system.
 
 - [ ] **Front/rear line positioning**: When in a party or group combat, combatants are positioned in front line or rear line based on their weapon type. Melee weapons = front line, ranged weapons = rear line. Melee attackers can only hit front line targets unless the front line is empty. Ranged attackers can hit either line. Flying monsters or those with ranged attacks (breath weapons, spitting) count as rear line. Adds tactical depth: protect your ranged attackers, focus down enemy front line to reach their casters. Requires party system first.
 

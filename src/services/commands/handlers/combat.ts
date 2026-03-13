@@ -120,6 +120,7 @@ export async function handleFlee(
       event: "room:leave",
       room: room.id,
       data: { player, roomId: room.id, direction: result.destination },
+      excludeSender: true,
     });
   }
 

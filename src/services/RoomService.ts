@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   corpses,
@@ -123,7 +123,12 @@ export async function getRoomWithContents(
       .select()
       .from(monsterInstances)
       .innerJoin(monsters, eq(monsterInstances.monsterId, monsters.id))
-      .where(eq(monsterInstances.roomId, roomId)),
+      .where(
+        and(
+          eq(monsterInstances.roomId, roomId),
+          gt(monsterInstances.currentHp, 0),
+        ),
+      ),
     db.select().from(npcs).where(eq(npcs.roomId, roomId)),
     getContainersInRoom(roomId, playerId),
     getFeaturesInRoom(roomId, playerId),

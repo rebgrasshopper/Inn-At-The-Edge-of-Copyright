@@ -82,7 +82,7 @@ export async function handleAnnounce(
 /**
  * Handle the spawn command - spawns a monster by name in the current room.
  * Admin only.
- * @param args - Command arguments (monster name)
+ * @param args - Command arguments (monster name, optional --permanent flag)
  * @param context - Command context with player and room info
  * @returns CommandResult with success/failure message
  */
@@ -99,6 +99,15 @@ export async function handleSpawn(
     };
   }
 
+  // Check for --permanent flag
+  const permanentIndex = args.findIndex(
+    (a) => a.toLowerCase() === "--permanent",
+  );
+  const isPermanent = permanentIndex !== -1;
+  if (isPermanent) {
+    args.splice(permanentIndex, 1);
+  }
+
   // Parse monster name from args
   const monsterName = args.join(" ").trim();
   if (!monsterName) {
@@ -107,7 +116,7 @@ export async function handleSpawn(
     const names = allMonsters.map((m) => m.name).join(", ");
     return {
       success: false,
-      message: `Usage: spawn <monster name>\nAvailable monsters: ${names}`,
+      message: `Usage: spawn <monster name> [--permanent]\nAvailable monsters: ${names}`,
     };
   }
 
@@ -139,14 +148,26 @@ export async function handleSpawn(
     roomId,
     currentHp: matchedMonster.maxHp,
     spawnedAt: new Date(),
+    permanent: isPermanent,
   });
 
   // Check for monster aggro against the spawning player
   await CombatService.checkMonsterAggro(context.player.id, roomId);
 
+  const permLabel = isPermanent ? " (permanent)" : "";
   return {
     success: true,
-    message: `A ${matchedMonster.name} appears!`,
+    message: `A ${matchedMonster.name} appears!${permLabel}`,
+    broadcast: [
+      {
+        event: "chat:message",
+        room: roomId,
+        data: {
+          type: "system",
+          content: `A ${matchedMonster.name} emerges from the shadows.`,
+        },
+      },
+    ],
   };
 }
 

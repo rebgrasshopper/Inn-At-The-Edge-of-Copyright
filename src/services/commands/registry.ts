@@ -320,9 +320,13 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
     adminOnly: true,
     help: {
       summary: "Spawn a monster (admin only)",
-      usage: ["spawn <monster name>"],
+      usage: ["spawn <monster name> [--permanent]"],
       aliases: getAliasesForCommand(Command.Spawn),
-      examples: ["spawn wolf", "spawn goblin", "spawn giant spider"],
+      examples: [
+        "spawn wolf",
+        "spawn goblin --permanent",
+        "spawn giant spider",
+      ],
     },
   },
 

@@ -2,18 +2,9 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "../../src/db/index.js";
 import {
-  containerInventory,
-  containers,
-  features,
-  items,
-  monsterInstances,
-  monsterSpawns,
-  monsters,
-  npcs,
   playerFeats,
   playerInventory,
   players as playersTable,
-  roomInventory,
   rooms,
   users,
 } from "../../src/db/schema.js";
@@ -29,20 +20,20 @@ const testRoom1Id = "test-room-chat-1";
 const testRoom2Id = "test-room-chat-2";
 
 async function cleanupTestData() {
-  await db.delete(containerInventory);
-  await db.delete(monsterInstances);
-  await db.delete(monsterSpawns);
-  await db.delete(roomInventory);
-  await db.delete(playerInventory);
-  await db.delete(features);
-  await db.delete(containers);
-  await db.delete(npcs);
-  await db.delete(playerFeats);
-  await db.delete(playersTable);
-  await db.delete(monsters);
-  await db.delete(items);
-  await db.delete(rooms);
-  await db.delete(users);
+  // Delete only our test data, respecting foreign keys
+  await db
+    .delete(playerInventory)
+    .where(eq(playerInventory.playerId, testPlayer1Id));
+  await db
+    .delete(playerInventory)
+    .where(eq(playerInventory.playerId, testPlayer2Id));
+  await db.delete(playerFeats).where(eq(playerFeats.playerId, testPlayer1Id));
+  await db.delete(playerFeats).where(eq(playerFeats.playerId, testPlayer2Id));
+  await db.delete(playersTable).where(eq(playersTable.id, testPlayer1Id));
+  await db.delete(playersTable).where(eq(playersTable.id, testPlayer2Id));
+  await db.delete(rooms).where(eq(rooms.id, testRoom1Id));
+  await db.delete(rooms).where(eq(rooms.id, testRoom2Id));
+  await db.delete(users).where(eq(users.id, testUserId));
 }
 
 beforeAll(async () => {

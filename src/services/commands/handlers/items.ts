@@ -144,6 +144,32 @@ export async function handleGet(
     itemTarget,
     quantity,
   );
+
+  // Broadcast to room if successful
+  if (result.success && result.item) {
+    const displayName =
+      result.quantity && result.quantity > 1
+        ? `${result.quantity} ${result.item.pluralName || result.item.name + "s"}`
+        : result.item.name;
+
+    return {
+      success: true,
+      message: result.message,
+      broadcast: [
+        {
+          room: room.id,
+          event: "chat:message",
+          data: {
+            id: crypto.randomUUID(),
+            type: "system",
+            content: `${player.name} picks up ${displayName}.`,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      ],
+    };
+  }
+
   return { success: result.success, message: result.message };
 }
 
@@ -265,14 +291,12 @@ export async function handleExamine(
   }
 
   // Use EntityResolver to find the target - examine can target anything visible
-  const resolved = await resolveEntity(room.id, target, [
-    "item",
-    "monster",
-    "npc",
-    "player",
-    "feature",
-    "container",
-  ]);
+  const resolved = await resolveEntity(
+    room.id,
+    target,
+    ["item", "monster", "npc", "player", "feature", "container"],
+    player.id,
+  );
 
   if (resolved.status === "not_found") {
     return { success: false, message: `You don't see any "${target}" here.` };

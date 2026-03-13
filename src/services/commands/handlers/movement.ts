@@ -90,6 +90,7 @@ export async function handleMove(
     event: "room:leave",
     room: room.id,
     data: { player, roomId: room.id, direction },
+    excludeSender: true,
   });
 
   // Notify new room that player entered

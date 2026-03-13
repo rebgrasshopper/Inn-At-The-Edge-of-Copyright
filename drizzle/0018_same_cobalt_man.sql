@@ -1,0 +1,1 @@
+ALTER TABLE `monster_instances` ADD `permanent` integer DEFAULT false NOT NULL;

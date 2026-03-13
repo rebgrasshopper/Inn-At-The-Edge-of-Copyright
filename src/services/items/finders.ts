@@ -55,11 +55,14 @@ export async function findItemInRoom(
  * Find an item in player inventory by name (exact, prefix, or word match).
  * @param playerId - The player to search
  * @param itemName - The name to search for
+ * @param options - Optional search options
+ * @param options.excludeItemIds - Item IDs to deprioritize (matched last). Useful for preferring unequipped items.
  * @returns ItemFindResult or null if not found
  */
 export async function findItemInPlayerInventory(
   playerId: string,
   itemName: string,
+  options?: { excludeItemIds?: string[] },
 ): Promise<ItemFindResult | null> {
   const playerItems = await db
     .select()
@@ -73,6 +76,18 @@ export async function findItemInPlayerInventory(
       inventoryRecord: r.player_inventory,
       rawItem: r.items,
     }));
+
+  // If excludeItemIds provided, sort entries so excluded items come last
+  const excludeSet = new Set(options?.excludeItemIds ?? []);
+  if (excludeSet.size > 0) {
+    entries.sort((a, b) => {
+      const aExcluded = excludeSet.has(a.rawItem.id);
+      const bExcluded = excludeSet.has(b.rawItem.id);
+      if (aExcluded && !bExcluded) return 1; // a goes after b
+      if (!aExcluded && bExcluded) return -1; // a goes before b
+      return 0; // preserve order
+    });
+  }
 
   const result = findItemByName(entries, itemName);
   if (!result) return null;

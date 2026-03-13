@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { FEAT_TWO_WEAPON_FIGHTING } from "../../src/constants/featIds.js";
 import { db } from "../../src/db/index.js";
@@ -23,13 +23,8 @@ async function cleanupTestData() {
     .delete(playerInventory)
     .where(eq(playerInventory.playerId, testPlayerId));
   await db.delete(players).where(eq(players.id, testPlayerId));
-  // Delete test items with our prefix
-  await db.delete(items).where(eq(items.id, "test-item-sword"));
-  await db.delete(items).where(eq(items.id, "test-item-dagger"));
-  await db.delete(items).where(eq(items.id, "test-item-shield"));
-  await db.delete(items).where(eq(items.id, "test-item-helmet"));
-  await db.delete(items).where(eq(items.id, "test-item-armor"));
-  await db.delete(items).where(eq(items.id, "test-item-ring"));
+  // Delete test items with our prefix (item-test-*)
+  await db.delete(items).where(like(items.id, "item-test-%"));
   await db.delete(rooms).where(eq(rooms.id, testRoomId));
   await db.delete(users).where(eq(users.id, testUserId));
 }

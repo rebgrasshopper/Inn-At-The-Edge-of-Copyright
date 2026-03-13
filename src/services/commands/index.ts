@@ -270,11 +270,29 @@ export async function execute(
     }
 
     // Check for monster aggro if a monster was spawned
-    const spawnedMonster = result.effectsApplied.some(
+    const spawnedMonster = result.effectsApplied.find(
       (e) => e.type === "spawn_monster" && e.success,
     );
     if (spawnedMonster) {
       await CombatService.checkMonsterAggro(context.player.id, context.room.id);
+    }
+
+    // Build broadcasts for spawned monsters
+    const broadcasts = [];
+    for (const effect of result.effectsApplied) {
+      if (effect.type === "spawn_monster" && effect.success) {
+        // Extract monster name from the effect message (format: "A <name> appears!")
+        const match = effect.message?.match(/^A (.+) appears!$/);
+        const monsterName = match ? match[1] : "creature";
+        broadcasts.push({
+          event: "chat:message",
+          room: context.room.id,
+          data: {
+            type: "system",
+            content: `A ${monsterName} emerges from the shadows.`,
+          },
+        });
+      }
     }
 
     return {
@@ -282,6 +300,7 @@ export async function execute(
       message: messages.join("\n"),
       rollInfo: result.rollInfo,
       roomChanged,
+      broadcast: broadcasts.length > 0 ? broadcasts : undefined,
     };
   }
 

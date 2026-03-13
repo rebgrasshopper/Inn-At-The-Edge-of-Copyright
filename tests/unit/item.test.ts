@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "../../src/db/index.js";
 import {
@@ -6,10 +6,6 @@ import {
   containers,
   features,
   items,
-  monsterInstances,
-  monsterSpawns,
-  monsters,
-  npcs,
   playerFeats,
   playerInventory,
   players,
@@ -28,20 +24,26 @@ const testPlayer2Id = "test-player-item-2";
 const testRoomId = "test-room-item";
 
 async function cleanupTestData() {
-  await db.delete(containerInventory);
-  await db.delete(monsterInstances);
-  await db.delete(monsterSpawns);
-  await db.delete(roomInventory);
-  await db.delete(playerInventory);
-  await db.delete(features);
-  await db.delete(containers);
-  await db.delete(npcs);
-  await db.delete(playerFeats);
-  await db.delete(players);
-  await db.delete(monsters);
-  await db.delete(items);
-  await db.delete(rooms);
-  await db.delete(users);
+  // Delete only our test data using LIKE patterns, respecting foreign keys
+  await db
+    .delete(containerInventory)
+    .where(like(containerInventory.containerId, "container-test-%"));
+  await db.delete(roomInventory).where(eq(roomInventory.roomId, testRoomId));
+  await db
+    .delete(playerInventory)
+    .where(eq(playerInventory.playerId, testPlayerId));
+  await db
+    .delete(playerInventory)
+    .where(eq(playerInventory.playerId, testPlayer2Id));
+  await db.delete(features).where(eq(features.roomId, testRoomId));
+  await db.delete(containers).where(like(containers.id, "container-test-%"));
+  await db.delete(playerFeats).where(eq(playerFeats.playerId, testPlayerId));
+  await db.delete(playerFeats).where(eq(playerFeats.playerId, testPlayer2Id));
+  await db.delete(players).where(eq(players.id, testPlayerId));
+  await db.delete(players).where(eq(players.id, testPlayer2Id));
+  await db.delete(items).where(like(items.id, "item-test-%"));
+  await db.delete(rooms).where(eq(rooms.id, testRoomId));
+  await db.delete(users).where(eq(users.id, testUserId));
 }
 
 beforeAll(async () => {

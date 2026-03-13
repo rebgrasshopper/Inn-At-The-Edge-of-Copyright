@@ -36,21 +36,31 @@ const testContainerId = "test-container-chest";
 const testFeatureId = "test-feature-fountain";
 
 async function cleanupTestData() {
-  // Delete in correct order to respect foreign keys
-  await db.delete(containerInventory);
-  await db.delete(monsterInstances);
-  await db.delete(monsterSpawns);
-  await db.delete(roomInventory);
-  await db.delete(playerInventory);
-  await db.delete(features);
-  await db.delete(containers);
-  await db.delete(npcs);
-  await db.delete(playerFeats);
-  await db.delete(playersTable);
-  await db.delete(monsters);
-  await db.delete(items);
-  await db.delete(rooms);
-  await db.delete(users);
+  // Delete only our test data, respecting foreign keys
+  await db
+    .delete(containerInventory)
+    .where(eq(containerInventory.containerId, testContainerId));
+  await db
+    .delete(monsterInstances)
+    .where(eq(monsterInstances.monsterId, testMonsterId));
+  await db
+    .delete(monsterSpawns)
+    .where(eq(monsterSpawns.monsterId, testMonsterId));
+  await db.delete(roomInventory).where(eq(roomInventory.roomId, testRoom1Id));
+  await db
+    .delete(playerInventory)
+    .where(eq(playerInventory.playerId, testPlayerId));
+  await db.delete(features).where(eq(features.id, testFeatureId));
+  await db.delete(containers).where(eq(containers.id, testContainerId));
+  await db.delete(npcs).where(eq(npcs.id, testNpcId));
+  await db.delete(playerFeats).where(eq(playerFeats.playerId, testPlayerId));
+  await db.delete(playersTable).where(eq(playersTable.id, testPlayerId));
+  await db.delete(monsters).where(eq(monsters.id, testMonsterId));
+  await db.delete(items).where(eq(items.id, testItemId));
+  await db.delete(rooms).where(eq(rooms.id, testRoom1Id));
+  await db.delete(rooms).where(eq(rooms.id, testRoom2Id));
+  await db.delete(rooms).where(eq(rooms.id, testRoom3Id));
+  await db.delete(users).where(eq(users.id, testUserId));
 }
 
 beforeAll(async () => {
@@ -70,7 +80,7 @@ beforeAll(async () => {
       id: testRoom1Id,
       name: "Test Room 1",
       description: "A test room with exits",
-      region: "testregion",
+      region: "roomtest-region",
       exits: {
         north: { roomId: testRoom2Id },
         east: {
@@ -84,7 +94,7 @@ beforeAll(async () => {
       id: testRoom2Id,
       name: "Test Room 2",
       description: "Another test room",
-      region: "testregion",
+      region: "roomtest-region",
       exits: { south: { roomId: testRoom1Id } },
     },
     {
@@ -164,7 +174,7 @@ describe("RoomService", () => {
       expect(room).not.toBeNull();
       expect(room!.id).toBe(testRoom1Id);
       expect(room!.name).toBe("Test Room 1");
-      expect(room!.region).toBe("testregion");
+      expect(room!.region).toBe("roomtest-region");
       expect(room!.exits.north).toEqual({ roomId: testRoom2Id });
     });
 
@@ -227,7 +237,7 @@ describe("RoomService", () => {
 
   describe("getRoomsByRegion", () => {
     it("should return all rooms in a region", async () => {
-      const rooms = await RoomService.getRoomsByRegion("testregion");
+      const rooms = await RoomService.getRoomsByRegion("roomtest-region");
 
       expect(rooms).toHaveLength(2);
       expect(rooms.map((r) => r.id)).toContain(testRoom1Id);

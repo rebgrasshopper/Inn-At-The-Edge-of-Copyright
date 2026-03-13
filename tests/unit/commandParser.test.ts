@@ -187,6 +187,20 @@ describe("CommandParser", () => {
       expect(cmd.action).toBe("get");
       expect(cmd.target).toBe("rusty sword");
     });
+
+    it("should parse loot command", () => {
+      const cmd = CommandParser.parse("loot corpse");
+      expect(cmd.type).toBe("item");
+      expect(cmd.action).toBe("loot");
+      expect(cmd.target).toBe("corpse");
+    });
+
+    it("should parse loot with multi-word target", () => {
+      const cmd = CommandParser.parse("loot corpse of goblin");
+      expect(cmd.type).toBe("item");
+      expect(cmd.action).toBe("loot");
+      expect(cmd.target).toBe("corpse of goblin");
+    });
   });
 
   describe("parse - combat", () => {
