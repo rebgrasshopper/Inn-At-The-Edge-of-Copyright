@@ -38,12 +38,14 @@ export type PlayerEffect =
   | { type: "teleport"; roomId: string }
   | { type: "status"; status: string; duration?: number }
   | { type: "unblock_exit"; direction: Direction }
-  | { type: "spawn_monster"; monsterId: string; roomId?: string };
+  | { type: "spawn_monster"; monsterId: string; roomId?: string }
+  | { type: "learn_spell" }; // Learns spell from feature's teachesSpellId
 
 // User preferences type
 export type UserPreferences = {
   showRolls?: boolean;
   showColors?: boolean;
+  preferMagicAttack?: boolean;
 };
 
 // Users table (authentication)
@@ -104,6 +106,13 @@ export const players = sqliteTable("players", {
   // Feat system
   unspentFeatSlots: integer("unspent_feat_slots").notNull().default(0),
   activeStance: text("active_stance"), // Currently active stance feat, or null
+
+  // Mana system for spellcasting
+  mana: integer("mana").notNull().default(0),
+  maxMana: integer("max_mana").notNull().default(0),
+
+  // Regen tracking (timestamp of last regen tick)
+  lastRegenAt: integer("last_regen_at", { mode: "timestamp" }),
 
   // Personal discoveries (features/containers only this player can see)
   // These are permanently discovered and don't re-hide
@@ -325,6 +334,8 @@ export const features = sqliteTable("features", {
   // Command matching - verbs that trigger this feature + target noun
   triggerVerbs: text("trigger_verbs", { mode: "json" }).$type<string[]>(),
   triggerTarget: text("trigger_target"),
+  // Alternative target words that also match this feature (e.g., ["book", "spellbook"])
+  triggerAliases: text("trigger_aliases", { mode: "json" }).$type<string[]>(),
 
   // Condition to pass (nullable = no condition)
   condition: text("condition", {
@@ -364,6 +375,9 @@ export const features = sqliteTable("features", {
   // Custom refusal messages for invalid actions (optional, fallback to generic)
   refuseGetMessage: text("refuse_get_message"),
   refuseDropMessage: text("refuse_drop_message"),
+
+  // Spell book features: links to a spell that can be learned from this feature
+  teachesSpellId: text("teaches_spell_id"),
 });
 
 // Corpses (player death drops with timed locking)
@@ -435,5 +449,47 @@ export const playerFeats = sqliteTable(
   },
   (table) => ({
     uniquePlayerFeat: unique().on(table.playerId, table.featId),
+  }),
+);
+
+// Spell effect types
+export type SpellEffect =
+  | { type: "damage"; dice: string; modifier?: "int" } // e.g., "1d4" + INT mod
+  | { type: "heal"; dice: string; modifier?: "int" }
+  | { type: "buff"; stat: string; amount: number; duration: number }
+  | { type: "light"; duration: number }
+  | { type: "shield"; acBonus: number; duration?: number }; // duration = seconds, or null = until hit
+
+// Spells table (spell definitions)
+export const spells = sqliteTable("spells", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  manaCost: integer("mana_cost").notNull(),
+  minInt: integer("min_int").notNull(), // Minimum INT to learn this spell
+  // Scaling: missiles per cast = 1 + floor((casterLevel - 1) / scalingLevel)
+  // e.g., scalingLevel=4 means +1 missile at levels 5, 9, 13...
+  scalingLevel: integer("scaling_level"), // null = no scaling
+  effect: text("effect", { mode: "json" }).$type<SpellEffect>(),
+  // Target type: "self", "other", "enemy", "any"
+  targetType: text("target_type").notNull().default("self"),
+});
+
+// Player spells table (learned spells with proficiency tracking)
+export const playerSpells = sqliteTable(
+  "player_spells",
+  {
+    id: text("id").primaryKey(),
+    playerId: text("player_id")
+      .notNull()
+      .references(() => players.id),
+    spellId: text("spell_id")
+      .notNull()
+      .references(() => spells.id),
+    successfulCasts: integer("successful_casts").notNull().default(0),
+    learnedAt: integer("learned_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => ({
+    uniquePlayerSpell: unique().on(table.playerId, table.spellId),
   }),
 );

@@ -66,6 +66,22 @@ function formatStatWithBonus(baseStat: number, bonus: number): string {
   return `${baseStat + bonus} (${sign}${bonus})`;
 }
 
+/** Width of progress bars in characters */
+const BAR_WIDTH = 24;
+
+/**
+ * Create a visual progress bar using Unicode block characters.
+ * @param current - Current value
+ * @param max - Maximum value
+ * @returns Progress bar string like "[████████░░░░░░░░]"
+ */
+function createProgressBar(current: number, max: number): string {
+  const ratio = max > 0 ? Math.min(current / max, 1) : 0;
+  const filled = Math.round(ratio * BAR_WIDTH);
+  const empty = BAR_WIDTH - filled;
+  return `[${"█".repeat(filled)}${"░".repeat(empty)}]`;
+}
+
 /**
  * Handle stats command
  */
@@ -106,11 +122,19 @@ export async function handleStats(
   const wisDisplay = formatStatWithBonus(freshPlayer.wis, totals.wis);
   const chaDisplay = formatStatWithBonus(freshPlayer.cha, totals.cha);
 
-  // Format HP with CON bonus in parentheses if non-zero
-  const hpDisplay =
+  // Format HP with progress bar and CON bonus
+  const hpBar = createProgressBar(freshPlayer.currentHp, freshPlayer.maxHp);
+  const hpBonus =
     conHpBonus !== 0
-      ? `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp} (${conHpBonus > 0 ? "+" : ""}${conHpBonus} from CON)`
-      : `HP: ${freshPlayer.currentHp}/${freshPlayer.maxHp}`;
+      ? ` (${conHpBonus > 0 ? "+" : ""}${conHpBonus} from CON)`
+      : "";
+  const hpDisplay = `HP:   ${hpBar} ${freshPlayer.currentHp}/${freshPlayer.maxHp}${hpBonus}`;
+
+  // Format Mana with progress bar (only if player has mana)
+  const manaDisplay =
+    freshPlayer.maxMana > 0
+      ? `Mana: ${createProgressBar(freshPlayer.mana, freshPlayer.maxMana)} ${freshPlayer.mana}/${freshPlayer.maxMana}`
+      : null;
 
   // Calculate AC with breakdown
   const { calculateAC, getStatModifier, calculateEquipmentACBonus } =
@@ -258,13 +282,19 @@ export async function handleStats(
         : `Damage: ${damageSign}${totalDamageBonus}`;
   }
 
-  const lines = [
-    `${freshPlayer.name} - Level ${freshPlayer.level}`,
-    `${hpDisplay}  ${acDisplay}  XP: ${freshPlayer.xp}`,
+  const lines = [`${freshPlayer.name} - Level ${freshPlayer.level}`, hpDisplay];
+
+  // Add mana line only if player has mana
+  if (manaDisplay) {
+    lines.push(manaDisplay);
+  }
+
+  lines.push(
+    `${acDisplay}  XP: ${freshPlayer.xp}`,
     `${attackDisplay}  ${damageDisplay}`,
     `STR: ${strDisplay}  DEX: ${dexDisplay}  CON: ${conDisplay}`,
     `INT: ${intDisplay}  WIS: ${wisDisplay}  CHA: ${chaDisplay}`,
-  ];
+  );
 
   // Add active stance if any
   if (activeStance) {

@@ -1,6 +1,5 @@
 import bcrypt from "bcrypt";
 import Database from "better-sqlite3";
-import { randomUUID } from "crypto";
 import * as dotenv from "dotenv";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
@@ -54,6 +53,7 @@ async function seed() {
   const townSquareId = "room-town-square";
   const tavernId = "room-tavern";
   const marketId = "room-market";
+  const libraryId = "room-library";
   const forestPathId = "room-forest-path";
   const forestClearingId = "room-forest-clearing";
   const sparklingStreamId = "room-sparkling-stream";
@@ -67,12 +67,13 @@ async function seed() {
       description:
         "You stand in the heart of a small village. A weathered stone fountain bubbles quietly in the center, surrounded by cobblestones worn smooth by countless footsteps. A moss-covered statue of some forgotten hero stands watch nearby.",
       navDescription:
-        "To the north, the warm glow of a tavern beckons. An open-air market lies to the east, and a dirt path leads south into a dark forest.",
+        "To the north, the warm glow of a tavern beckons. An open-air market lies to the east, a dirt path leads south into a dark forest, and to the west stands a modest stone building with 'Library' carved above its door.",
       region: "village",
       exits: {
         north: { roomId: tavernId },
         east: { roomId: marketId },
         south: { roomId: forestPathId },
+        west: { roomId: libraryId },
       },
     },
     {
@@ -92,6 +93,15 @@ async function seed() {
       navDescription: "The town square is to the west.",
       region: "village",
       exits: { west: { roomId: townSquareId } },
+    },
+    {
+      id: libraryId,
+      name: "Village Library",
+      description:
+        "Dust motes dance in shafts of light filtering through tall windows. Floor-to-ceiling shelves line the walls, crammed with books of every size and age. A few reading tables occupy the center of the room, their surfaces worn smooth by generations of scholars. The air smells of old paper and leather bindings. On a special shelf near the back, several spell books rest under glass cases - available for study by those with the aptitude.",
+      navDescription: "The town square lies to the east.",
+      region: "village",
+      exits: { east: { roomId: townSquareId } },
     },
     {
       id: forestPathId,
@@ -204,13 +214,13 @@ async function seed() {
     .insert(schema.playerInventory)
     .values([
       {
-        id: randomUUID(),
+        id: "player-inv-djim-sword",
         playerId: testPlayerId,
         itemId: "item-rusty-sword",
         quantity: 1,
       },
       {
-        id: randomUUID(),
+        id: "player-inv-djim-gold",
         playerId: testPlayerId,
         itemId: "item-gold-coin",
         quantity: 3,
@@ -227,49 +237,49 @@ async function seed() {
 
   const roomInventoryData = [
     {
-      id: randomUUID(),
+      id: "room-inv-townsquare-gold",
       roomId: townSquareId,
       itemId: "item-gold-coin",
       quantity: 3,
     },
     {
-      id: randomUUID(),
+      id: "room-inv-townsquare-flyer",
       roomId: townSquareId,
       itemId: "item-circus-flyer",
       quantity: 1,
     },
     {
-      id: randomUUID(),
+      id: "room-inv-townsquare-copper",
       roomId: townSquareId,
       itemId: "item-copper-coin",
       quantity: 1,
     },
     {
-      id: randomUUID(),
+      id: "room-inv-townsquare-rock",
       roomId: townSquareId,
       itemId: "item-small-rock",
       quantity: 8,
     },
     {
-      id: randomUUID(),
+      id: "room-inv-tavern-bread",
       roomId: tavernId,
       itemId: "item-stale-bread",
       quantity: 1,
     },
     {
-      id: randomUUID(),
+      id: "room-inv-market-potion",
       roomId: marketId,
       itemId: "item-healing-potion",
       quantity: 2,
     },
     {
-      id: randomUUID(),
+      id: "room-inv-forestpath-torch",
       roomId: forestPathId,
       itemId: "item-torch",
       quantity: 1,
     },
     {
-      id: randomUUID(),
+      id: "room-inv-forestclearing-sword",
       roomId: forestClearingId,
       itemId: "item-rusty-sword",
       quantity: 1,
@@ -352,19 +362,19 @@ async function seed() {
 
   const monsterSpawnsData = [
     {
-      id: randomUUID(),
+      id: "spawn-forestpath-goblin",
       monsterId: "monster-goblin",
       roomId: forestPathId,
       maxCount: 2,
     },
     {
-      id: randomUUID(),
+      id: "spawn-forestclearing-wolf",
       monsterId: "monster-wolf",
       roomId: forestClearingId,
       maxCount: 1,
     },
     {
-      id: randomUUID(),
+      id: "spawn-forestclearing-spider",
       monsterId: "monster-giant-spider",
       roomId: forestClearingId,
       maxCount: 1,
@@ -383,7 +393,7 @@ async function seed() {
 
   const monsterInstancesData = [
     {
-      id: randomUUID(),
+      id: "instance-forestpath-goblin",
       monsterId: "monster-goblin",
       roomId: forestPathId,
       currentHp: 8,
@@ -391,7 +401,7 @@ async function seed() {
       permanent: true,
     },
     {
-      id: randomUUID(),
+      id: "instance-forestclearing-wolf",
       monsterId: "monster-wolf",
       roomId: forestClearingId,
       currentHp: 12,
@@ -490,31 +500,31 @@ async function seed() {
 
   const containerInventoryData = [
     {
-      id: randomUUID(),
+      id: "container-inv-tavern-cap",
       containerId: "container-tavern-chest",
       itemId: "item-leather-cap",
       quantity: 1,
     },
     {
-      id: randomUUID(),
+      id: "container-inv-cache-potion",
       containerId: "container-hidden-cache",
       itemId: "item-healing-potion",
       quantity: 1,
     },
     {
-      id: randomUUID(),
+      id: "container-inv-cache-gold",
       containerId: "container-hidden-cache",
       itemId: "item-gold-coin",
       quantity: 5,
     },
     {
-      id: randomUUID(),
+      id: "container-inv-stash-gold",
       containerId: "container-market-stash",
       itemId: "item-gold-coin",
       quantity: 8,
     },
     {
-      id: randomUUID(),
+      id: "container-inv-stash-copper",
       containerId: "container-market-stash",
       itemId: "item-copper-coin",
       quantity: 15,
@@ -1101,12 +1111,113 @@ async function seed() {
       isHidden: false,
       isDiscovered: false,
     },
+    // ============================================
+    // Library features - Spell books
+    // ============================================
+    {
+      id: "feature-library-shelves",
+      roomId: libraryId,
+      name: "bookshelves",
+      description:
+        "Towering shelves filled with books on every subject imaginable - history, herbalism, geography, and more. Most are too mundane to be of practical use to an adventurer, but they speak to the village's surprisingly rich scholarly tradition.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-reading-tables",
+      roomId: libraryId,
+      name: "reading tables",
+      description:
+        "Sturdy wooden tables with comfortable chairs, positioned to catch the light from the tall windows. Inkwells and quills are provided for those who wish to take notes.",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-spell-shelf",
+      roomId: libraryId,
+      name: "spell book shelf",
+      description:
+        "A special shelf near the back holds several spell books under protective glass cases. A sign reads: 'Arcane texts available for study. Handle with care. INT 12+ required for comprehension.'",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-missile-book",
+      roomId: libraryId,
+      name: "missile spellbook",
+      description:
+        "A slim tome bound in deep blue leather, its cover embossed with a lightning bolt symbol. The title reads 'Fundamentals of Arcane Projection' in silver lettering.",
+      triggerVerbs: ["study", "read"],
+      triggerTarget: "missile spellbook",
+      triggerAliases: ["book", "spellbook"],
+      successMessage:
+        "You carefully study the spellbook, tracing the arcane diagrams with your finger. The principles of channeling magical energy into a focused bolt begin to make sense...",
+      successEffects: [{ type: "learn_spell" as const }],
+      teachesSpellId: "spell-missile",
+      isHidden: false,
+      isDiscovered: false,
+    },
+    {
+      id: "feature-mend-book",
+      roomId: libraryId,
+      name: "Mend spellbook",
+      description:
+        "A worn book bound in soft green leather, its pages yellowed with age. The cover shows intertwined hands surrounded by a gentle glow. The title reads 'The Healer's First Steps'.",
+      triggerVerbs: ["study", "read"],
+      triggerTarget: "mend spellbook",
+      triggerAliases: ["book", "spellbook"],
+      successMessage:
+        "You immerse yourself in the healing arts described within. The techniques for channeling restorative energy become clear in your mind...",
+      successEffects: [{ type: "learn_spell" as const }],
+      teachesSpellId: "spell-mend",
+      isHidden: false,
+      isDiscovered: false,
+    },
   ];
 
   for (const feature of featuresData) {
     await db.insert(schema.features).values(feature).onConflictDoNothing();
   }
   console.log(`  ✓ Created ${featuresData.length} interactive features\n`);
+
+  // ============================================
+  // SPELLS - Magic abilities
+  // ============================================
+  console.log("Creating spells...");
+
+  const spellsData: (typeof schema.spells.$inferInsert)[] = [
+    {
+      id: "spell-missile",
+      name: "Missile",
+      description:
+        "Launches a bolt of pure arcane energy at your target. Additional bolts manifest at higher levels.",
+      manaCost: 2,
+      minInt: 12,
+      scalingLevel: 4, // +1 bolt at levels 5, 9, 13...
+      effect: {
+        type: "damage" as const,
+        dice: "1d4",
+        modifier: "int" as const,
+      },
+      targetType: "enemy",
+    },
+    {
+      id: "spell-mend",
+      name: "Mend",
+      description:
+        "Channels restorative energy to heal wounds. Can be cast on yourself or another.",
+      manaCost: 4,
+      minInt: 13,
+      scalingLevel: null,
+      effect: { type: "heal" as const, dice: "1d8", modifier: "int" as const },
+      targetType: "any",
+    },
+  ];
+
+  for (const spell of spellsData) {
+    await db.insert(schema.spells).values(spell).onConflictDoNothing();
+  }
+  console.log(`  ✓ Created ${spellsData.length} spells\n`);
 
   // ============================================
   // FEATS - Character abilities from Pathfinder
@@ -1117,7 +1228,7 @@ async function seed() {
   await db
     .insert(schema.playerFeats)
     .values({
-      id: randomUUID(),
+      id: "player-feat-djim-dodge",
       playerId: testPlayerId,
       featId: "feat-dodge",
       acquiredAt: new Date(),

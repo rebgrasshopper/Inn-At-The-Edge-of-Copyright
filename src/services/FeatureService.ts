@@ -6,6 +6,7 @@ import {
   items,
   playerInventory,
   players,
+  spells,
 } from "../db/schema.js";
 import type { Container } from "../types/container.js";
 import type {
@@ -16,10 +17,20 @@ import type {
 import { stripFillerWords } from "../utils/text.js";
 import { rollD20WithDetails } from "./DiceService.js";
 import * as EffectHandler from "./EffectHandler.js";
+import * as SpellService from "./SpellService.js";
 import { getStatModifier } from "./StatService.js";
 
 /** Time in milliseconds for hidden features to re-hide (2 hours) */
 const REHIDE_TIMEOUT_MS = EffectHandler.REHIDE_TIMEOUT_MS;
+
+// Re-export SpellService functions used in learnSpellFromFeature
+const {
+  getPlayerSpell,
+  meetsIntRequirement,
+  getPlayerSpells,
+  getSpellCapacity,
+  learnSpell,
+} = SpellService;
 
 /**
  * Convert a database feature row to a Feature type
@@ -34,6 +45,7 @@ function toFeature(row: typeof features.$inferSelect): Feature {
     description: row.description,
     triggerVerbs: row.triggerVerbs || [],
     triggerTarget: row.triggerTarget || "",
+    triggerAliases: row.triggerAliases ?? undefined,
     condition: row.condition,
     successMessage: row.successMessage ?? undefined,
     failureMessage: row.failureMessage ?? undefined,
@@ -48,6 +60,7 @@ function toFeature(row: typeof features.$inferSelect): Feature {
     discoveryScope: row.discoveryScope ?? undefined,
     refuseGetMessage: row.refuseGetMessage ?? undefined,
     refuseDropMessage: row.refuseDropMessage ?? undefined,
+    teachesSpellId: row.teachesSpellId ?? undefined,
   };
 }
 
@@ -159,39 +172,71 @@ export async function findFeatureByName(
   const roomFeatures = await getFeaturesInRoom(roomId, playerId, false);
   const nameLower = name.toLowerCase();
 
+  // First pass: look for exact matches (prioritize over partial)
   for (const feature of roomFeatures) {
     const featureName = feature.name.toLowerCase();
-    // Match full name, or partial match (e.g., "fountain" matches "stone fountain")
-    if (
-      featureName === nameLower ||
-      featureName.includes(nameLower) ||
-      nameLower.includes(featureName)
-    ) {
+    if (featureName === nameLower) {
       return feature;
+    }
+
+    // Check triggerAliases for exact match
+    if (feature.triggerAliases) {
+      for (const alias of feature.triggerAliases) {
+        if (alias.toLowerCase() === nameLower) {
+          return feature;
+        }
+      }
+    }
+  }
+
+  // Second pass: partial matches (e.g., "fountain" matches "stone fountain")
+  for (const feature of roomFeatures) {
+    const featureName = feature.name.toLowerCase();
+    if (featureName.includes(nameLower) || nameLower.includes(featureName)) {
+      return feature;
+    }
+
+    // Check triggerAliases for partial match
+    if (feature.triggerAliases) {
+      for (const alias of feature.triggerAliases) {
+        const aliasLower = alias.toLowerCase();
+        if (aliasLower.includes(nameLower) || nameLower.includes(aliasLower)) {
+          return feature;
+        }
+      }
     }
   }
 
   return null;
 }
 
+/** Result of finding a feature by command */
+export type FeatureMatchResult =
+  | { type: "found"; feature: Feature }
+  | { type: "ambiguous"; features: Feature[] }
+  | { type: "none" };
+
 /**
  * Find a feature by command (verb + target)
+ * Returns disambiguation result when multiple features match the same verb+target.
  * @param roomId - The room to search in
  * @param verb - The action verb (e.g., "pull", "move", "search")
  * @param target - The target noun (e.g., "lever", "leaves", "painting")
  * @param playerId - Optional player ID to include their personal discoveries
- * @returns The matching feature or null
+ * @returns FeatureMatchResult indicating found, ambiguous, or none
  */
 export async function findFeatureByCommand(
   roomId: string,
   verb: string,
   target: string,
   playerId?: string,
-): Promise<Feature | null> {
+): Promise<FeatureMatchResult> {
   const roomFeatures = await getFeaturesInRoom(roomId, playerId, false);
 
   const verbLower = verb.toLowerCase();
   const targetLower = stripFillerWords(target);
+
+  const matches: Feature[] = [];
 
   for (const feature of roomFeatures) {
     // Check if verb matches any trigger verb
@@ -206,22 +251,45 @@ export async function findFeatureByCommand(
 
     // Support standalone commands (empty target matches empty triggerTarget)
     if (targetLower === "" && featureTarget === "") {
-      return feature;
+      matches.push(feature);
+      continue;
     }
 
     // Skip empty targets for non-standalone features
     if (targetLower === "") continue;
 
-    if (
+    // Check primary triggerTarget
+    const targetMatches =
       featureTarget === targetLower ||
       featureTarget.startsWith(targetLower) ||
-      targetLower.includes(featureTarget)
-    ) {
-      return feature;
+      targetLower.includes(featureTarget);
+
+    // Check triggerAliases if primary target doesn't match
+    const aliasMatches =
+      !targetMatches &&
+      feature.triggerAliases?.some((alias) => {
+        const aliasLower = alias.toLowerCase();
+        return (
+          aliasLower === targetLower ||
+          aliasLower.startsWith(targetLower) ||
+          targetLower.includes(aliasLower)
+        );
+      });
+
+    if (targetMatches || aliasMatches) {
+      matches.push(feature);
     }
   }
 
-  return null;
+  if (matches.length === 0) {
+    return { type: "none" };
+  }
+
+  if (matches.length === 1) {
+    return { type: "found", feature: matches[0] };
+  }
+
+  return { type: "ambiguous", features: matches };
 }
 
 /**
@@ -462,6 +530,94 @@ export async function revealContainer(
 }
 
 /**
+ * Attempt to learn a spell from a feature's teachesSpellId
+ * Checks INT requirement, spell capacity, and whether already known.
+ * @param playerId - The player learning the spell
+ * @param spellId - The spell ID to learn
+ * @returns EffectResult with success status and message
+ */
+async function learnSpellFromFeature(
+  playerId: string,
+  spellId: string,
+): Promise<EffectResult> {
+  // Get the spell
+  const spell = await db
+    .select()
+    .from(spells)
+    .where(eq(spells.id, spellId))
+    .get();
+
+  if (!spell) {
+    return {
+      type: "learn_spell",
+      success: false,
+      message: "The spell seems to be missing from this book.",
+    };
+  }
+
+  // Get player stats
+  const player = await db
+    .select({ int: players.int })
+    .from(players)
+    .where(eq(players.id, playerId))
+    .get();
+
+  if (!player) {
+    return {
+      type: "learn_spell",
+      success: false,
+      message: "Player not found.",
+    };
+  }
+
+  // Check if already known
+  const existingSpell = await getPlayerSpell(playerId, spellId);
+  if (existingSpell) {
+    return {
+      type: "learn_spell",
+      success: false,
+      message: `You already know ${spell.name}.`,
+    };
+  }
+
+  // Check INT requirement
+  if (!meetsIntRequirement(player.int, spell.minInt)) {
+    return {
+      type: "learn_spell",
+      success: false,
+      message: `You need at least ${spell.minInt} INT to learn ${spell.name}. (You have ${player.int})`,
+    };
+  }
+
+  // Check spell capacity
+  const knownSpells = await getPlayerSpells(playerId);
+  const capacity = getSpellCapacity(player.int);
+  if (knownSpells.length >= capacity) {
+    return {
+      type: "learn_spell",
+      success: false,
+      message: `You cannot learn any more spells. (Capacity: ${capacity}, Known: ${knownSpells.length})`,
+    };
+  }
+
+  // Learn the spell
+  const learned = await learnSpell(playerId, spellId);
+  if (!learned) {
+    return {
+      type: "learn_spell",
+      success: false,
+      message: "Failed to learn the spell.",
+    };
+  }
+
+  return {
+    type: "learn_spell",
+    success: true,
+    message: `You have learned ${spell.name}!`,
+  };
+}
+
+/**
  * Interact with a feature
  * @param playerId - The player interacting
  * @param feature - The feature to interact with
@@ -547,11 +703,37 @@ export async function interactWithFeature(
 
   // Success! Apply success effects
   if (feature.successEffects && feature.successEffects.length > 0) {
-    const successEffects = await EffectHandler.apply(
-      playerId,
-      feature.successEffects,
+    // Filter out learn_spell effects - they need special handling with feature context
+    const regularEffects = feature.successEffects.filter(
+      (e) => e.type !== "learn_spell",
     );
-    effectsApplied.push(...successEffects);
+    const hasLearnSpell = feature.successEffects.some(
+      (e) => e.type === "learn_spell",
+    );
+
+    // Apply regular effects
+    if (regularEffects.length > 0) {
+      const successEffects = await EffectHandler.apply(
+        playerId,
+        regularEffects,
+      );
+      effectsApplied.push(...successEffects);
+    }
+
+    // Handle learn_spell effect using feature's teachesSpellId
+    if (hasLearnSpell && feature.teachesSpellId) {
+      const learnResult = await learnSpellFromFeature(
+        playerId,
+        feature.teachesSpellId,
+      );
+      effectsApplied.push(learnResult);
+    } else if (hasLearnSpell && !feature.teachesSpellId) {
+      effectsApplied.push({
+        type: "learn_spell",
+        success: false,
+        message: "This book doesn't seem to contain any spells.",
+      });
+    }
   }
 
   // Reveal any hidden features/containers
@@ -571,6 +753,19 @@ export async function interactWithFeature(
     .update(features)
     .set({ isDiscovered: true })
     .where(eq(features.id, feature.id));
+
+  // Check if learn_spell effect failed - if so, return failure with just the effect message
+  const learnSpellEffect = effectsApplied.find((e) => e.type === "learn_spell");
+  if (learnSpellEffect && !learnSpellEffect.success) {
+    return {
+      success: false,
+      message: learnSpellEffect.message,
+      effectsApplied,
+      revealedFeature,
+      revealedContainer,
+      rollInfo,
+    };
+  }
 
   const message = feature.successMessage || "Success!";
 

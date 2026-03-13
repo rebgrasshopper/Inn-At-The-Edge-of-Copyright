@@ -18,6 +18,26 @@ export type WeaponData = {
 };
 
 /**
+ * Spell data for magic attacks in combat
+ */
+export type CombatSpellData = {
+  /** Spell ID */
+  id: string;
+  /** Spell name for messages */
+  name: string;
+  /** Mana cost per cast */
+  manaCost: number;
+  /** Damage dice notation (e.g., "1d4") */
+  damageDice: string;
+  /** Whether to add INT modifier to damage */
+  addIntMod: boolean;
+  /** Successful casts for failure chance calculation */
+  successfulCasts: number;
+  /** Scaling level for missile count (null = no scaling) */
+  scalingLevel: number | null;
+};
+
+/**
  * A participant in combat (player or monster)
  */
 export type CombatParticipant = {
@@ -30,6 +50,8 @@ export type CombatParticipant = {
     str: number;
     dex: number;
     con: number;
+    /** INT stat for magic attacks (players only) */
+    int?: number;
   };
   /** Main hand weapon data, null = unarmed */
   mainHandWeapon: WeaponData | null;
@@ -37,6 +59,12 @@ export type CombatParticipant = {
   offHandWeapon: WeaponData | null;
   ac: number;
   level: number;
+  /** Whether player prefers magic attacks (players only) */
+  preferMagic?: boolean;
+  /** Preferred damage spell data (players only, null if no spell or not preferring magic) */
+  spell?: CombatSpellData | null;
+  /** Current mana for spell casting (players only) */
+  mana?: number;
 };
 
 /**

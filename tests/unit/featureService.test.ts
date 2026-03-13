@@ -186,8 +186,10 @@ describe("FeatureService", () => {
         "lever",
       );
 
-      expect(result).not.toBeNull();
-      expect(result?.name).toBe("Lever");
+      expect(result.type).toBe("found");
+      if (result.type === "found") {
+        expect(result.feature.name).toBe("Lever");
+      }
     });
 
     it("should match verb case-insensitively", async () => {
@@ -208,10 +210,10 @@ describe("FeatureService", () => {
         "lever",
       );
 
-      expect(result).not.toBeNull();
+      expect(result.type).toBe("found");
     });
 
-    it("should return null for non-matching verb", async () => {
+    it("should return none for non-matching verb", async () => {
       const featureId = uuidv4();
       await db.insert(features).values({
         id: featureId,
@@ -229,7 +231,39 @@ describe("FeatureService", () => {
         "lever",
       );
 
-      expect(result).toBeNull();
+      expect(result.type).toBe("none");
+    });
+
+    it("should return ambiguous when multiple features match", async () => {
+      await db.insert(features).values({
+        id: uuidv4(),
+        roomId: testRoomId,
+        name: "Red Book",
+        description: "A red book",
+        triggerVerbs: ["read"],
+        triggerTarget: "book",
+        isHidden: false,
+      });
+      await db.insert(features).values({
+        id: uuidv4(),
+        roomId: testRoomId,
+        name: "Blue Book",
+        description: "A blue book",
+        triggerVerbs: ["read"],
+        triggerTarget: "book",
+        isHidden: false,
+      });
+
+      const result = await FeatureService.findFeatureByCommand(
+        testRoomId,
+        "read",
+        "book",
+      );
+
+      expect(result.type).toBe("ambiguous");
+      if (result.type === "ambiguous") {
+        expect(result.features).toHaveLength(2);
+      }
     });
   });
 
@@ -247,14 +281,16 @@ describe("FeatureService", () => {
         successMessage: "The lever clicks into place.",
       });
 
-      const feature = await FeatureService.findFeatureByCommand(
+      const match = await FeatureService.findFeatureByCommand(
         testRoomId,
         "pull",
         "lever",
       );
+      expect(match.type).toBe("found");
+      if (match.type !== "found") throw new Error("Expected found");
       const result = await FeatureService.interactWithFeature(
         testPlayerId,
-        feature!,
+        match.feature,
       );
 
       expect(result.success).toBe(true);
@@ -276,14 +312,16 @@ describe("FeatureService", () => {
         failureMessage: "The door won't budge.",
       });
 
-      const feature = await FeatureService.findFeatureByCommand(
+      const match = await FeatureService.findFeatureByCommand(
         testRoomId,
         "push",
         "door",
       );
+      expect(match.type).toBe("found");
+      if (match.type !== "found") throw new Error("Expected found");
       const result = await FeatureService.interactWithFeature(
         testPlayerId,
-        feature!,
+        match.feature,
       );
 
       // DC 1 with any positive modifier always passes (d20 min is 1, +2 STR mod = 3)
@@ -306,14 +344,16 @@ describe("FeatureService", () => {
         failureMessage: "The door won't budge.",
       });
 
-      const feature = await FeatureService.findFeatureByCommand(
+      const match = await FeatureService.findFeatureByCommand(
         testRoomId,
         "push",
         "door",
       );
+      expect(match.type).toBe("found");
+      if (match.type !== "found") throw new Error("Expected found");
       const result = await FeatureService.interactWithFeature(
         testPlayerId,
-        feature!,
+        match.feature,
       );
 
       // DC 30 with STR 15 (+2 mod) always fails (d20 max is 20, +2 = 22 < 30)
@@ -347,14 +387,16 @@ describe("FeatureService", () => {
         successMessage: "You unlock the chest!",
       });
 
-      const feature = await FeatureService.findFeatureByCommand(
+      const match = await FeatureService.findFeatureByCommand(
         testRoomId,
         "unlock",
         "chest",
       );
+      expect(match.type).toBe("found");
+      if (match.type !== "found") throw new Error("Expected found");
       const result = await FeatureService.interactWithFeature(
         testPlayerId,
-        feature!,
+        match.feature,
       );
 
       expect(result.success).toBe(true);
@@ -374,14 +416,16 @@ describe("FeatureService", () => {
         successMessage: "You unlock the chest!",
       });
 
-      const feature = await FeatureService.findFeatureByCommand(
+      const match = await FeatureService.findFeatureByCommand(
         testRoomId,
         "unlock",
         "chest",
       );
+      expect(match.type).toBe("found");
+      if (match.type !== "found") throw new Error("Expected found");
       const result = await FeatureService.interactWithFeature(
         testPlayerId,
-        feature!,
+        match.feature,
       );
 
       expect(result.success).toBe(false);
@@ -406,14 +450,16 @@ describe("FeatureService", () => {
         successMessage: "The sphinx nods approvingly.",
       });
 
-      const feature = await FeatureService.findFeatureByCommand(
+      const match = await FeatureService.findFeatureByCommand(
         testRoomId,
         "speak",
         "sphinx",
       );
+      expect(match.type).toBe("found");
+      if (match.type !== "found") throw new Error("Expected found");
       const result = await FeatureService.interactWithFeature(
         testPlayerId,
-        feature!,
+        match.feature,
       );
 
       expect(result.success).toBe(false);
@@ -439,14 +485,16 @@ describe("FeatureService", () => {
         successMessage: "The sphinx nods approvingly.",
       });
 
-      const feature = await FeatureService.findFeatureByCommand(
+      const match = await FeatureService.findFeatureByCommand(
         testRoomId,
         "answer",
         "sphinx",
       );
+      expect(match.type).toBe("found");
+      if (match.type !== "found") throw new Error("Expected found");
       const result = await FeatureService.interactWithFeature(
         testPlayerId,
-        feature!,
+        match.feature,
         "piano",
       );
 
@@ -473,14 +521,16 @@ describe("FeatureService", () => {
         failureMessage: "The sphinx shakes its head.",
       });
 
-      const feature = await FeatureService.findFeatureByCommand(
+      const match = await FeatureService.findFeatureByCommand(
         testRoomId,
         "answer",
         "sphinx",
       );
+      expect(match.type).toBe("found");
+      if (match.type !== "found") throw new Error("Expected found");
       const result = await FeatureService.interactWithFeature(
         testPlayerId,
-        feature!,
+        match.feature,
         "door",
       );
 
@@ -508,14 +558,16 @@ describe("FeatureService", () => {
         .set({ currentHp: 10 })
         .where(eq(players.id, testPlayerId));
 
-      const feature = await FeatureService.findFeatureByCommand(
+      const match = await FeatureService.findFeatureByCommand(
         testRoomId,
         "drink",
         "fountain",
       );
+      expect(match.type).toBe("found");
+      if (match.type !== "found") throw new Error("Expected found");
       const result = await FeatureService.interactWithFeature(
         testPlayerId,
-        feature!,
+        match.feature,
       );
 
       expect(result.success).toBe(true);
@@ -546,14 +598,16 @@ describe("FeatureService", () => {
         failureEffects: [{ type: "damage", amount: 5 }],
       });
 
-      const feature = await FeatureService.findFeatureByCommand(
+      const match = await FeatureService.findFeatureByCommand(
         testRoomId,
         "open",
         "chest",
       );
+      expect(match.type).toBe("found");
+      if (match.type !== "found") throw new Error("Expected found");
       const result = await FeatureService.interactWithFeature(
         testPlayerId,
-        feature!,
+        match.feature,
       );
 
       expect(result.success).toBe(false);

@@ -108,9 +108,14 @@ describe("CombatService", () => {
 
       const result = processAttack(attacker, defender, weapon);
 
-      // 1d1 (1) + STR mod (-5) = -4, but minimum is 1
-      expect(result.hit).toBe(true);
-      expect(result.damage).toBe(1);
+      // Natural 1 always misses, so check if hit before asserting damage
+      if (result.hit) {
+        // 1d1 (1) + STR mod (-5) = -4, but minimum is 1
+        expect(result.damage).toBe(1);
+      } else {
+        // Natural 1 - attack missed
+        expect(result.damage).toBeNull();
+      }
     });
 
     it("should mark defender as dead when HP reaches 0", () => {
@@ -122,10 +127,16 @@ describe("CombatService", () => {
 
       const result = processAttack(attacker, defender, weapon);
 
-      expect(result.hit).toBe(true);
-      expect(result.defenderHp).toBe(0);
-      expect(result.defenderDead).toBe(true);
-      expect(result.message).toContain("defeating");
+      // Natural 1 always misses, so we may need to retry
+      if (result.hit) {
+        expect(result.defenderHp).toBe(0);
+        expect(result.defenderDead).toBe(true);
+        expect(result.message).toContain("defeating");
+      } else {
+        // Natural 1 - attack missed
+        expect(result.defenderHp).toBe(1);
+        expect(result.defenderDead).toBe(false);
+      }
     });
 
     it("should not reduce HP below 0", () => {
@@ -137,7 +148,13 @@ describe("CombatService", () => {
 
       const result = processAttack(attacker, defender, weapon);
 
-      expect(result.defenderHp).toBe(0);
+      // If hit, HP should be 0 (not negative). If natural 1, HP stays at 1.
+      if (result.hit) {
+        expect(result.defenderHp).toBe(0);
+      } else {
+        // Natural 1 always misses
+        expect(result.defenderHp).toBe(1);
+      }
     });
 
     it("should include attacker and defender names in message", () => {
@@ -249,6 +266,48 @@ describe("CombatService", () => {
       // d20 + 4 (DEX mod) + 0 (BAB) + 0 (weapon bonus)
       expect(result.attackRoll).toBeGreaterThanOrEqual(5); // 1 + 4 = 5
       expect(result.attackRoll).toBeLessThanOrEqual(24); // 20 + 4 = 24
+    });
+
+    it("should always miss on natural 1 regardless of modifiers", () => {
+      // Run many times to statistically catch natural 1s
+      const attacker = createPlayer({
+        stats: { str: 30, dex: 30, con: 10 }, // +10 STR mod
+        level: 20, // High BAB
+      });
+      const defender = createMonster({ ac: 1 }); // Very low AC
+
+      let sawNatural1Miss = false;
+      for (let i = 0; i < 100; i++) {
+        const result = processAttack(attacker, defender, defaultWeapon);
+        // If attack roll is very low (1 + modifiers), it was a natural 1
+        // With +10 STR and high BAB, a roll of ~11-15 indicates natural 1
+        if (!result.hit && result.attackRoll <= 20) {
+          sawNatural1Miss = true;
+          break;
+        }
+      }
+      // With 100 attempts, probability of never rolling a 1 is (19/20)^100 ≈ 0.006
+      expect(sawNatural1Miss).toBe(true);
+    });
+
+    it("should always hit on natural 20 regardless of AC", () => {
+      // Run many times to statistically catch natural 20s
+      const attacker = createPlayer({
+        stats: { str: 1, dex: 1, con: 10 }, // -5 STR mod
+        level: 1, // No BAB
+      });
+      const defender = createMonster({ ac: 100 }); // Impossibly high AC
+
+      let sawNatural20Hit = false;
+      for (let i = 0; i < 100; i++) {
+        const result = processAttack(attacker, defender, defaultWeapon);
+        if (result.hit) {
+          sawNatural20Hit = true;
+          break;
+        }
+      }
+      // With 100 attempts, probability of never rolling a 20 is (19/20)^100 ≈ 0.006
+      expect(sawNatural20Hit).toBe(true);
     });
   });
 

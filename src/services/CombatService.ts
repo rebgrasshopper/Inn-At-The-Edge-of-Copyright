@@ -6,13 +6,20 @@
 import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { monsterInstances, monsters, players, rooms } from "../db/schema.js";
+import {
+  monsterInstances,
+  monsters,
+  players,
+  rooms,
+  users,
+} from "../db/schema.js";
 import type {
   ActiveCombat,
   AttackResult,
   CombatBroadcaster,
   CombatParticipant,
   CombatResult,
+  CombatSpellData,
   FleeResult,
 } from "../types/combat.js";
 import type { Direction, Exit } from "../types/room.js";
@@ -24,6 +31,8 @@ import {
 } from "./DiceService.js";
 import { getAttackModifiers, getDamageModifiers } from "./FeatEffectHandler.js";
 import { calculateBAB, grantFeatSlot } from "./FeatService.js";
+import { getEquippedItems } from "./items/equipment.js";
+import * as SpellService from "./SpellService.js";
 import {
   calculateAC,
   calculateAttackInterval,
@@ -38,7 +47,6 @@ import {
   getDamageModifier,
   getStatModifier,
 } from "./StatService.js";
-import { getEquippedItems } from "./items/equipment.js";
 
 /** Default respawn room ID (Town Square) */
 const DEFAULT_RESPAWN_ROOM = "room-town-square";
@@ -196,6 +204,39 @@ async function buildPlayerParticipant(
     };
   }
 
+  // Check if player prefers magic attacks
+  const user = await db
+    .select({ preferences: users.preferences })
+    .from(users)
+    .where(eq(users.id, player.userId))
+    .get();
+
+  const preferMagic = user?.preferences?.preferMagicAttack ?? false;
+
+  // Get spell data if player prefers magic
+  let spell: CombatSpellData | null = null;
+  if (preferMagic) {
+    const preferredSpell = await SpellService.getPreferredDamageSpell(playerId);
+    if (preferredSpell) {
+      const effect = preferredSpell.spell.effect as {
+        type: "damage";
+        dice: string;
+        modifier?: "int";
+      } | null;
+      if (effect?.type === "damage") {
+        spell = {
+          id: preferredSpell.spell.id,
+          name: preferredSpell.spell.name,
+          manaCost: preferredSpell.spell.manaCost,
+          damageDice: effect.dice,
+          addIntMod: effect.modifier === "int",
+          successfulCasts: preferredSpell.playerSpell.successfulCasts,
+          scalingLevel: preferredSpell.spell.scalingLevel,
+        };
+      }
+    }
+  }
+
   return {
     type: "player",
     id: player.id,
@@ -206,11 +247,15 @@ async function buildPlayerParticipant(
       str: player.str,
       dex: player.dex,
       con: player.con,
+      int: player.int,
     },
     mainHandWeapon,
     offHandWeapon,
     ac,
     level: player.level,
+    preferMagic,
+    spell,
+    mana: player.mana,
   };
 }
 
@@ -378,7 +423,14 @@ export function processAttack(
     dualWieldPenalty;
   const attackResult = rollD20WithDetails(totalAttackMod);
 
-  const hit = attackResult.total >= defender.ac;
+  // Natural 20 always hits, natural 1 always misses (regardless of modifiers)
+  const isNatural20 = attackResult.roll === 20;
+  const isNatural1 = attackResult.roll === 1;
+  const hit = isNatural1
+    ? false
+    : isNatural20
+      ? true
+      : attackResult.total >= defender.ac;
 
   if (!hit) {
     return {
@@ -432,6 +484,119 @@ export function processAttack(
     defenderDead,
     message,
     rollInfo: `Attack: ${attackResult.formula}  |  Damage: ${damageFormula}`,
+  };
+}
+
+/**
+ * Result of a magic attack including mana changes
+ */
+type MagicAttackResult = AttackResult & {
+  /** Mana spent on this attack */
+  manaSpent: number;
+  /** Whether the spell fizzled (failure chance) */
+  fizzled: boolean;
+};
+
+/**
+ * Process a magic attack from attacker to defender
+ * @param attacker - The attacking participant (must have spell data)
+ * @param defender - The defending participant
+ * @param spell - The spell being cast
+ * @returns Magic attack result with hit/miss, damage, mana spent, and messages
+ */
+function processMagicAttack(
+  attacker: CombatParticipant,
+  defender: CombatParticipant,
+  spell: CombatSpellData,
+): MagicAttackResult {
+  const intMod = getStatModifier(attacker.stats.int ?? 10);
+
+  // Check for spell failure (proficiency)
+  const failed = SpellService.checkSpellFailure(spell.successfulCasts);
+  if (failed) {
+    const halfCost = Math.ceil(spell.manaCost / 2);
+    return {
+      hit: false,
+      attackRoll: 0,
+      targetAC: defender.ac,
+      damage: null,
+      defenderHp: defender.currentHp,
+      defenderDead: false,
+      message: `${attacker.name}'s ${spell.name} fizzles!`,
+      rollInfo: `Spell fizzled (${SpellService.calculateFailureChance(spell.successfulCasts)}% chance)`,
+      manaSpent: halfCost,
+      fizzled: true,
+    };
+  }
+
+  // Calculate BAB from level (used for spell attack)
+  const bab = calculateBAB(attacker.level);
+
+  // Spell attack: d20 + BAB + INT modifier
+  const totalAttackMod = bab + intMod;
+  const attackResult = rollD20WithDetails(totalAttackMod);
+
+  // Natural 20 always hits, natural 1 always misses
+  const isNatural20 = attackResult.roll === 20;
+  const isNatural1 = attackResult.roll === 1;
+  const hit = isNatural1
+    ? false
+    : isNatural20
+      ? true
+      : attackResult.total >= defender.ac;
+
+  if (!hit) {
+    return {
+      hit: false,
+      attackRoll: attackResult.total,
+      targetAC: defender.ac,
+      damage: null,
+      defenderHp: defender.currentHp,
+      defenderDead: false,
+      message: `${attacker.name} casts ${spell.name} at ${defender.name} but misses!`,
+      rollInfo: `Attack: ${attackResult.formula}`,
+      manaSpent: spell.manaCost,
+      fizzled: false,
+    };
+  }
+
+  // Calculate damage with missile scaling
+  const missileCount = SpellService.calculateMissileCount(
+    attacker.level,
+    spell.scalingLevel,
+  );
+  const { total: damage, rollInfo: damageRollInfo } =
+    SpellService.calculateSpellDamage(
+      {
+        type: "damage",
+        dice: spell.damageDice,
+        modifier: spell.addIntMod ? "int" : undefined,
+      },
+      intMod,
+      missileCount,
+    );
+
+  const newHp = defender.currentHp - damage;
+  const defenderDead = newHp <= 0;
+
+  let message: string;
+  if (defenderDead) {
+    message = `${attacker.name}'s ${spell.name} strikes ${defender.name} for ${damage} damage, defeating them!`;
+  } else {
+    message = `${attacker.name}'s ${spell.name} hits ${defender.name} for ${damage} damage! (${Math.max(0, newHp)}/${defender.maxHp} HP)`;
+  }
+
+  return {
+    hit: true,
+    attackRoll: attackResult.total,
+    targetAC: defender.ac,
+    damage,
+    defenderHp: Math.max(0, newHp),
+    defenderDead,
+    message,
+    rollInfo: `Attack: ${attackResult.formula}  |  ${damageRollInfo}`,
+    manaSpent: spell.manaCost,
+    fizzled: false,
   };
 }
 
@@ -520,23 +685,61 @@ function scheduleAttack(
       };
     }
 
-    // Check if dual wielding (player has off-hand weapon)
+    // Check if player should use magic attack
+    const useMagic =
+      currentAttacker.type === "player" &&
+      currentAttacker.preferMagic &&
+      currentAttacker.spell &&
+      (currentAttacker.mana ?? 0) >= currentAttacker.spell.manaCost;
+
+    // Check if dual wielding (player has off-hand weapon) - not used with magic
     const isDualWielding =
       currentAttacker.type === "player" &&
-      currentAttacker.offHandWeapon !== null;
+      currentAttacker.offHandWeapon !== null &&
+      !useMagic;
 
-    // Get weapon data
-    const mainWeapon = getWeaponData(currentAttacker.mainHandWeapon);
-    const dualPenalty = isDualWielding ? DUAL_WIELD_PENALTY : 0;
+    let mainResult: AttackResult;
+    let manaSpent = 0;
 
-    // Process main hand attack
-    const mainResult = processAttack(
-      currentAttacker,
-      currentDefender,
-      mainWeapon,
-      featMods,
-      dualPenalty,
-    );
+    if (useMagic && currentAttacker.spell) {
+      // Process magic attack
+      const magicResult = processMagicAttack(
+        currentAttacker,
+        currentDefender,
+        currentAttacker.spell,
+      );
+      mainResult = magicResult;
+      manaSpent = magicResult.manaSpent;
+
+      // Update attacker's mana in combat state and database
+      currentAttacker.mana = (currentAttacker.mana ?? 0) - manaSpent;
+      await db
+        .update(players)
+        .set({ mana: currentAttacker.mana })
+        .where(eq(players.id, attackerId));
+
+      // Increment successful casts if spell hit (not fizzled)
+      if (!magicResult.fizzled && magicResult.hit) {
+        await SpellService.incrementSuccessfulCasts(
+          attackerId,
+          currentAttacker.spell.id,
+        );
+        // Update the spell's successful casts in combat state
+        currentAttacker.spell.successfulCasts++;
+      }
+    } else {
+      // Process physical attack
+      const mainWeapon = getWeaponData(currentAttacker.mainHandWeapon);
+      const dualPenalty = isDualWielding ? DUAL_WIELD_PENALTY : 0;
+
+      mainResult = processAttack(
+        currentAttacker,
+        currentDefender,
+        mainWeapon,
+        featMods,
+        dualPenalty,
+      );
+    }
 
     // Update defender HP in combat state
     currentDefender.currentHp = mainResult.defenderHp;
@@ -1461,4 +1664,31 @@ export async function checkMonsterAggro(
 
   // Store timers for cleanup if player leaves
   pendingAggroTimers.set(playerId, timers);
+}
+
+/**
+ * Clear all combat state. FOR TESTING ONLY.
+ * This clears all active combats, player/monster mappings, and pending aggro timers.
+ */
+export function clearAllCombatState(): void {
+  // Clear all attack timers
+  for (const combat of activeCombats.values()) {
+    if (combat.attackTimers) {
+      for (const timer of combat.attackTimers.values()) {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  // Clear all pending aggro timers
+  for (const timers of pendingAggroTimers.values()) {
+    for (const timer of timers) {
+      clearTimeout(timer);
+    }
+  }
+
+  activeCombats.clear();
+  playerCombatMap.clear();
+  monsterCombatMap.clear();
+  pendingAggroTimers.clear();
 }

@@ -34,6 +34,7 @@ import {
   handlePut,
   handleUnequip,
 } from "./handlers/items.js";
+import { handleCast } from "./handlers/magic.js";
 import { handleMove } from "./handlers/movement.js";
 import { handleToggle } from "./handlers/settings.js";
 import { handleSwim } from "./handlers/swimming.js";
@@ -253,6 +254,16 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
     },
   },
 
+  [Command.Cast]: {
+    handler: handleCast,
+    help: {
+      summary: "Cast a spell on a target",
+      usage: ["cast <spell>", "cast <spell> <target>"],
+      aliases: getAliasesForCommand(Command.Cast),
+      examples: ["cast bolt goblin", "cast mend", "cast mend Fox"],
+    },
+  },
+
   [Command.Train]: {
     handler: handleTrain,
     help: {
@@ -301,7 +312,7 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
       summary: "Toggle display settings on or off",
       usage: ["toggle <setting>"],
       aliases: getAliasesForCommand(Command.Toggle),
-      examples: ["toggle rolls"],
+      examples: ["toggle rolls", "toggle magic"],
     },
   },
 

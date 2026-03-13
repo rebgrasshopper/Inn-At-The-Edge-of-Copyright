@@ -16,6 +16,7 @@ const TOGGLE_SETTINGS: Record<
   rolls: { key: "showRolls", name: "dice rolls" },
   dice: { key: "showRolls", name: "dice rolls" },
   colors: { key: "showColors", name: "enhanced colors" },
+  magic: { key: "preferMagicAttack", name: "prefer magic attacks" },
 };
 
 /**

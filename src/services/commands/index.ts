@@ -234,14 +234,26 @@ export async function execute(
   const target = tokens.slice(1).join(" ");
 
   // Check for feature interaction (with or without target)
-  const feature = await FeatureService.findFeatureByCommand(
+  const featureMatch = await FeatureService.findFeatureByCommand(
     context.room.id,
     verb,
     target,
     context.player.id,
   );
 
-  if (feature) {
+  // Handle disambiguation when multiple features match
+  if (featureMatch.type === "ambiguous") {
+    const options = featureMatch.features
+      .map((f) => f.triggerTarget || f.name)
+      .join(", ");
+    return {
+      success: false,
+      message: `${verb.charAt(0).toUpperCase() + verb.slice(1)} which one? ${options}`,
+    };
+  }
+
+  if (featureMatch.type === "found") {
+    const feature = featureMatch.feature;
     const result = await FeatureService.interactWithFeature(
       context.player.id,
       feature,
@@ -258,7 +270,8 @@ export async function execute(
         }
         continue;
       }
-      if (effect.message) {
+      // Skip if effect message is same as result message (already included)
+      if (effect.message && effect.message !== result.message) {
         messages.push(effect.message);
       }
     }

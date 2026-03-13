@@ -23,7 +23,8 @@ export type PlayerEffect =
   | { type: "teleport"; roomId: string }
   | { type: "status"; status: string; duration?: number }
   | { type: "unblock_exit"; direction: Direction }
-  | { type: "spawn_monster"; monsterId: string; roomId?: string };
+  | { type: "spawn_monster"; monsterId: string; roomId?: string }
+  | { type: "learn_spell" }; // Learns spell from feature's teachesSpellId
 
 export type Feature = {
   id: string;
@@ -32,6 +33,7 @@ export type Feature = {
   description: string;
   triggerVerbs: string[];
   triggerTarget: string;
+  triggerAliases?: string[];
   condition: FeatureCondition | null;
   successMessage?: string;
   failureMessage?: string;
@@ -51,6 +53,8 @@ export type Feature = {
   // Custom refusal messages for invalid actions
   refuseGetMessage?: string;
   refuseDropMessage?: string;
+  // Spell book features: links to a spell that can be learned
+  teachesSpellId?: string | null;
 };
 
 export type EffectResult = {

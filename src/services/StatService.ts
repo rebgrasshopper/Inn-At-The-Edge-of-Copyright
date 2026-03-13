@@ -190,6 +190,21 @@ export function calculateConHpBonus(level: number, con: number): number {
 }
 
 /**
+ * Calculate max mana based on level and INT.
+ * Formula: (INT modifier + 2) × level, minimum 0
+ * @param level - Player's level
+ * @param int - Player's INT stat value
+ * @returns Calculated max mana
+ * @example calculateMaxMana(1, 10) // 2 ((0 + 2) × 1)
+ * @example calculateMaxMana(5, 14) // 20 ((2 + 2) × 5)
+ * @example calculateMaxMana(3, 8) // 3 ((-1 + 2) × 3)
+ */
+export function calculateMaxMana(level: number, int: number): number {
+  const intMod = getStatModifier(int);
+  return Math.max(0, (intMod + 2) * level);
+}
+
+/**
  * Calculate XP penalty on death (10% of current XP, minimum 0)
  * @param currentXp - Player's current XP
  * @returns XP after penalty applied

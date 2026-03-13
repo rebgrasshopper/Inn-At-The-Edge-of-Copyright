@@ -5,6 +5,7 @@ import { players, users, type UserPreferences } from "../db/schema.js";
 import * as CombatService from "../services/CombatService.js";
 import * as CommandParser from "../services/CommandParser.js";
 import * as FeatureService from "../services/FeatureService.js";
+import * as RegenService from "../services/RegenService.js";
 import * as RoomService from "../services/RoomService.js";
 import * as SpawnService from "../services/SpawnService.js";
 import * as SwimmingService from "../services/SwimmingService.js";
@@ -537,6 +538,9 @@ export async function handleConnection(
   // Update online status
   await updateOnlineStatus(player.id, true);
 
+  // Reset regen timer on login
+  await RegenService.resetRegenTimer(player.id);
+
   // Register socket for death respawn handling
   playerSockets.set(player.id, socket);
 
@@ -722,6 +726,22 @@ export async function handleCommand(
         }
       }
     }
+  }
+
+  // Check for HP/mana regeneration (silent - just update player stats)
+  const regenResult = await RegenService.checkAndApplyRegen(player.id);
+  if (
+    regenResult &&
+    (regenResult.hpRestored > 0 || regenResult.manaRestored > 0)
+  ) {
+    // Send player update with new HP/mana values (no chat message)
+    socket.emit("player:update", {
+      player: {
+        id: player.id,
+        currentHp: regenResult.newHp,
+        mana: regenResult.newMana,
+      },
+    });
   }
 
   // Handle room changes (movement or flee)

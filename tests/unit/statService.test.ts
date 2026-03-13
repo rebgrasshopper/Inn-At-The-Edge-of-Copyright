@@ -264,4 +264,39 @@ describe("StatService", () => {
       expect(StatService.calculateConHpBonus(5, 8)).toBe(-10);
     });
   });
+
+  describe("calculateMaxMana", () => {
+    it("should return 2 mana for level 1 with INT 10", () => {
+      // (INT mod 0 + 2) × level 1 = 2
+      expect(StatService.calculateMaxMana(1, 10)).toBe(2);
+    });
+
+    it("should increase mana with level", () => {
+      // Level 5, INT 10: (0 + 2) × 5 = 10
+      expect(StatService.calculateMaxMana(5, 10)).toBe(10);
+      // Level 10, INT 10: (0 + 2) × 10 = 20
+      expect(StatService.calculateMaxMana(10, 10)).toBe(20);
+    });
+
+    it("should add INT modifier to base", () => {
+      // Level 1, INT 14 (+2 mod): (2 + 2) × 1 = 4
+      expect(StatService.calculateMaxMana(1, 14)).toBe(4);
+      // Level 5, INT 14 (+2 mod): (2 + 2) × 5 = 20
+      expect(StatService.calculateMaxMana(5, 14)).toBe(20);
+    });
+
+    it("should handle high INT", () => {
+      // Level 10, INT 18 (+4 mod): (4 + 2) × 10 = 60
+      expect(StatService.calculateMaxMana(10, 18)).toBe(60);
+    });
+
+    it("should handle low INT but not go below 0", () => {
+      // Level 1, INT 8 (-1 mod): (-1 + 2) × 1 = 1
+      expect(StatService.calculateMaxMana(1, 8)).toBe(1);
+      // Level 5, INT 6 (-2 mod): (-2 + 2) × 5 = 0
+      expect(StatService.calculateMaxMana(5, 6)).toBe(0);
+      // Level 5, INT 4 (-3 mod): (-3 + 2) × 5 = -5, clamped to 0
+      expect(StatService.calculateMaxMana(5, 4)).toBe(0);
+    });
+  });
 });

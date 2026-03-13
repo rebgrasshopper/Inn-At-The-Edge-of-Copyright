@@ -52,7 +52,137 @@ Ideas for party/group mechanics beyond just being in the same combat:
 
 - [ ] **Party formation commands**: `party invite <player>`, `party accept`/`party decline`, `party leave`, `party kick <player>` (leader only), `party list` or `party` (show members/status), `party leader <player>` (transfer leadership).
 
-## Pending: Add spells that players can learn/use based on INT modifier. Number of spell slots = INT modifier (minimum 0). Include a basic attack spell (e.g., "magic missile") so non-STR builds have a combat option. Spells could use a `spells` table and `player_spells` junction table.
+## Magic System Design (March 2026)
+
+Comprehensive magic system using INT stat. Replaces traditional spell slots with mana pool.
+
+### Core Mechanics
+
+**Mana Pool**
+
+- `maxMana` = (INT modifier + 2) × level
+- Mana regenerates passively: 1% of max per 18 seconds out of combat (~30 min to full)
+- In combat: half speed (1% per 36 seconds, ~60 min to full)
+- Minimum 1 point per tick
+- Future: `meditate` command for faster regen while stationary
+
+**HP Regeneration**
+
+- 1% of max per 27 seconds out of combat (~45 min to full)
+- In combat: half speed (1% per 54 seconds, ~90 min to full)
+- Minimum 1 point per tick
+- Future: resting/sleeping boosts regen rate
+
+**Combat Changes**
+
+- Natural 20 ALWAYS hits regardless of modifiers
+- Natural 1 ALWAYS misses regardless of modifiers
+
+### Spells (Initial Set)
+
+**1. Arcane Bolt** (attack spell)
+
+- Cost: 2-3 mana
+- Damage: 1d4 + INT modifier
+- Attack roll: d20 + INT mod + level/2 (high accuracy, not auto-hit)
+- Ranged attack, no weapon needed
+- Scaling: +1 missile per 4 levels (each missile rolls separately)
+- Command: `cast bolt <target>` or `cast arcane bolt <target>`
+
+**2. Mend** (healing spell)
+
+- Cost: 4-5 mana
+- Heals: 1d8 + INT modifier (or caster level, capped)
+- Target: self or another player in room
+- Command: `cast mend` (self) or `cast mend <player>`
+- Future: group heal variant with higher cost, targets party in room
+
+**3. Light** (utility, future)
+
+- Cost: 1 mana
+- Effect: illuminates dark areas
+- Duration-based (5-10 minutes?)
+- Requires dark areas to be meaningful
+- Torches also shed light (item-based alternative)
+
+**4. Shield** (defensive, future)
+
+- Cost: 3 mana
+- Effect: temporary AC bonus (+2 to +4?)
+- Duration: either "until hit" (flat cost) or ongoing mana drain
+- TBD: which approach feels better
+
+### Spell Learning System
+
+**INT determines capacity**: Higher INT mod = more spells you can know
+
+- Formula: max known spells = INT modifier + 2 (minimum 1)
+
+**Discovery-based learning**: Find spell books in libraries, then study them
+
+- Spell books are features in library rooms (not inventory items)
+- Use `study <book>` or `read <book>` to learn the spell
+- Books are NOT consumed - anyone can learn from them
+- Learning is instant (time-based learning backlogged for later)
+
+**Proficiency through use**: Newly learned spells have failure chance
+
+- Starting failure: 25%
+- Decreases with successful casts
+- Formula: `failure% = max(0, 25 - (successful_casts / 2))`
+- Mastery at 50 successful casts (0% failure)
+- Failed cast costs half mana
+
+**Feature disambiguation**: When multiple features match the same command (e.g., "read book" in a room with multiple books), the system prompts "Read which one?" with a list of options.
+
+**Spell minimum INT requirements**:
+
+- Missile: 12
+- Mend: 13
+- Light (future): 12
+- Shield (future): 14
+- Fireball (future): 18
+- Teleport (future): 40
+
+### Database Schema (Proposed)
+
+```
+spells table:
+- id, name, description, manaCost, damage, healing, effect, scaling, minInt
+
+player_spells table:
+- playerId, spellId, successfulCasts, learnedAt
+
+players table additions:
+- mana (current), maxMana
+```
+
+### Implementation Order
+
+1. Add `mana` and `maxMana` to players schema ✅
+2. Add mana regen system (passive background timer or on-action check) ✅
+3. Add HP regen out of combat ✅
+4. Implement natural 20/1 always hit/miss rule ✅
+5. Create spells table and seed initial spells ✅
+6. Create player_spells junction table ✅
+7. Implement `cast <spell> [target]` command ✅
+8. Implement arcane bolt spell ✅
+9. Implement mend spell ✅
+10. Add spell books as features in library, implement `study` command ✅
+11. Add spell failure chance based on proficiency ✅
+12. Add trigger aliases to spell books for "read book" / "read spellbook" disambiguation ✅
+
+### Future Spell Ideas
+
+- **Fireball**: AoE damage, hits all enemies in room
+- **Invisibility**: Stealth bonus, breaks on attack
+- **Teleport**: Return to town square or marked location
+- **Detect Magic**: Reveal hidden magical items/features
+- **Sleep**: Crowd control, puts weak enemies to sleep
+- **Haste**: Temporary attack speed boost
+- **Slow**: Debuff enemy attack speed
+
+---
 
 - [ ] **WIS → Perception/Discovery**: WIS modifier affects chance to notice hidden features, traps, or secrets. Could also affect saving throws against illusions or mind effects.
 
@@ -116,6 +246,8 @@ Note: Don't use `examine`, `inspect`, or `look` as trigger verbs - these are han
 - [ ] **Day/night cycle**: Rooms can have alternate descriptions based on time of day. Example: The sparkling stream could sparkle in sunlight during day and moonlight at night. Would need `dayDescription` and `nightDescription` fields on rooms, plus a time-of-day system.
 
 - [ ] **Swimming skill**: Track swimming failures, every 20-30 failures grants a skill improvement that reduces swim DC or damage taken. Would need a skills system with `player_skills` table.
+
+- [ ] **Level-scaling regen duration**: At higher levels, the total time to regenerate from 0 to full HP/mana should take longer. Currently fixed at ~30 min mana, ~45 min HP out of combat. Could scale the interval based on level (e.g., +5% per level beyond 5) so high-level characters with larger pools don't regen disproportionately fast.
 
 - [ ] **Underground region content**: Populate the cave system with new rooms, monsters (cave creatures like bats, cave spiders, blind fish), and features. The Cave Passage currently has blocked rubble that could be cleared to reveal deeper caves.
 

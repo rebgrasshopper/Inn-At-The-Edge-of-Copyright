@@ -86,6 +86,8 @@ export const COMMAND_ALIASES: Record<string, Command> = {
   flee: Command.Flee,
   run: Command.Flee,
   escape: Command.Flee,
+  cast: Command.Cast,
+  spell: Command.Cast,
 
   // Character
   train: Command.Train,

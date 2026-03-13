@@ -2,9 +2,14 @@
  * Combat command handlers for attack and flee.
  */
 
+import { eq } from "drizzle-orm";
+import { db } from "../../../db/index.js";
+import { users } from "../../../db/schema.js";
 import type { CommandContext, CommandResult } from "../../../types/command.js";
 import * as CombatService from "../../CombatService.js";
 import { resolveEntity } from "../../EntityResolver.js";
+import * as SpellService from "../../SpellService.js";
+import { handleCast } from "./magic.js";
 
 /**
  * Handle attack command
@@ -32,6 +37,31 @@ export async function handleAttack(
       success: false,
       message: "You're already in combat!",
     };
+  }
+
+  // Check if player prefers magic attacks
+  const user = await db
+    .select({ preferences: users.preferences })
+    .from(users)
+    .where(eq(users.id, player.userId))
+    .get();
+
+  if (user?.preferences?.preferMagicAttack) {
+    // Try to find a usable damage spell
+    const preferredSpell = await SpellService.getPreferredDamageSpell(
+      player.id,
+    );
+
+    if (preferredSpell) {
+      // Cast the spell instead of physical attack
+      // Pass spell name and target as args to handleCast
+      return handleCast(
+        [preferredSpell.spell.name, targetName],
+        context,
+        _rawInput,
+      );
+    }
+    // No spell available - fall through to physical attack
   }
 
   // Use EntityResolver to find the target

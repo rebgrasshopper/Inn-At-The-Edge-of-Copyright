@@ -41,6 +41,7 @@ export enum Command {
   // Combat (deferred but needed for parsing)
   Attack = "attack",
   Flee = "flee",
+  Cast = "cast",
 
   // Character
   Train = "train",
@@ -85,6 +86,7 @@ export const COMMAND_CATEGORIES: Record<Command, CommandCategory> = {
   [Command.Help]: "info",
   [Command.Attack]: "combat",
   [Command.Flee]: "combat",
+  [Command.Cast]: "combat",
   [Command.Train]: "info",
   [Command.Feats]: "info",
   [Command.Stance]: "info",
