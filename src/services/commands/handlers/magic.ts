@@ -7,9 +7,14 @@ import { db } from "../../../db/index.js";
 import { monsterInstances, players } from "../../../db/schema.js";
 import type { CommandContext, CommandResult } from "../../../types/command.js";
 import * as CombatService from "../../CombatService.js";
+import { rollD20WithDetails } from "../../DiceService.js";
 import { resolveEntity } from "../../EntityResolver.js";
+import { calculateBAB } from "../../FeatService.js";
 import * as SpellService from "../../SpellService.js";
-import { getStatModifier } from "../../StatService.js";
+import { calculateAC, getStatModifier } from "../../StatService.js";
+
+/** Spell attack accuracy bonus (makes spells more likely to hit than physical attacks) */
+const SPELL_ATTACK_BONUS = 5;
 
 /**
  * Handle cast command - cast a spell on a target
@@ -173,20 +178,66 @@ async function handleDamageSpell(
 
   const monsterRecord = result.entity as {
     monster_instances: { id: string; currentHp: number };
-    monsters: { name: string; maxHp: number };
+    monsters: { id: string; name: string; maxHp: number; dex: number };
   };
 
   const monsterInstanceId = monsterRecord.monster_instances.id;
+  const monsterName = monsterRecord.monsters.name;
 
+  // Get monster's AC (10 + DEX mod, no equipment)
+  const monsterAC = await calculateAC(monsterRecord.monsters.dex, 0);
+
+  // Spell attack roll: d20 + BAB + INT mod + 5 (spell accuracy bonus)
+  const bab = calculateBAB(casterLevel);
+  const totalAttackMod = bab + intMod + SPELL_ATTACK_BONUS;
+  const attackResult = rollD20WithDetails(totalAttackMod);
+
+  // Natural 20 always hits, natural 1 always misses
+  const isNatural20 = attackResult.roll === 20;
+  const isNatural1 = attackResult.roll === 1;
+  const hit = isNatural1
+    ? false
+    : isNatural20
+      ? true
+      : attackResult.total >= monsterAC;
+
+  if (!hit) {
+    // Miss - still initiate combat (monster retaliates)
+    const combatResult = await CombatService.initiateCombat(
+      player.id,
+      monsterInstanceId,
+      room.id,
+    );
+
+    return {
+      success: true,
+      message: `Your ${spell.name} misses the ${monsterName}! ${combatResult.message}`,
+      rollInfo: `Attack: ${attackResult.formula}`,
+      broadcast: [
+        {
+          event: "spell:cast",
+          room: room.id,
+          data: {
+            casterName: player.name,
+            spellName: spell.name,
+            targetName: monsterName,
+            damage: 0,
+            targetDead: false,
+            missed: true,
+          },
+          excludeSender: true,
+        },
+      ],
+    };
+  }
+
+  // Hit - calculate damage
   const missileCount = SpellService.calculateMissileCount(
     casterLevel,
     spell.scalingLevel,
   );
-  const { total: damage, rollInfo } = SpellService.calculateSpellDamage(
-    effect,
-    intMod,
-    missileCount,
-  );
+  const { total: damage, rollInfo: damageRollInfo } =
+    SpellService.calculateSpellDamage(effect, intMod, missileCount);
 
   // Apply damage to monster
   const newHp = Math.max(0, monsterRecord.monster_instances.currentHp - damage);
@@ -197,7 +248,8 @@ async function handleDamageSpell(
     .set({ currentHp: newHp })
     .where(eq(monsterInstances.id, monsterInstanceId));
 
-  const monsterName = monsterRecord.monsters.name;
+  // Build roll info string
+  const rollInfo = `Attack: ${attackResult.formula}  |  ${damageRollInfo}`;
 
   // Build broadcasts
   const broadcasts = [

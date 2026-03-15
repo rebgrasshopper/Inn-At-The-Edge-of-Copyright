@@ -532,8 +532,9 @@ function processMagicAttack(
   // Calculate BAB from level (used for spell attack)
   const bab = calculateBAB(attacker.level);
 
-  // Spell attack: d20 + BAB + INT modifier
-  const totalAttackMod = bab + intMod;
+  // Spell attack: d20 + BAB + INT modifier + 5 (spell accuracy bonus)
+  const SPELL_ATTACK_BONUS = 5;
+  const totalAttackMod = bab + intMod + SPELL_ATTACK_BONUS;
   const attackResult = rollD20WithDetails(totalAttackMod);
 
   // Natural 20 always hits, natural 1 always misses
@@ -1515,6 +1516,7 @@ export async function handleMonsterDeath(
 
   // Handle monster death based on permanent flag
   const isPermanent = record.monster_instances.permanent;
+
   if (isPermanent) {
     // Mark monster as dead (soft-delete) for respawn system
     await db

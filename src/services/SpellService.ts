@@ -298,6 +298,27 @@ export async function learnSpell(
     learnedAt: new Date(),
   });
 
+  // Get player data to check if this is their first spell
+  const player = await db
+    .select({
+      level: players.level,
+      int: players.int,
+      maxMana: players.maxMana,
+    })
+    .from(players)
+    .where(eq(players.id, playerId))
+    .get();
+
+  // If player has no mana pool yet, initialize it
+  if (player && player.maxMana === 0) {
+    const { calculateMaxMana } = await import("./StatService.js");
+    const newMaxMana = calculateMaxMana(player.level, player.int);
+    await db
+      .update(players)
+      .set({ maxMana: newMaxMana, mana: newMaxMana })
+      .where(eq(players.id, playerId));
+  }
+
   return true;
 }
 

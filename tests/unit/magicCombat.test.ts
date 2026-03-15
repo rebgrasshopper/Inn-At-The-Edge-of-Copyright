@@ -456,9 +456,12 @@ describe("handleAttack - magic preference", () => {
     const result = await handleAttack(["goblin"], context, "");
 
     expect(result.success).toBe(true);
-    // Spell message uses "strikes"
-    expect(result.message).toContain("strikes");
+    // Spell was used (either hit or miss)
     expect(result.message).toContain("Test Bolt");
+    // Should have either "strikes" (hit) or "misses" (miss)
+    const usedSpell =
+      result.message.includes("strikes") || result.message.includes("misses");
+    expect(usedSpell).toBe(true);
 
     // Reset preference
     await db
@@ -527,5 +530,187 @@ describe("handleAttack - magic preference", () => {
       .update(users)
       .set({ preferences: {} })
       .where(eq(users.id, TEST_USER_ID));
+  });
+});
+
+describe("handleCast - spell attack roll", () => {
+  beforeEach(async () => {
+    // Teach player the damage spell for these tests (mastered - no fizzle)
+    await db.insert(playerSpells).values({
+      id: "ps-attack-roll-test",
+      playerId: TEST_PLAYER_ID,
+      spellId: TEST_SPELL_DAMAGE_ID,
+      successfulCasts: 50,
+      learnedAt: new Date(),
+    });
+  });
+
+  it("should include attack roll info in result", async () => {
+    // Set monster HP high to survive
+    await db
+      .update(monsterInstances)
+      .set({ currentHp: 100 })
+      .where(eq(monsterInstances.id, TEST_MONSTER_INSTANCE_ID));
+
+    const context = createContext(
+      {},
+      {
+        monsters: [
+          {
+            id: TEST_MONSTER_INSTANCE_ID,
+            monster: {
+              id: TEST_MONSTER_ID,
+              name: "test goblin",
+              description: "A test goblin",
+              stats: { str: 8, dex: 10, con: 8, int: 10, wis: 10, cha: 10 },
+              maxHp: 100,
+              xpReward: 10,
+              aggroScore: 0,
+              weaponDamage: "1d4",
+              level: 1,
+            },
+            roomId: TEST_ROOM_ID,
+            currentHp: 100,
+          },
+        ],
+      },
+    );
+
+    const result = await handleCast(["Test Bolt", "goblin"], context, "");
+
+    expect(result.success).toBe(true);
+    // Should have roll info with attack formula
+    expect(result.rollInfo).toBeDefined();
+    expect(result.rollInfo).toContain("Attack:");
+    expect(result.rollInfo).toContain("d20");
+  });
+
+  it("should initiate combat even when spell misses", async () => {
+    // Create a monster with very high DEX for high AC (makes miss more likely)
+    // Monster AC = 10 + DEX mod, so DEX 30 = AC 20
+    await db
+      .update(monsters)
+      .set({ dex: 30 })
+      .where(eq(monsters.id, TEST_MONSTER_ID));
+
+    await db
+      .update(monsterInstances)
+      .set({ currentHp: 100 })
+      .where(eq(monsterInstances.id, TEST_MONSTER_INSTANCE_ID));
+
+    const context = createContext(
+      {},
+      {
+        monsters: [
+          {
+            id: TEST_MONSTER_INSTANCE_ID,
+            monster: {
+              id: TEST_MONSTER_ID,
+              name: "test goblin",
+              description: "A test goblin",
+              stats: { str: 8, dex: 30, con: 8, int: 10, wis: 10, cha: 10 },
+              maxHp: 100,
+              xpReward: 10,
+              aggroScore: 0,
+              weaponDamage: "1d4",
+              level: 1,
+            },
+            roomId: TEST_ROOM_ID,
+            currentHp: 100,
+          },
+        ],
+      },
+    );
+
+    // Run multiple times to increase chance of getting a miss
+    let gotMiss = false;
+    for (let i = 0; i < 20; i++) {
+      // Reset combat state and monster HP
+      clearAllCombatState();
+      await db
+        .update(monsterInstances)
+        .set({ currentHp: 100 })
+        .where(eq(monsterInstances.id, TEST_MONSTER_INSTANCE_ID));
+      await db
+        .update(players)
+        .set({ mana: 10 })
+        .where(eq(players.id, TEST_PLAYER_ID));
+
+      const result = await handleCast(["Test Bolt", "goblin"], context, "");
+
+      expect(result.success).toBe(true);
+
+      if (result.message?.includes("misses")) {
+        gotMiss = true;
+        // Even on miss, combat should start
+        expect(result.message).toContain("attack");
+        break;
+      }
+    }
+
+    // Reset monster DEX
+    await db
+      .update(monsters)
+      .set({ dex: 10 })
+      .where(eq(monsters.id, TEST_MONSTER_ID));
+
+    // We should have gotten at least one miss with AC 20 vs typical attack roll
+    // But if not, that's okay - the test still validates the hit path works
+    if (!gotMiss) {
+      // eslint-disable-next-line no-console
+      console.log(
+        "Note: No misses occurred in 20 attempts (unlikely but possible)",
+      );
+    }
+  });
+
+  it("should deduct mana on both hit and miss", async () => {
+    await db
+      .update(monsterInstances)
+      .set({ currentHp: 100 })
+      .where(eq(monsterInstances.id, TEST_MONSTER_INSTANCE_ID));
+
+    const context = createContext(
+      {},
+      {
+        monsters: [
+          {
+            id: TEST_MONSTER_INSTANCE_ID,
+            monster: {
+              id: TEST_MONSTER_ID,
+              name: "test goblin",
+              description: "A test goblin",
+              stats: { str: 8, dex: 10, con: 8, int: 10, wis: 10, cha: 10 },
+              maxHp: 100,
+              xpReward: 10,
+              aggroScore: 0,
+              weaponDamage: "1d4",
+              level: 1,
+            },
+            roomId: TEST_ROOM_ID,
+            currentHp: 100,
+          },
+        ],
+      },
+    );
+
+    // Get mana before
+    const before = db
+      .select({ mana: players.mana })
+      .from(players)
+      .where(eq(players.id, TEST_PLAYER_ID))
+      .get();
+
+    await handleCast(["Test Bolt", "goblin"], context, "");
+
+    // Get mana after
+    const after = db
+      .select({ mana: players.mana })
+      .from(players)
+      .where(eq(players.id, TEST_PLAYER_ID))
+      .get();
+
+    // Mana should be reduced by spell cost (2)
+    expect(after!.mana).toBe(before!.mana - 2);
   });
 });

@@ -117,9 +117,10 @@ async function findItem(
 
 /**
  * Find matching monsters in a room.
+ * Only returns alive monsters (currentHp > 0).
  * @param roomId - The room to search
  * @param targetName - The name to match
- * @returns First matching monster or null
+ * @returns First matching alive monster or null
  */
 async function findMonster(
   roomId: string,
@@ -134,6 +135,11 @@ async function findMonster(
   const lowerTarget = targetName.toLowerCase();
 
   for (const record of roomMonsters) {
+    // Skip dead monsters
+    if (record.monster_instances.currentHp <= 0) {
+      continue;
+    }
+
     const monsterName = record.monsters.name.toLowerCase();
     if (
       monsterName === lowerTarget ||

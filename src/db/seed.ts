@@ -365,7 +365,7 @@ async function seed() {
       id: "spawn-forestpath-goblin",
       monsterId: "monster-goblin",
       roomId: forestPathId,
-      maxCount: 2,
+      maxCount: 1,
     },
     {
       id: "spawn-forestclearing-wolf",
@@ -1191,13 +1191,12 @@ async function seed() {
       name: "Missile",
       description:
         "Launches a bolt of pure arcane energy at your target. Additional bolts manifest at higher levels.",
-      manaCost: 2,
+      manaCost: 1,
       minInt: 12,
-      scalingLevel: 4, // +1 bolt at levels 5, 9, 13...
+      scalingLevel: 5, // +1 bolt at levels 6, 11, 16...
       effect: {
         type: "damage" as const,
         dice: "1d4",
-        modifier: "int" as const,
       },
       targetType: "enemy",
     },

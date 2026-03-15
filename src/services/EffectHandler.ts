@@ -419,13 +419,14 @@ export async function spawnMonster(
     };
   }
 
-  // Create monster instance
+  // Create monster instance (non-permanent by default)
   await db.insert(monsterInstances).values({
     id: uuidv4(),
     monsterId,
     roomId: targetRoomId,
     currentHp: monster.maxHp,
     spawnedAt: new Date(),
+    permanent: false,
   });
 
   return {

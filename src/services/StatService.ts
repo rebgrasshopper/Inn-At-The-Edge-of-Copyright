@@ -191,17 +191,18 @@ export function calculateConHpBonus(level: number, con: number): number {
 
 /**
  * Calculate max mana based on level and INT.
- * Formula: (INT modifier + 2) × level, minimum 0
+ * Formula: (INT modifier × 8) + (level × 3) - 5, minimum 1
+ * INT is weighted heavily to reward investing in magic stats.
  * @param level - Player's level
  * @param int - Player's INT stat value
  * @returns Calculated max mana
- * @example calculateMaxMana(1, 10) // 2 ((0 + 2) × 1)
- * @example calculateMaxMana(5, 14) // 20 ((2 + 2) × 5)
- * @example calculateMaxMana(3, 8) // 3 ((-1 + 2) × 3)
+ * @example calculateMaxMana(1, 12) // 6 ((1×8) + (1×3) - 5)
+ * @example calculateMaxMana(3, 14) // 20 ((2×8) + (3×3) - 5)
+ * @example calculateMaxMana(5, 16) // 34 ((3×8) + (5×3) - 5)
  */
 export function calculateMaxMana(level: number, int: number): number {
   const intMod = getStatModifier(int);
-  return Math.max(0, (intMod + 2) * level);
+  return Math.max(1, intMod * 8 + level * 3 - 5);
 }
 
 /**
