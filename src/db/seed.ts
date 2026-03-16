@@ -571,11 +571,17 @@ async function seed() {
         "A perfect circle of red-capped mushrooms. They seem to glow faintly.",
       triggerVerbs: ["search"],
       triggerTarget: "mushrooms",
+      triggerAliases: ["mushroom ring", "ring", "ring of mushrooms"],
       successMessage:
         "You carefully search around the mushroom ring and discover a hidden cache beneath a nearby tree root!",
+      failureMessage:
+        "You look around the mushroom ring but don't notice anything unusual.",
       revealsContainerId: "container-hidden-cache",
       isHidden: false,
       isDiscovered: false,
+      perceptionDC: 10,
+      perceptionHint:
+        "Something about the mushroom ring catches your eye - the ground nearby looks disturbed.",
     },
     {
       id: "feature-fireplace",
@@ -641,9 +647,14 @@ async function seed() {
       triggerTarget: "stalls",
       successMessage:
         "You casually browse the unattended stall. Behind a stack of cloth, you notice a loose board...",
+      failureMessage:
+        "You browse the stalls but nothing catches your attention beyond the usual wares.",
       revealsFeatureId: "feature-loose-board",
       isHidden: false,
       isDiscovered: false,
+      perceptionDC: 12,
+      perceptionHint:
+        "One of the merchant stalls seems hastily arranged - something might be hidden behind the goods.",
     },
     {
       id: "feature-loose-board",
@@ -719,6 +730,8 @@ async function seed() {
       triggerTarget: "cobblestones",
       successMessage:
         "You crouch down and sift through the debris between the stones. Your fingers close around a tarnished copper coin that someone must have dropped long ago!",
+      failureMessage:
+        "You search between the cobblestones but find only dirt and pebbles.",
       successEffects: [
         {
           type: "give_item" as const,
@@ -728,6 +741,9 @@ async function seed() {
       ],
       isHidden: false,
       isDiscovered: false,
+      perceptionDC: 8,
+      perceptionHint:
+        "Something glints between the worn cobblestones - could be worth a closer look.",
     },
     // Forest Path features
     {
@@ -753,6 +769,8 @@ async function seed() {
       triggerTarget: "undergrowth",
       successMessage:
         "You carefully part the ferns and peer into the undergrowth. A startled bird bursts out, leaving behind a brilliant blue feather!",
+      failureMessage:
+        "You push through the undergrowth but find nothing of interest - just more ferns and brambles.",
       successEffects: [
         {
           type: "give_item" as const,
@@ -762,6 +780,9 @@ async function seed() {
       ],
       isHidden: false,
       isDiscovered: false,
+      perceptionDC: 12,
+      perceptionHint:
+        "You notice a small nest tucked among the ferns - something might be hidden there.",
     },
     {
       id: "feature-trail-markers",
@@ -912,9 +933,14 @@ async function seed() {
       triggerTarget: "water",
       successMessage:
         "You peer beneath the glittering surface, letting your eyes adjust to the depths. There - deep below, you spot a dark crevice in the streambed, barely visible in the shadows.",
+      failureMessage:
+        "You peer into the water but the glittering surface makes it hard to see anything below.",
       revealsFeatureId: "feature-dark-crevice",
       isHidden: false,
       isDiscovered: false,
+      perceptionDC: 14,
+      perceptionHint:
+        "The way the light bends in the water suggests there might be something hidden in the depths.",
     },
     // Alternative trigger: search/dive stream
     {
@@ -927,9 +953,12 @@ async function seed() {
       triggerTarget: "stream",
       successMessage:
         "You peer beneath the glittering surface, letting your eyes adjust to the depths. There - deep below, you spot a dark crevice in the streambed, barely visible in the shadows.",
+      failureMessage:
+        "You peer into the water but the glittering surface makes it hard to see anything below.",
       revealsFeatureId: "feature-dark-crevice",
       isHidden: false,
       isDiscovered: false,
+      perceptionDC: 14,
     },
     // Alternative trigger: search/dive depths
     {
@@ -942,9 +971,12 @@ async function seed() {
       triggerTarget: "depths",
       successMessage:
         "You peer beneath the glittering surface, letting your eyes adjust to the depths. There - deep below, you spot a dark crevice in the streambed, barely visible in the shadows.",
+      failureMessage:
+        "You peer into the water but the glittering surface makes it hard to see anything below.",
       revealsFeatureId: "feature-dark-crevice",
       isHidden: false,
       isDiscovered: false,
+      perceptionDC: 14,
     },
     // Standalone dive command (no target needed - matches "dive" alone)
     {
@@ -956,9 +988,12 @@ async function seed() {
       triggerTarget: "",
       successMessage:
         "You take a breath and dive beneath the sparkling surface. As your eyes adjust to the underwater world, you spot something - a dark crevice in the streambed, barely visible in the shadows.",
+      failureMessage:
+        "You dive beneath the surface but the glittering water makes it hard to see anything clearly.",
       revealsFeatureId: "feature-dark-crevice",
       isHidden: false,
       isDiscovered: false,
+      perceptionDC: 14,
     },
     {
       id: "feature-dark-crevice",

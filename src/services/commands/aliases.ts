@@ -103,6 +103,9 @@ export const COMMAND_ALIASES: Record<string, Command> = {
   swim: Command.Swim,
   stop: Command.Swim,
 
+  // Exploration
+  search: Command.Search,
+
   // Admin
   spawn: Command.Spawn,
   make: Command.Make,

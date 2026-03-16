@@ -54,6 +54,9 @@ export enum Command {
   // Activities
   Swim = "swim",
 
+  // Exploration
+  Search = "search",
+
   // Admin
   Spawn = "spawn",
   Make = "make",
@@ -92,6 +95,7 @@ export const COMMAND_CATEGORIES: Record<Command, CommandCategory> = {
   [Command.Stance]: "info",
   [Command.Toggle]: "info",
   [Command.Swim]: "movement",
+  [Command.Search]: "info",
   [Command.Spawn]: "info",
   [Command.Make]: "info",
   [Command.Announce]: "chat",

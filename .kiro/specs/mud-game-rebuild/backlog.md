@@ -184,7 +184,21 @@ players table additions:
 
 ---
 
-- [ ] **WIS → Perception/Discovery**: WIS modifier affects chance to notice hidden features, traps, or secrets. Could also affect saving throws against illusions or mind effects.
+- [x] **WIS → Perception/Discovery**: Implemented WIS-based perception system for discovering hidden features. Added `perceptionDC` and `perceptionHint` fields to features and containers tables. Created `search` command that rolls d20 + WIS modifier vs feature's perceptionDC - success triggers the feature interaction, failure shows failureMessage. Added passive perception on room entry: when entering a room, checks features with perceptionDC against passive perception (10 + WIS modifier) and shows perceptionHint for features the player notices but hasn't discovered yet. Updated seed data with perceptionDC values for mushroom ring (DC 10), merchant stalls (DC 12), cobblestones (DC 8), undergrowth (DC 12), and underwater search features (DC 14).
+
+## WIS/Perception Bugs & Improvements (March 2026)
+
+Found during testing of the WIS perception system:
+
+- [ ] **Show perception rolls in toggle rolls**: Search command and passive perception rolls don't appear when "toggle rolls" is enabled. Should show the d20 + WIS mod roll vs DC so players understand WIS is affecting outcomes.
+
+- [x] **Per-player feature discovery tracking**: Features with `perceptionDC` now use per-player discovery tracking instead of global. When a player successfully interacts with a perception-based feature, their ID is added to `discoveredFeatureIds` rather than setting the global `isDiscovered` flag. This means the cobblestones hint shows for each player until THEY find the coin, not disappearing for everyone once anyone finds it. Features without `perceptionDC` still use global tracking.
+
+- [ ] **Add "mushroom ring" as trigger alias**: The perception hint says "mushroom ring" but you have to search "mushrooms". Add "mushroom ring" to triggerAliases so both work.
+
+- [ ] **Prevent duplicate rewards from search**: Currently you can search cobblestones repeatedly and get a copper coin each time. Need to track per-player discovery and prevent getting the reward again. Options: (a) one-time only per player, (b) timed cooldown before feature resets, (c) feature-specific flag for repeatable vs one-time.
+
+---
 
 - [ ] **CHA → NPC interactions**: CHA modifier affects NPC disposition, shop prices, quest rewards, or persuasion checks. Could unlock special dialogue options.
 

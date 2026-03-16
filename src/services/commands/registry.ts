@@ -36,6 +36,7 @@ import {
 } from "./handlers/items.js";
 import { handleCast } from "./handlers/magic.js";
 import { handleMove } from "./handlers/movement.js";
+import { handleSearch } from "./handlers/search.js";
 import { handleToggle } from "./handlers/settings.js";
 import { handleSwim } from "./handlers/swimming.js";
 
@@ -323,6 +324,16 @@ export const COMMAND_REGISTRY: Record<Command, CommandDefinition> = {
       usage: ["swim", "stop swimming", "stop"],
       aliases: getAliasesForCommand(Command.Swim),
       examples: ["swim", "stop swimming", "stop"],
+    },
+  },
+
+  [Command.Search]: {
+    handler: handleSearch,
+    help: {
+      summary: "Search for hidden features using perception",
+      usage: ["search <target>"],
+      aliases: getAliasesForCommand(Command.Search),
+      examples: ["search mushrooms", "search stalls", "search cobblestones"],
     },
   },
 

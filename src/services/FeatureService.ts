@@ -61,6 +61,8 @@ function toFeature(row: typeof features.$inferSelect): Feature {
     refuseGetMessage: row.refuseGetMessage ?? undefined,
     refuseDropMessage: row.refuseDropMessage ?? undefined,
     teachesSpellId: row.teachesSpellId ?? undefined,
+    perceptionDC: row.perceptionDC ?? undefined,
+    perceptionHint: row.perceptionHint ?? undefined,
   };
 }
 
@@ -83,6 +85,8 @@ function toContainer(row: typeof containers.$inferSelect): Container {
     revealCommand: row.revealCommand ?? undefined,
     size: row.size,
     discoveryScope: row.discoveryScope ?? undefined,
+    perceptionDC: row.perceptionDC ?? undefined,
+    perceptionHint: row.perceptionHint ?? undefined,
   };
 }
 
@@ -749,10 +753,18 @@ export async function interactWithFeature(
   }
 
   // Mark feature as discovered
-  await db
-    .update(features)
-    .set({ isDiscovered: true })
-    .where(eq(features.id, feature.id));
+  // For features with perceptionDC, use per-player tracking so each player
+  // can discover it independently. For other features, use global tracking.
+  if (feature.perceptionDC) {
+    // Per-player discovery - add to player's discovered list
+    await addPersonalFeatureDiscovery(playerId, feature.id);
+  } else {
+    // Global discovery - mark feature as discovered for everyone
+    await db
+      .update(features)
+      .set({ isDiscovered: true })
+      .where(eq(features.id, feature.id));
+  }
 
   // Check if learn_spell effect failed - if so, return failure with just the effect message
   const learnSpellEffect = effectsApplied.find((e) => e.type === "learn_spell");
@@ -890,4 +902,125 @@ export async function getContainersInRoom(
   }
 
   return result;
+}
+
+/** Passive perception constant (10 + WIS modifier) */
+const PASSIVE_PERCEPTION_BASE = 10;
+
+/**
+ * Get passive perception hints for features in a room.
+ * Uses passive perception (10 + WIS modifier) vs feature's perceptionDC.
+ * Only returns hints for features the player hasn't already discovered.
+ * @param roomId - The room to check
+ * @param playerId - The player entering the room
+ * @param wisModifier - The player's WIS modifier
+ * @returns Array of perception hint strings
+ */
+export async function getPassivePerceptionHints(
+  roomId: string,
+  playerId: string,
+  wisModifier: number,
+): Promise<string[]> {
+  const hints: string[] = [];
+  const passivePerception = PASSIVE_PERCEPTION_BASE + wisModifier;
+
+  // Get player's discovered features to exclude already-found ones
+  const player = await db
+    .select({ discoveredFeatureIds: players.discoveredFeatureIds })
+    .from(players)
+    .where(eq(players.id, playerId))
+    .get();
+  const discoveredIds = player?.discoveredFeatureIds || [];
+
+  // Get all features in the room
+  const roomFeatures = await db
+    .select()
+    .from(features)
+    .where(eq(features.roomId, roomId));
+
+  for (const row of roomFeatures) {
+    const feature = toFeature(row);
+
+    // Skip if no perceptionDC or no hint
+    if (!feature.perceptionDC || !feature.perceptionHint) continue;
+
+    // Skip if already discovered by this player
+    if (feature.isDiscovered || discoveredIds.includes(feature.id)) continue;
+
+    // Skip if feature is hidden (player can't see it at all)
+    if (feature.isHidden === true) continue;
+
+    // Check passive perception vs DC
+    if (passivePerception >= feature.perceptionDC) {
+      hints.push(feature.perceptionHint);
+    }
+  }
+
+  // Also check containers with perceptionDC
+  const roomContainers = await db
+    .select()
+    .from(containers)
+    .where(eq(containers.roomId, roomId));
+
+  const discoveredContainerIds =
+    (
+      await db
+        .select({ discoveredContainerIds: players.discoveredContainerIds })
+        .from(players)
+        .where(eq(players.id, playerId))
+        .get()
+    )?.discoveredContainerIds || [];
+
+  for (const row of roomContainers) {
+    const container = toContainer(row);
+
+    // Skip if no perceptionDC or no hint
+    if (!container.perceptionDC || !container.perceptionHint) continue;
+
+    // Skip if already discovered
+    if (discoveredContainerIds.includes(container.id)) continue;
+
+    // Skip if hidden
+    if (container.isHidden === true) continue;
+
+    // Check passive perception vs DC
+    if (passivePerception >= container.perceptionDC) {
+      hints.push(container.perceptionHint);
+    }
+  }
+
+  return hints;
+}
+
+/**
+ * Check if a player has already discovered a feature.
+ * Checks both global isDiscovered flag and player's personal discoveredFeatureIds.
+ * @param playerId - The player to check
+ * @param featureId - The feature to check
+ * @returns True if the player has discovered this feature
+ */
+export async function hasPlayerDiscoveredFeature(
+  playerId: string,
+  featureId: string,
+): Promise<boolean> {
+  // Check global discovery first
+  const feature = await db
+    .select({ isDiscovered: features.isDiscovered })
+    .from(features)
+    .where(eq(features.id, featureId))
+    .get();
+
+  if (feature?.isDiscovered) {
+    return true;
+  }
+
+  // Check player's personal discoveries
+  const player = await db
+    .select({ discoveredFeatureIds: players.discoveredFeatureIds })
+    .from(players)
+    .where(eq(players.id, playerId))
+    .get();
+
+  const discoveredIds = player?.discoveredFeatureIds || [];
+  return discoveredIds.includes(featureId);
 }

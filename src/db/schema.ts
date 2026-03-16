@@ -242,6 +242,14 @@ export const containers = sqliteTable("containers", {
   // Discovery scope: null or "global" = revealed for everyone (with time-based re-hiding)
   // "personal" = only visible to the player who discovered it (stored on player record)
   discoveryScope: text("discovery_scope"),
+
+  // Perception DC for finding this container via search command (WIS check)
+  // null = no perception check needed (auto-success or not searchable)
+  perceptionDC: integer("perception_dc"),
+
+  // Hint shown when passive perception notices this container (on room entry)
+  // If null, generates from name: "You notice something unusual about the {name}."
+  perceptionHint: text("perception_hint"),
 });
 
 // Container inventory
@@ -378,6 +386,14 @@ export const features = sqliteTable("features", {
 
   // Spell book features: links to a spell that can be learned from this feature
   teachesSpellId: text("teaches_spell_id"),
+
+  // Perception DC for finding this feature via search command (WIS check)
+  // null = no perception check needed (auto-success or not searchable)
+  perceptionDC: integer("perception_dc"),
+
+  // Hint shown when passive perception notices this feature (on room entry)
+  // If null, generates from name: "You notice something unusual about the {name}."
+  perceptionHint: text("perception_hint"),
 });
 
 // Corpses (player death drops with timed locking)

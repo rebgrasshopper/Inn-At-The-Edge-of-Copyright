@@ -19,4 +19,8 @@ export type Container = {
   size: ItemSize;
   // Discovery scope: null or "global" = revealed for everyone, "personal" = only for discoverer
   discoveryScope?: string | null;
+  // Perception DC for finding this container via search command (WIS check)
+  perceptionDC?: number | null;
+  // Hint shown when passive perception notices this container
+  perceptionHint?: string | null;
 };

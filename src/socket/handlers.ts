@@ -8,6 +8,7 @@ import * as FeatureService from "../services/FeatureService.js";
 import * as RegenService from "../services/RegenService.js";
 import * as RoomService from "../services/RoomService.js";
 import * as SpawnService from "../services/SpawnService.js";
+import { getStatModifier } from "../services/StatService.js";
 import * as SwimmingService from "../services/SwimmingService.js";
 import type { CombatEvent } from "../types/combat.js";
 import type { Player } from "../types/player.js";
@@ -15,6 +16,9 @@ import type { SwimmingEvent } from "../types/swimming.js";
 
 /** Cache of user preferences by userId */
 const userPrefsCache = new Map<string, UserPreferences>();
+
+// Re-export getStatModifier to prevent auto-removal
+const _getStatModifier = getStatModifier;
 
 /**
  * Get user preferences, using cache when available
@@ -590,6 +594,22 @@ export async function handleConnection(
   };
   socket.emit("room:enter", enterData);
 
+  // Check for passive perception hints on login
+  const wisModifier = _getStatModifier(player.stats.wis);
+  const hints = await FeatureService.getPassivePerceptionHints(
+    player.currentRoomId,
+    player.id,
+    wisModifier,
+  );
+  for (const hint of hints) {
+    socket.emit("chat:message", {
+      id: crypto.randomUUID(),
+      type: "system",
+      content: hint,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   // Broadcast to others in the room that this player entered
   socket.to(socketRoomName).emit("system:message", {
     content: `${player.name} has entered.`,
@@ -834,6 +854,22 @@ async function handleRoomChange(
       player: socket.player,
     };
     socket.emit("room:enter", enterData);
+
+    // Check for passive perception hints
+    const wisModifier = _getStatModifier(updatedPlayer.wis);
+    const hints = await FeatureService.getPassivePerceptionHints(
+      newRoomId,
+      player.id,
+      wisModifier,
+    );
+    for (const hint of hints) {
+      socket.emit("chat:message", {
+        id: crypto.randomUUID(),
+        type: "system",
+        content: hint,
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     // Notify others in new room
     socket.to(getSocketRoomName(newRoomId)).emit("system:message", {

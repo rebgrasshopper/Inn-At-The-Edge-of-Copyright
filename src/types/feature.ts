@@ -55,6 +55,10 @@ export type Feature = {
   refuseDropMessage?: string;
   // Spell book features: links to a spell that can be learned
   teachesSpellId?: string | null;
+  // Perception DC for finding this feature via search command (WIS check)
+  perceptionDC?: number | null;
+  // Hint shown when passive perception notices this feature
+  perceptionHint?: string | null;
 };
 
 export type EffectResult = {
